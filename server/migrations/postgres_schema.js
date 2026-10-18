@@ -294,7 +294,7 @@ export async function initPostgresSchema(pool) {
       { id: 'usr-talal-amir', name: 'Talal Amir', userId: 'talal.amir', role: 'Storekeeper', token: 'db48c26bb45b7ee2e742e47c1b52fbf3e0a0a5528a47ba9f', pass: 'Nsb#f6c58908!604', project: 'prj-majestic-palms' },
       { id: 'usr-mohamed-ainen', name: 'Mohamed Ainen', userId: 'mohamed.ainen', role: 'Storekeeper', token: '202c4620f4ae8b5fec2bb7bb2a00c7fb6e987c95e1eb24ca', pass: 'Nsb#8667a421!481', project: 'prj-majestic-palms' },
       { id: 'usr-brian-koome', name: 'Brian Koome', userId: 'brian.koome', role: 'Storekeeper', token: '646545b73ba93108cbafefc695b1e604ec28205f45815cf1', pass: 'Nsb#b7b8098c!742', project: 'prj-majestic-palms' },
-      { id: 'usr-abdulfatah-sabir', name: 'Abdulfatah Sabir', userId: 'abdulfatah.sabir', role: 'Partner', token: '38a6ec040909c00b0d3e5513aafe01824a66a74bbfffa3ee', pass: 'Nsb#beea1ea0!322', project: 'prj-mma' },
+      { id: 'usr-abdulfatah-sabir', name: 'Abdulfatah Sabir', userId: 'abdulfatah.sabir', role: 'Partner', token: '38a6ec040909c00b0d3e5513aafe01824a66a74bbfffa3ee', pass: 'Nsb#beea1ea0!322', projects: ['prj-mma', 'prj-majestic-palms'] },
       { id: 'usr-abdikadir-osman', name: 'Abdikadir Osman', userId: 'abdikadir.osman', role: 'Storekeeper', token: '499971bc3f28d8442fae3839255a5fbc08cb1744ef87e74d', pass: 'Nsb#38030fc8!718', project: 'prj-mma' },
       { id: 'usr-mohammad-hassan', name: 'Mohammad Hassan', userId: 'mohammad.hassan', role: 'Foreman', token: '492b45e751d3b019183d21b7987b7a14e941164931a26d7f', pass: 'Nsb#e62846fa!168', project: 'prj-mma' },
       { id: 'usr-mohamed-hussein', name: 'Mohamed Hussein', userId: 'mohamed.hussein', role: 'Partner', token: '7b545f44da235775c742353a29082ebc22d1df7b663b6a98', pass: 'Nsb#9d67bc88!315', project: 'prj-seacrest' },
@@ -311,12 +311,16 @@ export async function initPostgresSchema(pool) {
         ON CONFLICT (id) DO NOTHING
       `, [u.id, u.userId, u.name, hash, u.role, u.token]);
 
-      if (u.project) {
-        await pool.query(`
-          INSERT INTO project_user_assignments (id, project_id, user_id, role)
-          VALUES (?, ?, ?, ?)
-          ON CONFLICT (project_id, user_id) DO NOTHING
-        `, [`pua-${u.id}`, u.project, u.id, u.role]);
+      const userProjects = u.projects || (u.project ? [u.project] : null);
+
+      if (userProjects) {
+        for (const projId of userProjects) {
+          await pool.query(`
+            INSERT INTO project_user_assignments (id, project_id, user_id, role)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT (project_id, user_id) DO NOTHING
+          `, [`pua-${u.id}-${projId}`, projId, u.id, u.role]);
+        }
       } else {
         // Global roles assigned to all projects
         for (const p of initialProjects) {
