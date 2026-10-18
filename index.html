@@ -11,8 +11,22 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
   </head>
-  <body class="bg-slate-50 text-slate-900 font-sans antialiased">
     <div id="root"></div>
+    <script>
+      window.addEventListener('error', function(event) {
+        console.error('Captured client startup error:', event);
+        var r = document.getElementById('root');
+        if (r && (!r.innerHTML || r.innerHTML.trim() === '')) {
+          r.innerHTML = '<div style="padding:28px;font-family:system-ui,sans-serif;background:#0f172a;color:#f8fafc;min-height:100vh;">' +
+            '<div style="max-width:560px;margin:40px auto;background:#1e293b;padding:24px;border-radius:16px;border:1px solid #334155;">' +
+            '<h2 style="color:#f59e0b;font-size:18px;margin-top:0;">NASAAB Construction — Startup Diagnostics</h2>' +
+            '<p style="color:#fca5a5;font-size:13px;font-family:monospace;background:#450a0a;padding:12px;border-radius:8px;word-break:break-word;">' + (event.message || 'Script execution error') + '</p>' +
+            '<p style="color:#94a3b8;font-size:12px;margin-top:12px;">Source: ' + (event.filename || 'bundle') + ' (Line ' + (event.lineno || 0) + ')</p>' +
+            '<button onclick="location.reload()" style="margin-top:16px;padding:8px 16px;background:#f59e0b;border:none;border-radius:8px;font-weight:bold;cursor:pointer;color:#0f172a;">Reload</button>' +
+            '</div></div>';
+        }
+      });
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

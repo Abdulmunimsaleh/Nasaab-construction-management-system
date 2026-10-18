@@ -110,8 +110,30 @@ app.all('/api/*', (_req, res) => {
 
 if (fs.existsSync(distPath)) {
   app.use(express.static(distPath));
+
+  // Guard against sending index.html for non-existent static assets
+  app.all('/assets/*', (_req, res) => {
+    res.status(404).json({ error: 'Static asset not found' });
+  });
+
+  // Client-side SPA routing fallback
   app.get('*', (_req, res) => {
     res.sendFile(path.join(distPath, 'index.html'));
+  });
+} else {
+  console.warn(`⚠️ Warning: Frontend dist directory not found at: ${distPath}`);
+  app.get('*', (_req, res) => {
+    res.status(503).send(`
+      <!DOCTYPE html>
+      <html>
+        <head><title>Build Required — NASAAB Construction</title></head>
+        <body style="font-family:system-ui,sans-serif;padding:40px;background:#0f172a;color:#f8fafc;text-align:center;">
+          <h1 style="color:#f59e0b;">Frontend Build Not Found</h1>
+          <p style="color:#94a3b8;">The compiled frontend bundle was not found in <code>dist/</code>.</p>
+          <p style="color:#e2e8f0;margin-top:20px;">Please trigger a manual deploy in Render with <strong>Clear build cache</strong> to compile the frontend assets.</p>
+        </body>
+      </html>
+    `);
   });
 }
 
@@ -129,8 +151,9 @@ app.use((err, _req, res, _next) => {
 
 app.listen(PORT, async () => {
   console.log(`\n🏗️  NASAAB Construction API Server`);
-  console.log(`   Server  : http://localhost:${PORT}`);
-  console.log(`   Health  : http://localhost:${PORT}/api/health`);
+  console.log(`   Server   : http://localhost:${PORT}`);
+  console.log(`   Health   : http://localhost:${PORT}/api/health`);
+  console.log(`   Frontend : ${distPath} (${fs.existsSync(distPath) ? '✅ Ready' : '❌ Missing dist/'})`);
 
   // Verify database on startup
   const db = await testConnection();
