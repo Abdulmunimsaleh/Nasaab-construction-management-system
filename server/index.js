@@ -6,12 +6,19 @@
  * rate limiting, and project-based tenant authorization.
  */
 import './env.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import fs from 'fs';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import session from 'express-session';
 import { testConnection } from './db.js';
 import { runMigrations } from './migrations/migrate.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const distPath = path.resolve(__dirname, '../dist');
 
 // Route Handlers
 import authRoutes from './routes/auth.routes.js';
@@ -27,10 +34,28 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const isProd = process.env.NODE_ENV === 'production';
 
+// Render & production reverse-proxy support (enables secure cookies over HTTPS)
+if (isProd) {
+  app.set('trust proxy', 1);
+}
+
 // --------------- Middleware ---------------
 
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  process.env.CLIENT_URL
+].filter(Boolean);
+
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+  origin: (origin, callback) => {
+    // In production same-origin requests or allowed local origins
+    if (!origin || allowedOrigins.includes(origin) || isProd) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
 }));
 
@@ -47,7 +72,7 @@ app.use(session({
   cookie: {
     httpOnly: true, // Prevents client-side script from accessing session cookie
     secure: isProd, // Set to true in production with HTTPS
-    sameSite: isProd ? 'strict' : 'lax',
+    sameSite: 'lax',
     maxAge: 8 * 60 * 60 * 1000 // 8 hours session duration
   }
 }));
@@ -75,11 +100,20 @@ app.use('/api/costs', costsRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/weekly-reports', weeklyReportsRoutes);
 
-// --------------- 404 Catch-all ---------------
+// --------------- 404 Catch-all for API ---------------
 
-app.use('/api/*', (_req, res) => {
+app.all('/api/*', (_req, res) => {
   res.status(404).json({ error: 'API endpoint not found' });
 });
+
+// --------------- Serve Frontend SPA in Production ---------------
+
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+}
 
 // --------------- Central Error Handler ---------------
 
