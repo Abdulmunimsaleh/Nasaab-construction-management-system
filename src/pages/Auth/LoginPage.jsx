@@ -293,9 +293,9 @@ export const LoginPage = () => {
             <div className="relative" ref={dropdownRef}>
               <label className="block font-bold uppercase tracking-wider text-slate-300 mb-1.5 flex items-center justify-between">
                 <span>1. Project Name</span>
-                <span className={`text-[10px] font-normal ${serverOffline ? 'text-amber-400' : 'text-emerald-400'}`}>
+                {/* <span className={`text-[10px] font-normal ${serverOffline ? 'text-amber-400' : 'text-emerald-400'}`}>
                   {serverOffline ? '● Offline Mode' : '● MySQL Connected'}
-                </span>
+                </span> */}
               </label>
 
               <button
@@ -307,11 +307,10 @@ export const LoginPage = () => {
                     setTimeout(() => searchInputRef.current?.focus(), 50);
                   }
                 }}
-                className={`w-full flex items-center justify-between rounded-xl border bg-slate-950/70 px-3.5 py-3 text-white text-left transition-colors cursor-pointer ${
-                  isDropdownOpen
+                className={`w-full flex items-center justify-between rounded-xl border bg-slate-950/70 px-3.5 py-3 text-white text-left transition-colors cursor-pointer ${isDropdownOpen
                     ? 'border-amber-400 ring-2 ring-amber-400/20'
                     : 'border-slate-700 hover:border-slate-600'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-2.5 truncate">
                   <Building2 className="h-4 w-4 text-amber-400 shrink-0" />
@@ -384,11 +383,10 @@ export const LoginPage = () => {
                           setProjectSearch('');
                           if (errorMessage) setErrorMessage('');
                         }}
-                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-md transition-colors shrink-0 cursor-pointer ${
-                          selectedProject?.id === p.id
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-md transition-colors shrink-0 cursor-pointer ${selectedProject?.id === p.id
                             ? 'bg-amber-400 text-slate-950 font-bold'
                             : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/60'
-                        }`}
+                          }`}
                       >
                         {p.name}
                       </button>
@@ -438,11 +436,10 @@ export const LoginPage = () => {
                               setProjectSearch('');
                               if (errorMessage) setErrorMessage('');
                             }}
-                            className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs text-left transition-colors cursor-pointer ${
-                              isSelected
+                            className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs text-left transition-colors cursor-pointer ${isSelected
                                 ? 'bg-amber-500/20 text-white font-semibold border border-amber-500/30'
                                 : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                            }`}
+                              }`}
                           >
                             <div className="truncate pr-2">
                               <div className="flex items-center gap-1.5">
