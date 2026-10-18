@@ -152,7 +152,7 @@ app.listen(PORT, async () => {
   // Verify database on startup
   const db = await testConnection();
   if (db.success) {
-    console.log(`   ✅ Database connected — ${process.env.DB_NAME}@${process.env.DB_HOST}:${process.env.DB_PORT}\n`);
+    console.log(`   ✅ ${db.message}\n`);
     // Run any pending migrations automatically on startup
     try {
       await runMigrations();
@@ -161,7 +161,7 @@ app.listen(PORT, async () => {
     }
   } else {
     console.error(`   ❌ Database connection failed — ${db.message}`);
-    console.error(`   Make sure XAMPP MySQL is running and credentials in server/.env are correct.\n`);
+    console.error(`   Check DATABASE_URL in Render or server/.env.\n`);
   }
 });
 

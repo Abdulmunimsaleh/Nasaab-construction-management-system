@@ -12,6 +12,7 @@ import * as migration002 from './002_restructure_schema.js';
 import * as migration003 from './003_materials_received_and_photos.js';
 import * as migration004 from './004_lae_labour_rates_and_equipment_expenses.js';
 import * as migration005 from './005_weekly_reports.js';
+import { initPostgresSchema } from './postgres_schema.js';
 
 const MIGRATIONS = [
   migration001,
@@ -22,6 +23,10 @@ const MIGRATIONS = [
 ];
 
 export async function runMigrations() {
+  if (pool.isPostgres) {
+    return initPostgresSchema(pool);
+  }
+
   console.log('\n🔄 Checking database migrations...');
   const connection = await pool.getConnection();
 
