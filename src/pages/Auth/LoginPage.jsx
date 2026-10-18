@@ -308,8 +308,8 @@ export const LoginPage = () => {
                   }
                 }}
                 className={`w-full flex items-center justify-between rounded-xl border bg-slate-950/70 px-3.5 py-3 text-white text-left transition-colors cursor-pointer ${isDropdownOpen
-                    ? 'border-amber-400 ring-2 ring-amber-400/20'
-                    : 'border-slate-700 hover:border-slate-600'
+                  ? 'border-amber-400 ring-2 ring-amber-400/20'
+                  : 'border-slate-700 hover:border-slate-600'
                   }`}
               >
                 <div className="flex items-center gap-2.5 truncate">
@@ -384,8 +384,8 @@ export const LoginPage = () => {
                           if (errorMessage) setErrorMessage('');
                         }}
                         className={`text-[10px] font-semibold px-2 py-0.5 rounded-md transition-colors shrink-0 cursor-pointer ${selectedProject?.id === p.id
-                            ? 'bg-amber-400 text-slate-950 font-bold'
-                            : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/60'
+                          ? 'bg-amber-400 text-slate-950 font-bold'
+                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/60'
                           }`}
                       >
                         {p.name}
@@ -437,8 +437,8 @@ export const LoginPage = () => {
                               if (errorMessage) setErrorMessage('');
                             }}
                             className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs text-left transition-colors cursor-pointer ${isSelected
-                                ? 'bg-amber-500/20 text-white font-semibold border border-amber-500/30'
-                                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                              ? 'bg-amber-500/20 text-white font-semibold border border-amber-500/30'
+                              : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                               }`}
                           >
                             <div className="truncate pr-2">
@@ -545,11 +545,11 @@ export const LoginPage = () => {
           </form>
 
           {/* Security Notice */}
-          <div className="mt-6 border-t border-slate-800/80 pt-4 text-center">
+          {/* <div className="mt-6 border-t border-slate-800/80 pt-4 text-center">
             <p className="text-[10px] text-slate-500 leading-relaxed">
               Strict role-based project isolation. Non-administrative users are verified against project membership in MySQL.
             </p>
-          </div>
+          </div> */}
         </div>
 
         {/* Public Landing Link */}
