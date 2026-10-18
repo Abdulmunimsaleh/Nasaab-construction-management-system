@@ -1,4 +1,4 @@
-// Currency & Date Formatting Utilities for Kenyan Construction Tech (BuildTrack)
+// Currency & Date Formatting Utilities for Kenyan Construction Tech (Nasaab Construction Limited)
 
 export const formatKES = (amount) => {
   if (amount === undefined || amount === null || isNaN(amount)) return 'KES 0';
@@ -16,6 +16,18 @@ export const formatNumber = (num) => {
 
 export const formatDate = (dateStr) => {
   if (!dateStr) return 'N/A';
+  // Handle direct YYYY-MM-DD string without timezone-shifting Date parsing
+  if (typeof dateStr === 'string') {
+    const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      const [, y, m, d] = match;
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const monthIdx = parseInt(m, 10) - 1;
+      if (monthIdx >= 0 && monthIdx < 12) {
+        return `${parseInt(d, 10)} ${months[monthIdx]} ${y}`;
+      }
+    }
+  }
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return dateStr;
   return new Intl.DateTimeFormat('en-GB', {
@@ -23,6 +35,30 @@ export const formatDate = (dateStr) => {
     month: 'short',
     year: 'numeric'
   }).format(d);
+};
+
+export const getDayOfWeek = (dateStr) => {
+  if (!dateStr) return '';
+  if (typeof dateStr === 'string') {
+    const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      const [, y, m, d] = match;
+      const date = new Date(parseInt(y, 10), parseInt(m, 10) - 1, parseInt(d, 10));
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      return days[date.getDay()];
+    }
+  }
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '';
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  return days[d.getDay()];
+};
+
+export const formatDateWithDay = (dateStr) => {
+  if (!dateStr) return 'N/A';
+  const day = getDayOfWeek(dateStr);
+  const formatted = formatDate(dateStr);
+  return day ? `${day}, ${formatted}` : formatted;
 };
 
 export const formatDateTime = (dateTimeStr) => {

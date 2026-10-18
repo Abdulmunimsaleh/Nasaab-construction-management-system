@@ -1,210 +1,389 @@
 import React from 'react';
-import { useNavigate, useOutletContext } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { StatCard } from '../components/common/StatCard';
 import { formatKES, formatRelativeTime } from '../utils/formatters';
 import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  Legend,
-  CartesianGrid
-} from 'recharts';
-import {
   FolderKanban,
-  FileSpreadsheet,
+  HardHat,
+  Boxes,
   Coins,
   TrendingUp,
   Plus,
   ArrowRight,
-  Clock
+  Clock,
+  Building2,
+  FileText,
+  MapPin,
+  ArrowRightLeft,
+  Check
 } from 'lucide-react';
 
 export const Dashboard = () => {
   const navigate = useNavigate();
-  const { onOpenDailyReport } = useOutletContext();
   const {
     selectedProjectId,
+    switchProject,
     currentProject,
-    filteredProjects,
-    filteredDailyReports,
-    filteredCosts,
-    activities
+    projects,
+    laeForms,
+    materialRequests,
+    costs,
+    activities,
+    canAccessCosts,
+    isForeman,
+    isStoreKeeper,
+    isAdmin,
+    isDirector,
+    isDataLoading
   } = useApp();
 
-  // 1. KPI Aggregations based on selected scope
-  const activeProjectsCount = filteredProjects.filter((p) => p.status === 'Active').length;
-  const todayStr = new Date().toISOString().split('T')[0];
-  const todayReportsCount = filteredDailyReports.filter((r) => r.date === todayStr || r.date === '2026-10-06').length;
-  const totalProjectCostSpent = filteredCosts.reduce((acc, c) => acc + c.amount, 0);
-
-  const avgProgress = filteredProjects.length > 0
-    ? Math.round(filteredProjects.reduce((acc, p) => acc + (p.progress || 0), 0) / filteredProjects.length)
-    : 0;
-
-  // 2. Chart Data: Project Progress
-  const progressChartData = filteredProjects.map((p) => ({
-    name: p.code || p.name.split(' ')[0],
-    fullName: p.name,
-    progress: p.progress,
-    budgetSpent: Math.round((p.spent / p.budget) * 100)
-  }));
+  const totalCostSpent = costs.reduce((acc, c) => acc + Number(c.amount || 0), 0);
+  const pendingRequestsCount = materialRequests.filter((r) => r.status === 'pending').length;
 
   return (
     <div className="space-y-6">
-      {/* Top Banner / Site Greeting */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-850 to-slate-900 p-6 text-white border border-slate-800 shadow-md">
+      {/* Top Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-3xl bg-gradient-to-r from-slate-900 via-slate-850 to-slate-900 p-6 text-white border border-slate-800 shadow-xl">
         <div>
           <div className="flex items-center gap-2">
             <span className="rounded-md bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-400 uppercase tracking-wider">
               {selectedProjectId === 'all' ? 'Enterprise Multi-Site Dashboard' : 'Dedicated Project Workspace'}
             </span>
-            <span className="text-xs text-slate-400">• Nairobi, Mombasa, Kisumu</span>
+            <span className="text-xs text-slate-400">• Mombasa, Kenya</span>
           </div>
           <h1 className="mt-1.5 text-xl sm:text-2xl font-extrabold text-white tracking-tight">
-            {currentProject ? currentProject.name : 'All Construction Projects Overview'}
+            {selectedProjectId === 'all'
+              ? 'NASAAB Construction — Sites Overview'
+              : (currentProject?.name || 'NASAAB Construction Workspace')}
           </h1>
           <p className="mt-1 text-xs text-slate-300 max-w-2xl">
-            {currentProject
-              ? `${currentProject.location} • Client: ${currentProject.client} • Budget: ${formatKES(currentProject.budget)}`
-              : 'Real-time aggregated site monitoring across all active Kenyan infrastructure and high-rise developments.'}
+            {selectedProjectId !== 'all' && currentProject
+              ? `${currentProject.location} • Code: ${currentProject.code}`
+              : 'Real-time database-backed site intelligence across Majestic Palms, MMA, and SeaCrest construction developments.'}
           </p>
         </div>
 
         {/* Action Shortcuts */}
-        <div className="flex items-center gap-2.5 shrink-0">
-          <button
-            onClick={onOpenDailyReport}
-            className="flex items-center gap-1.5 rounded-xl bg-amber-500 px-3.5 py-2 text-xs font-bold text-slate-950 shadow-md hover:bg-amber-400 transition-colors"
-          >
-            <Plus className="h-4 w-4" />
-            <span>+ Daily Report</span>
-          </button>
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          {!isStoreKeeper && (
+            <button
+              onClick={() => navigate('/labour')}
+              className="flex items-center gap-1.5 rounded-xl bg-amber-500 px-3.5 py-2 text-xs font-bold text-slate-950 shadow-md hover:bg-amber-400 transition-colors cursor-pointer"
+            >
+              <HardHat className="h-4 w-4 stroke-[2.5]" />
+              <span>Labour & Equipment</span>
+            </button>
+          )}
+
+          {!isForeman && (
+            <button
+              onClick={() => navigate('/materials')}
+              className="flex items-center gap-1.5 rounded-xl bg-slate-800 border border-slate-700 px-3.5 py-2 text-xs font-bold text-amber-400 shadow-md hover:bg-slate-700 transition-colors cursor-pointer"
+            >
+              <Boxes className="h-4 w-4" />
+              <span>Material Requests</span>
+            </button>
+          )}
+
           <button
             onClick={() => navigate('/reports')}
-            className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/80 px-3.5 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition-colors"
+            className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/80 px-3.5 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition-colors cursor-pointer"
           >
-            <span>Generate PDF</span>
+            <span>PDF Reports</span>
             <ArrowRight className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
 
+      {/* Swift Site Switcher (Admin & Director) */}
+      {(isAdmin || isDirector) && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3.5 pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 font-bold">
+                <ArrowRightLeft className="h-4 w-4" />
+              </div>
+              <div>
+                <h3 className="text-xs sm:text-sm font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                  <span>Swift Site Switcher</span>
+                  <span className="rounded-md bg-emerald-50 text-emerald-700 px-2 py-0.5 text-[10px] font-bold border border-emerald-200/60">
+                    Instant Switching
+                  </span>
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  Switch active site context instantly without signing out and logging back in
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-slate-400 font-medium text-[11px]">Current Workspace:</span>
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500/10 px-2.5 py-1 text-xs font-bold text-amber-800 border border-amber-500/20">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                {selectedProjectId === 'all' ? 'All Projects Combined' : (currentProject?.name || selectedProjectId)}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              onClick={() => switchProject('all')}
+              disabled={isDataLoading}
+              className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all cursor-pointer ${
+                selectedProjectId === 'all'
+                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 ring-2 ring-amber-400'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200/60'
+              }`}
+            >
+              <Building2 className="h-4 w-4" />
+              <span>All Sites Combined</span>
+              {selectedProjectId === 'all' && <Check className="h-3.5 w-3.5 stroke-[2.5]" />}
+            </button>
+
+            {projects.map((p) => {
+              const isSelected = selectedProjectId === p.id;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => switchProject(p.id)}
+                  disabled={isDataLoading}
+                  className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all cursor-pointer ${
+                    isSelected
+                      ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 ring-2 ring-amber-400'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200/60'
+                  }`}
+                >
+                  <MapPin className="h-4 w-4 text-slate-400" />
+                  <span>{p.name}</span>
+                  <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold ${
+                    isSelected ? 'bg-amber-600 text-slate-950' : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {p.code}
+                  </span>
+                  {isSelected && <Check className="h-3.5 w-3.5 stroke-[2.5]" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Primary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Active Projects"
-          value={activeProjectsCount}
-          subtitle={`Total ${filteredProjects.length} sites enrolled`}
+          value={projects.length}
+          subtitle="Enrolled construction sites"
           icon={FolderKanban}
           badge="Live"
           onClick={() => navigate('/projects')}
         />
 
-        <StatCard
-          title="Today's Site Reports"
-          value={todayReportsCount}
-          subtitle="Submitted site diaries today"
-          icon={FileSpreadsheet}
-          trend={{ value: '100% on schedule', isPositive: true }}
-          onClick={() => navigate('/daily-reports')}
-        />
+        {!isStoreKeeper ? (
+          <StatCard
+            title="Labour & Equipment Forms"
+            value={laeForms.length}
+            subtitle="Verified daily site forms"
+            icon={HardHat}
+            onClick={() => navigate('/labour')}
+          />
+        ) : (
+          <StatCard
+            title="Pending Requests"
+            value={pendingRequestsCount}
+            subtitle="Awaiting management clearance"
+            icon={Clock}
+            onClick={() => navigate('/materials')}
+          />
+        )}
 
-        <StatCard
-          title="Total Cost Spent"
-          value={formatKES(totalProjectCostSpent)}
-          subtitle={`${filteredCosts.length} approved expense vouchers`}
-          icon={Coins}
-          variant="brand"
-          onClick={() => navigate('/costs')}
-        />
+        {!isForeman ? (
+          <StatCard
+            title="Material Requisitions"
+            value={materialRequests.length}
+            subtitle={`${pendingRequestsCount} pending approval`}
+            icon={Boxes}
+            onClick={() => navigate('/materials')}
+          />
+        ) : (
+          <StatCard
+            title="Active Workforce Scope"
+            value={currentProject?.code || 'Assigned'}
+            subtitle={currentProject?.name || 'Assigned site'}
+            icon={Building2}
+            onClick={() => navigate('/labour')}
+          />
+        )}
 
-        <StatCard
-          title="Overall Progress"
-          value={`${avgProgress}%`}
-          subtitle="Across active project phases"
-          icon={TrendingUp}
-          onClick={() => navigate('/projects')}
-        />
+        {canAccessCosts ? (
+          <StatCard
+            title="Total Costs Recorded"
+            value={formatKES(totalCostSpent)}
+            subtitle={`${costs.length} recorded expense entries`}
+            icon={Coins}
+            variant="brand"
+          />
+        ) : (
+          <StatCard
+            title="Assigned Workspace"
+            value={currentProject?.code || 'Scoped'}
+            subtitle={currentProject?.name}
+            icon={TrendingUp}
+          />
+        )}
       </div>
 
-      {/* Project Progress Chart */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs space-y-4">
+      {/* Active Construction Sites Grid */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div>
             <h3 className="text-sm font-bold text-slate-900 font-sans">
-              Project Progress & Schedule Completion
+              Active Project Developments
             </h3>
             <p className="text-[11px] text-slate-500">
-              Milestone physical completion vs financial budget burn %
+              Real construction sites managed in MySQL — Click to switch site workspace swiftly
             </p>
           </div>
-          <button
-            onClick={() => navigate('/projects')}
-            className="text-xs font-semibold text-amber-600 hover:text-amber-700 flex items-center gap-1"
-          >
-            All Projects <ChevronRightIcon />
-          </button>
+          {(isAdmin || isDirector) && (
+            <div className="flex items-center gap-3">
+              {selectedProjectId !== 'all' && (
+                <button
+                  onClick={() => switchProject('all')}
+                  className="text-xs font-semibold text-slate-600 hover:text-amber-600 flex items-center gap-1 cursor-pointer bg-slate-100 px-2.5 py-1 rounded-lg transition-colors"
+                >
+                  <ArrowRightLeft className="h-3 w-3" />
+                  <span>Show All Sites</span>
+                </button>
+              )}
+              <button
+                onClick={() => navigate('/projects')}
+                className="text-xs font-semibold text-amber-600 hover:text-amber-700 flex items-center gap-1 cursor-pointer"
+              >
+                <span>Manage Projects</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
         </div>
 
-        <div className="h-72 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={progressChartData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} interval={0} />
-              <YAxis unit="%" tick={{ fontSize: 11, fill: '#64748b' }} domain={[0, 100]} />
-              <Tooltip
-                formatter={(val, name) => [`${val}%`, name === 'progress' ? 'Physical Progress' : 'Budget Spent']}
-                contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#fff', fontSize: '12px' }}
-              />
-              <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-              <Bar dataKey="progress" name="Physical Completion (%)" fill="#f59e0b" radius={[6, 6, 0, 0]} />
-              <Bar dataKey="budgetSpent" name="Budget Consumed (%)" fill="#3b82f6" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {projects.map((p) => {
+            const pLaeCount = laeForms.filter((f) => f.project_id === p.id).length;
+            const pMatCount = materialRequests.filter((r) => r.project_id === p.id).length;
+            const isSelected = selectedProjectId === p.id;
+
+            return (
+              <div
+                key={p.id}
+                className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
+                  isSelected
+                    ? 'border-amber-400 bg-amber-50/40 shadow-sm ring-2 ring-amber-400/40'
+                    : 'border-slate-200 bg-slate-50/50 hover:border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 font-bold text-xs">
+                        {p.code ? p.code.substring(0, 3) : 'PRJ'}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-slate-900 text-xs truncate">{p.name}</h4>
+                        <span className="text-[10px] font-mono text-slate-400">{p.code}</span>
+                      </div>
+                    </div>
+                    {isSelected ? (
+                      <span className="flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-[9px] font-bold border border-amber-300">
+                        <Check className="h-2.5 w-2.5 stroke-[2.5]" />
+                        ACTIVE SITE
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-bold text-emerald-800 uppercase">
+                        {p.status || 'Active'}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mt-3 flex items-start gap-1.5 text-[11px] text-slate-600">
+                    <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0 mt-0.5" />
+                    <span className="line-clamp-2 leading-relaxed">{p.location}</span>
+                  </div>
+
+                  <div className="mt-3 pt-3 border-t border-slate-200/80 flex items-center justify-between text-[11px] text-slate-500 font-mono">
+                    <span>{pLaeCount} LAE Forms</span>
+                    <span>{pMatCount} Requisitions</span>
+                  </div>
+                </div>
+
+                {/* Swift Switch & View Actions */}
+                <div className="mt-4 pt-3 border-t border-slate-200/80 flex items-center gap-2">
+                  {!isSelected ? (
+                    <button
+                      onClick={() => switchProject(p.id)}
+                      className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-amber-500 px-3 py-1.5 text-xs font-bold text-slate-950 hover:bg-amber-400 shadow-xs transition-colors cursor-pointer"
+                    >
+                      <ArrowRightLeft className="h-3.5 w-3.5" />
+                      <span>Switch to Site</span>
+                    </button>
+                  ) : (
+                    <div className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-1.5 text-xs font-bold text-emerald-800">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <span>Current Workspace</span>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => navigate(`/projects/${p.id}`)}
+                    className="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
+                    title="View Site Details"
+                  >
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* Live Site Activity Stream */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs space-y-4">
+      {/* Live Site Activity Feed */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div>
             <h3 className="text-sm font-bold text-slate-900 font-sans flex items-center gap-2">
-              <span>Live Site Activity Feed</span>
+              <span>Live System Audit & Operation Feed</span>
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
             </h3>
-            <p className="text-[11px] text-slate-500">Real-time log of field operations</p>
+            <p className="text-[11px] text-slate-500">Real-time log of database and field actions</p>
           </div>
-          <span className="text-[11px] text-slate-400 font-mono">Real-time Feed</span>
+          <span className="text-[11px] text-slate-400 font-mono">MySQL Audit Stream</span>
         </div>
 
-        <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
-          {activities.map((act) => (
-            <div key={act.id} className="flex items-start gap-3 rounded-xl p-2.5 hover:bg-slate-50 transition-colors">
-              <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-800">
-                <Clock className="h-4 w-4" />
+        <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
+          {activities.length === 0 ? (
+            <p className="py-6 text-center text-xs text-slate-400">No activity recorded in this session yet.</p>
+          ) : (
+            activities.map((act) => (
+              <div key={act.id} className="flex items-start gap-3 rounded-xl p-2.5 hover:bg-slate-50 transition-colors">
+                <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-800">
+                  <Clock className="h-4 w-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-slate-800 leading-snug">
+                    {act.text}
+                  </p>
+                  <span className="text-[10px] text-slate-400 mt-0.5 block font-mono">
+                    {formatRelativeTime(act.time)}
+                  </span>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-slate-800 leading-snug">
-                  {act.text}
-                </p>
-                <span className="text-[10px] text-slate-400 mt-0.5 block font-mono">
-                  {formatRelativeTime(act.time)}
-                </span>
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
     </div>
   );
 };
 
-const ChevronRightIcon = () => (
-  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="m9 18 6-6-6-6" />
-  </svg>
-);
+export default Dashboard;

@@ -1,0 +1,25 @@
+{
+  "name": "nasaab-construction-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "NASAAB Construction backend API server",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "migrate": "node migrations/migrate.js",
+    "provision": "node scripts/provision.js",
+    "test": "node tests/verify_requirements.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^8.7.1",
+    "express-session": "^1.19.0",
+    "mysql2": "^3.12.0"
+  }
+}

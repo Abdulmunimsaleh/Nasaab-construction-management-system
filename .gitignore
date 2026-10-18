@@ -9,6 +9,13 @@ lerna-debug.log*
 
 node_modules
 dist
+.env
+.env.local
+.env.*.local
+server/.env
+server/node_modules
+server/credentials/
+server/backups/
 dist-ssr
 *.local
 

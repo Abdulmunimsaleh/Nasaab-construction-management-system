@@ -4,37 +4,62 @@ import { useApp } from '../../context/AppContext';
 import {
   LayoutDashboard,
   FolderKanban,
-  FileSpreadsheet,
   FileText,
   Settings,
   HardHat,
+  Boxes,
   ChevronLeft,
   ChevronRight,
   ExternalLink
 } from 'lucide-react';
 
 export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen }) => {
-  const { currentUser, currentProject, isForeman } = useApp();
+  const { currentUser, currentProject, selectedProjectId, isForeman, isStoreKeeper, isAdmin, isDirector } = useApp();
   const navigate = useNavigate();
 
-  const assignedSiteId = currentUser?.assignedProjectId || 'PRJ-002';
-
-  const allNavigationItems = [
+  // Full admin & director navigation items
+  const adminNavItems = [
     { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { label: 'Projects', path: '/projects', icon: FolderKanban },
-    { label: 'Daily Reports', path: '/daily-reports', icon: FileSpreadsheet, badge: 'Daily' },
+    { label: 'Projects & Sites', path: '/projects', icon: FolderKanban },
+    { label: 'Labour & Equipment', path: '/labour', icon: HardHat, badge: 'LAE Form' },
+    { label: 'Material Requests', path: '/materials', icon: Boxes, badge: 'Materials' },
+    { label: 'PDF Reports', path: '/reports', icon: FileText },
+    { label: 'Settings & Users', path: '/settings', icon: Settings },
+  ];
+
+  // Partner navigation items (full access within assigned projects)
+  const partnerNavItems = [
+    { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    { label: 'My Projects', path: '/projects', icon: FolderKanban },
+    { label: 'Labour & Equipment', path: '/labour', icon: HardHat },
+    { label: 'Material Requests', path: '/materials', icon: Boxes },
     { label: 'PDF Reports', path: '/reports', icon: FileText },
     { label: 'Settings', path: '/settings', icon: Settings },
   ];
 
-  // Foreman navigation items
-  const foremanNavigationItems = [
-    { label: 'My Site Workspace', path: `/projects/${assignedSiteId}`, icon: FolderKanban, badge: 'Assigned' },
-    { label: 'Daily Reports', path: '/daily-reports', icon: FileSpreadsheet, badge: 'Daily' },
-    { label: 'PDF Reports', path: '/reports', icon: FileText, badge: 'Weekly' },
+  // Foreman navigation items: Labour, Activity & Equipment, Reports, and Profile
+  const foremanNavItems = [
+    { label: 'Site Overview', path: '/dashboard', icon: LayoutDashboard },
+    { label: 'Labour, Activity & Equip.', path: '/labour', icon: HardHat, badge: 'Active' },
+    { label: 'PDF Reports', path: '/reports', icon: FileText },
+    { label: 'Profile & Settings', path: '/settings', icon: Settings },
   ];
 
-  const navigationItems = isForeman ? foremanNavigationItems : allNavigationItems;
+  // Storekeeper navigation items: Material requests, Reports, and Profile
+  const storekeeperNavItems = [
+    { label: 'Stores Overview', path: '/dashboard', icon: LayoutDashboard },
+    { label: 'Material Requests', path: '/materials', icon: Boxes, badge: 'Needed' },
+    { label: 'PDF Reports', path: '/reports', icon: FileText },
+    { label: 'Profile & Settings', path: '/settings', icon: Settings },
+  ];
+
+  const navigationItems = isForeman
+    ? foremanNavItems
+    : isStoreKeeper
+    ? storekeeperNavItems
+    : (isAdmin || isDirector)
+    ? adminNavItems
+    : partnerNavItems;
 
   return (
     <>
@@ -63,11 +88,11 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
             </div>
             {!isCollapsed && (
               <div className="flex flex-col truncate">
-                <span className="font-extrabold text-white text-lg tracking-tight font-sans flex items-center gap-1.5">
-                  BuildTrack <span className="rounded-md bg-amber-500/20 px-1.5 py-0.2 text-[10px] font-bold text-amber-400 uppercase tracking-wider">PRO</span>
+                <span className="font-extrabold text-white text-base tracking-tight font-sans flex items-center gap-1.5">
+                  NASAAB <span className="rounded-md bg-amber-500/20 px-1.5 py-0.2 text-[10px] font-bold text-amber-400 uppercase tracking-wider">PRO</span>
                 </span>
-                <span className="text-[10px] text-slate-400 font-medium tracking-wide">
-                  Site Intelligence & Control
+                <span className="text-[10px] text-slate-400 font-medium tracking-wide truncate">
+                  Nasaab Construction Ltd
                 </span>
               </div>
             )}
@@ -82,15 +107,17 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
           </button>
         </div>
 
-        {/* Current Active Project Micro-Badge (When collapsed or expanded) */}
-        {currentProject && !isCollapsed && (
+        {/* Current Active Project Micro-Badge */}
+        {!isCollapsed && (
           <div className="mx-3 my-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5">
             <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-amber-400">
-              <span>Scoped Project</span>
-              <span className="text-amber-300 font-mono">{currentProject.code}</span>
+              <span>Scoped Workspace</span>
+              <span className="text-amber-300 font-mono">
+                {selectedProjectId === 'all' ? 'ALL' : (currentProject?.code || 'SITE')}
+              </span>
             </div>
             <p className="mt-0.5 truncate text-xs font-semibold text-white">
-              {currentProject.name}
+              {selectedProjectId === 'all' ? 'All Projects Combined' : (currentProject?.name || 'Site Workspace')}
             </p>
           </div>
         )}
@@ -143,15 +170,38 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
               rel="noreferrer"
               className="flex items-center justify-between rounded-xl bg-slate-800/50 px-3 py-2 text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
             >
-              <span className="flex items-center gap-2">
-                <ExternalLink className="h-3.5 w-3.5 text-amber-400" />
-                Public Landing Page
-              </span>
-              <span className="text-[10px] bg-slate-700 px-1.5 py-0.5 rounded text-slate-300">View</span>
+              <span>Public Website</span>
+              <ExternalLink className="h-3.5 w-3.5 text-slate-500" />
             </a>
           </div>
         )}
+
+        {/* Current User Micro-Footer */}
+        <div className="border-t border-slate-800/80 p-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400 font-bold border border-amber-500/30 text-xs">
+              {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
+            </div>
+            {!isCollapsed && (
+              <div className="flex-1 truncate">
+                <p className="truncate text-xs font-bold text-white">
+                  {currentUser?.name || 'Authorized User'}
+                </p>
+                <div className="flex items-center gap-1.5">
+                  <span className="rounded bg-slate-800 px-1.5 py-0.2 text-[9px] font-bold text-amber-400 uppercase tracking-wider">
+                    {currentUser?.role || 'Guest'}
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-mono truncate">
+                    {currentUser?.userId}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </aside>
     </>
   );
 };
+
+export default Sidebar;

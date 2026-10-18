@@ -27,34 +27,24 @@ export const LandingPage = () => {
 
   const features = [
     {
-      icon: FileSpreadsheet,
-      title: 'Automated Daily Site Diaries',
-      description: 'Capture shift progress, weather conditions, headcount, plant hours and delays in minutes from any phone.'
-    },
-    {
-      icon: Users,
-      title: 'Real-Time Labour & Biometric Tracking',
-      description: 'Record daily worker attendance, trades, overtime hours, and calculate daily payroll liabilities in KES automatically.'
+      icon: HardHat,
+      title: 'Labour, Activity & Equipment Forms',
+      description: 'Capture shift progress, trade workforce headcounts, overtime hours, and machinery deployment in unified forms.'
     },
     {
       icon: Boxes,
-      title: 'Material Stores & Deliveries',
-      description: 'Track cement, rebar, sand and blocks with automated low-stock threshold alerts before your concrete pours halt.'
+      title: 'Material Needed Requisitions',
+      description: 'Record required site materials with quantities, units, and delivery dates before concrete pours halt.'
     },
     {
-      icon: Truck,
-      title: 'Plant & Heavy Equipment Control',
-      description: 'Monitor operating hours, idle time, diesel consumption, and plant hire costs for excavators, cranes and pumps.'
-    },
-    {
-      icon: AlertTriangle,
-      title: 'Site Safety & QA Non-Conformance',
-      description: 'Report safety hazards, rebar deviations and structural snags with photos and step-by-step resolution audits.'
+      icon: Building2,
+      title: 'Multi-Project Site Governance',
+      description: 'Manage multiple construction developments across Kenya with strict database-backed access permissions.'
     },
     {
       icon: FileText,
-      title: 'Client-Ready PDF Site Reports',
-      description: 'One-click generate branded PDF reports with company logos, charts, photo evidence, and engineer sign-off blocks.'
+      title: 'Client-Ready PDF Reports',
+      description: 'One-click generate branded PDF field reports with verified workforce, task progression, and engineer sign-off blocks.'
     }
   ];
 
@@ -92,10 +82,10 @@ export const LandingPage = () => {
             </div>
             <div>
               <span className="font-extrabold text-white text-xl tracking-tight">
-                BuildTrack
+                NASAAB
               </span>
               <span className="ml-2 rounded-md bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-bold text-amber-400 uppercase tracking-wider">
-                AFRICA
+                CONSTRUCTION LIMITED
               </span>
             </div>
           </div>
@@ -113,12 +103,6 @@ export const LandingPage = () => {
               className="rounded-xl border border-slate-700 bg-slate-900/80 px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800 transition-colors"
             >
               Log In
-            </button>
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-amber-400 transition-all shadow-md shadow-amber-500/20"
-            >
-              Launch Live App →
             </button>
           </div>
         </div>
@@ -144,22 +128,16 @@ export const LandingPage = () => {
           </h1>
 
           <p className="mt-6 text-base sm:text-lg text-slate-400 max-w-2xl mx-auto leading-relaxed">
-            Everything happening on your construction site. One platform. Track projects, daily site reports, labour attendance, materials inventory, machinery hours, safety defects, and costs with instant client-ready PDF generation.
+            Enterprise construction intelligence for NASAAB Construction projects. Track site operations, verify Labour, Activity & Equipment forms, submit material requisitions, and generate instant client-ready PDF reports.
           </p>
 
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <button
-              onClick={() => navigate('/dashboard')}
-              className="w-full sm:w-auto flex items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 px-8 py-4 text-sm font-bold text-slate-950 shadow-xl shadow-amber-500/25 hover:from-amber-400 hover:to-amber-500 transition-all active:scale-95"
-            >
-              <span>Explore Interactive Demo</span>
-              <ArrowRight className="h-4 w-4" />
-            </button>
-            <button
               onClick={() => navigate('/login')}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-2xl border border-slate-700 bg-slate-900/60 px-8 py-4 text-sm font-semibold text-white hover:bg-slate-800 transition-colors backdrop-blur-xs"
+              className="w-full sm:w-auto flex items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 px-8 py-4 text-sm font-bold text-slate-950 shadow-xl shadow-amber-500/25 hover:from-amber-400 hover:to-amber-500 transition-all active:scale-95 cursor-pointer"
             >
-              <span>Sign In with Demo Roles</span>
+              <span>Access Project Workspace</span>
+              <ArrowRight className="h-4 w-4" />
             </button>
           </div>
 
@@ -194,7 +172,7 @@ export const LandingPage = () => {
               <span className="h-3 w-3 rounded-full bg-rose-500/80" />
               <span className="h-3 w-3 rounded-full bg-amber-500/80" />
               <span className="h-3 w-3 rounded-full bg-emerald-500/80" />
-              <span className="ml-2 text-xs font-mono text-slate-400">app.buildtrack.africa/dashboard</span>
+              <span className="ml-2 text-xs font-mono text-slate-400">app.nasaabconstruction.com/dashboard</span>
             </div>
             <div className="flex items-center gap-2 text-xs text-amber-400 font-semibold">
               <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" /> Live Site Feed
@@ -276,7 +254,7 @@ export const LandingPage = () => {
               Streamlined Site-To-Office Flow
             </h2>
             <p className="mt-3 text-3xl sm:text-4xl font-extrabold text-white">
-              How BuildTrack Operates On Site
+              How Nasaab Construction Limited Operates On Site
             </p>
           </div>
 
@@ -318,7 +296,7 @@ export const LandingPage = () => {
               onClick={() => navigate('/dashboard')}
               className="w-full sm:w-auto rounded-2xl bg-amber-500 px-8 py-4 text-sm font-bold text-slate-950 shadow-xl shadow-amber-500/20 hover:bg-amber-400 transition-colors"
             >
-              Open BuildTrack Workspace →
+              Open Nasaab Construction Workspace →
             </button>
             <button
               onClick={() => navigate('/reports')}
@@ -335,7 +313,7 @@ export const LandingPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
             <HardHat className="h-5 w-5 text-amber-500" />
-            <span className="font-bold text-slate-300">BuildTrack Construction Technologies Africa</span>
+            <span className="font-bold text-slate-300">Nasaab Construction Limited</span>
           </div>
           <div className="flex items-center gap-6">
             <span>Nairobi • Mombasa • Kisumu • Eldoret</span>

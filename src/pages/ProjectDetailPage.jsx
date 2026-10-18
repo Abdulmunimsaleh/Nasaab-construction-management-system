@@ -1,92 +1,147 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { StatusBadge } from '../components/common/StatusBadge';
-import { PriorityBadge } from '../components/common/PriorityBadge';
-import { ProgressBar } from '../components/common/ProgressBar';
-import { StatCard } from '../components/common/StatCard';
-import { formatKES, formatDate, formatDateTime, formatRelativeTime } from '../utils/formatters';
-import { DailyReportDetailModal } from '../components/dailyReports/DailyReportDetailModal';
-import { generateConstructionReportPDF } from '../utils/pdfGenerator';
+import api from '../services/api';
 import {
   FolderKanban,
   MapPin,
   Calendar,
-  Coins,
   Users,
-  FileSpreadsheet,
+  HardHat,
   Boxes,
-  Truck,
-  AlertTriangle,
-  Camera,
-  FileText,
-  Clock,
-  ArrowLeft,
   Plus,
-  Printer,
-  ChevronRight,
-  TrendingUp,
-  CheckCircle2,
-  AlertCircle
+  ArrowLeft,
+  Pencil,
+  Trash2,
+  UserCheck,
+  UserPlus,
+  ShieldAlert,
+  Loader2,
+  X,
+  ArrowRightLeft,
+  Check,
+  Edit3,
+  Clock
 } from 'lucide-react';
+import { ViewLaeFormModal } from '../components/labour/ViewLaeFormModal';
+import { ViewMaterialRequestModal } from '../components/materials/ViewMaterialRequestModal';
+import { NewLaeFormModal } from '../components/labour/NewLaeFormModal';
+import { NewMaterialRequestModal } from '../components/materials/NewMaterialRequestModal';
+import { getDayOfWeek } from '../utils/formatters';
 
 export const ProjectDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const {
-    onOpenDailyReport,
-    onOpenIssueModal,
-    onOpenAttendance,
-    onOpenMaterialTx,
-    onOpenEquipmentLog,
-    onOpenPhotoUpload,
-    onOpenAddCost
-  } = useOutletContext();
-
-  const {
     projects,
-    setSelectedProjectId,
-    dailyReports,
-    workers,
-    materials,
-    equipment,
-    issues,
-    photos,
-    costs,
-    companySettings,
+    selectedProjectId,
+    switchProject,
+    updateProject,
+    assignUserToProject,
+    createUserAndAssign,
+    removeUserFromProject,
+    laeForms,
+    materialRequests,
     currentUser,
+    isAdmin,
+    isDirector,
+    isPartner,
     isForeman,
-    canAccessCosts
+    isStoreKeeper,
+    hasFullAccess,
+    accessibleProjects,
+    addToast
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState('overview');
-  const [selectedReport, setSelectedReport] = useState(null);
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'users' | 'lae-forms' | 'materials'
+  const [assignedUsers, setAssignedUsers] = useState([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+
+  // Modals
+  const [showEditProjectModal, setShowEditProjectModal] = useState(false);
+  const [showAssignExistingModal, setShowAssignExistingModal] = useState(false);
+  const [showCreateAndAssignModal, setShowCreateAndAssignModal] = useState(false);
+  const [selectedLaeId, setSelectedLaeId] = useState(null);
+  const [selectedMatReqId, setSelectedMatReqId] = useState(null);
+  const [isNewLaeOpen, setIsNewLaeOpen] = useState(false);
+  const [isNewMatReqOpen, setIsNewMatReqOpen] = useState(false);
+
+  // Edit Project State
+  const [editName, setEditName] = useState('');
+  const [editLocation, setEditLocation] = useState('');
+  const [editCode, setEditCode] = useState('');
+  const [editStatus, setEditStatus] = useState('active');
+
+  // Assign Existing User State
+  const [availableSystemUsers, setAvailableSystemUsers] = useState([]);
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [assignRole, setAssignRole] = useState('Foreman');
+
+  // Create User & Assign State
+  const [newUserName, setNewUserName] = useState('');
+  const [newUserId, setNewUserId] = useState('');
+  const [newUserRole, setNewUserRole] = useState('Foreman');
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserPhone, setNewUserPhone] = useState('');
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
 
   const project = projects.find((p) => p.id === id);
 
+  // Verify project access
+  const isGlobalUser = hasFullAccess;
+  const isAssigned = isGlobalUser || (accessibleProjects && accessibleProjects.some(p => p.id === id)) || (currentUser?.assignedProjectId === id);
+
+  // Load project assigned users
+  const loadAssignedUsers = async () => {
+    if (!id) return;
+    setIsLoadingUsers(true);
+    try {
+      const uList = await api.projects.getUsers(id);
+      setAssignedUsers(uList);
+    } catch (err) {
+      console.warn('Could not load assigned users:', err.message);
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  };
+
   useEffect(() => {
     if (project) {
-      setSelectedProjectId(project.id);
+      setEditName(project.name);
+      setEditLocation(project.location);
+      setEditCode(project.code || '');
+      setEditStatus(project.status || 'active');
+      loadAssignedUsers();
     }
-  }, [project, setSelectedProjectId]);
+  }, [project, id]);
 
-  // Foreman site authorization: can only access their assigned site
-  const assignedSiteId = currentUser?.assignedProjectId || 'PRJ-002';
-  if (isForeman && id !== assignedSiteId) {
+  const loadAllSystemUsers = async () => {
+    try {
+      const allUsers = await api.users.getAll();
+      setAvailableSystemUsers(allUsers);
+      if (allUsers.length > 0) {
+        setSelectedUserId(allUsers[0].id);
+      }
+    } catch (err) {
+      console.warn('Could not load system users:', err.message);
+    }
+  };
+
+  if (!isAssigned) {
     return (
       <div className="py-20 text-center space-y-4 max-w-md mx-auto">
         <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-800">
-          <FolderKanban className="h-6 w-6" />
+          <ShieldAlert className="h-6 w-6" />
         </div>
-        <h3 className="text-lg font-bold text-slate-900">Site Access Restricted</h3>
+        <h3 className="text-lg font-bold text-slate-900">Project Access Restricted</h3>
         <p className="text-xs text-slate-500 leading-relaxed">
-          As a Site Foreman, your authorization is restricted strictly to your assigned construction site workspace.
+          Your account ({currentUser?.role}) is not assigned to this project. Access is strictly restricted to your authorized construction sites.
         </p>
         <button
-          onClick={() => navigate(`/projects/${assignedSiteId}`)}
-          className="rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-amber-400 transition-colors cursor-pointer"
+          onClick={() => navigate('/dashboard')}
+          className="rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-amber-400 cursor-pointer"
         >
-          Open My Assigned Site Workspace →
+          Return to Dashboard
         </button>
       </div>
     );
@@ -95,414 +150,542 @@ export const ProjectDetailPage = () => {
   if (!project) {
     return (
       <div className="py-20 text-center">
-        <h3 className="text-lg font-bold text-slate-800">Project Not Found</h3>
-        <p className="mt-1 text-sm text-slate-500">The project ref was not found in active records.</p>
+        <FolderKanban className="h-12 w-12 text-slate-300 mx-auto mb-2" />
+        <h3 className="text-base font-bold text-slate-900">Project Not Found</h3>
+        <p className="text-xs text-slate-500 mb-4">The requested project ID does not exist in MySQL.</p>
         <button
           onClick={() => navigate('/projects')}
-          className="mt-4 rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-slate-950"
+          className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800"
         >
-          Return to Projects
+          Back to Projects List
         </button>
       </div>
     );
   }
 
-  // Project Filtered Records
-  const projectReports = dailyReports.filter((r) => r.projectId === project.id);
-  const projectWorkers = workers.filter((w) => w.projectId === project.id);
-  const projectMaterials = materials.filter((m) => m.projectId === project.id);
-  const projectEquipment = equipment.filter((e) => e.projectId === project.id);
-  const projectIssues = issues.filter((i) => i.projectId === project.id);
-  const projectPhotos = photos.filter((p) => p.projectId === project.id);
-  const projectCosts = costs.filter((c) => c.projectId === project.id);
+  const projectLaeForms = laeForms.filter((f) => f.project_id === project.id);
+  const projectMatRequests = materialRequests.filter((r) => r.project_id === project.id);
 
-  const remainingBudget = Math.max(0, project.budget - (project.spent || 0));
-  const budgetUtilization = Math.round(((project.spent || 0) / project.budget) * 100);
+  // Today's form detection for single daily form rule
+  const todayStr = (() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  })();
 
-  // Calculate days remaining
-  const daysRemaining = Math.max(
-    0,
-    Math.ceil((new Date(project.expectedCompletion) - new Date()) / (1000 * 60 * 60 * 24))
-  );
+  const todayLaeForm = projectLaeForms.find((f) => {
+    const fDate = (f.date || '').split('T')[0];
+    const fCreated = (f.created_at || '').split('T')[0];
+    return fDate === todayStr || fCreated === todayStr;
+  });
 
-  const handleExportPDF = () => {
-    const doc = generateConstructionReportPDF({
-      project,
-      reportType: 'Project Summary Report',
-      dateRange: `${formatDate(project.startDate)} - ${formatDate(project.expectedCompletion)}`,
-      companySettings,
-      author: currentUser.name,
-      userRole: currentUser.role,
-      data: {
-        dailyReport: projectReports[0],
-        workersCount: projectWorkers.length,
-        materialsCount: projectMaterials.length,
-        equipmentCount: projectEquipment.length,
-        issuesCount: projectIssues.filter((i) => i.status !== 'Closed').length,
-        labour: projectWorkers,
-        materials: projectMaterials,
-        equipment: projectEquipment,
-        costs: canAccessCosts ? projectCosts : [],
-        issues: projectIssues
-      }
-    });
-    doc.save(`Project_Summary_${project.code}.pdf`);
+  const todayMatRequest = projectMatRequests.find((r) => {
+    const rDate = (r.date_needed || '').split('T')[0];
+    const rCreated = (r.created_at || '').split('T')[0];
+    return rDate === todayStr || rCreated === todayStr;
+  });
+
+  const handleSaveEditProject = async (e) => {
+    e.preventDefault();
+    try {
+      await updateProject(project.id, {
+        name: editName,
+        location: editLocation,
+        code: editCode,
+        status: editStatus
+      });
+      setShowEditProjectModal(false);
+    } catch (err) {
+      // Handled in context
+    }
   };
 
-  const allTabs = [
-    { id: 'overview', label: 'Overview', icon: FolderKanban },
-    { id: 'daily-reports', label: `Daily Reports (${projectReports.length})`, icon: FileSpreadsheet },
-    { id: 'timeline', label: 'Site Timeline', icon: Clock }
-  ];
+  const handleAssignExistingUser = async (e) => {
+    e.preventDefault();
+    if (!selectedUserId) return;
+    try {
+      await assignUserToProject(project.id, selectedUserId, assignRole);
+      setShowAssignExistingModal(false);
+      loadAssignedUsers();
+    } catch (err) {
+      // Handled in context
+    }
+  };
 
-  const tabs = allTabs;
+  const handleCreateAndAssignUser = async (e) => {
+    e.preventDefault();
+    if (!newUserName.trim() || !newUserId.trim()) return;
+
+    setIsCreatingUser(true);
+    try {
+      await createUserAndAssign(project.id, {
+        name: newUserName.trim(),
+        userId: newUserId.trim().toLowerCase(),
+        role: newUserRole,
+        email: newUserEmail || undefined,
+        phone: newUserPhone || undefined
+      });
+      setNewUserName('');
+      setNewUserId('');
+      setNewUserEmail('');
+      setNewUserPhone('');
+      setShowCreateAndAssignModal(false);
+      loadAssignedUsers();
+    } catch (err) {
+      // Handled in context
+    } finally {
+      setIsCreatingUser(false);
+    }
+  };
+
+  const handleRemoveAssignment = async (userId, userName) => {
+    if (window.confirm(`Remove ${userName} from ${project.name}? Their user account and past form records will NOT be deleted.`)) {
+      try {
+        await removeUserFromProject(project.id, userId);
+        loadAssignedUsers();
+      } catch (err) {
+        // Handled in context
+      }
+    }
+  };
 
   return (
     <div className="space-y-6">
-      {/* Back Button */}
-      <button
-        onClick={() => navigate('/projects')}
-        className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        <span>Back to All Projects</span>
-      </button>
-
-      {/* Dedicated Project Header Banner */}
-      <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xs">
-        <div className="h-32 w-full bg-slate-900 relative">
-          <img
-            src={project.image}
-            alt={project.name}
-            className="w-full h-full object-cover opacity-40"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
-          <div className="absolute top-4 right-4 flex items-center gap-2">
-            <button
-              onClick={handleExportPDF}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-white/90 backdrop-blur-xs px-3.5 py-1.5 text-xs font-bold text-slate-900 hover:bg-white transition-colors"
-            >
-              <Printer className="h-3.5 w-3.5 text-amber-600" />
-              <span>Project PDF Dossier</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="px-6 py-5 -mt-10 relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
+      {/* Top Breadcrumb & Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate('/projects')}
+            className="rounded-xl border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
           <div>
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span className="rounded-lg bg-amber-500 px-2.5 py-0.5 text-xs font-bold text-slate-950 font-mono">
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
                 {project.code}
               </span>
-              <StatusBadge status={project.status} size="md" />
-              <span className="text-xs font-medium text-slate-500 flex items-center gap-1">
-                <MapPin className="h-3.5 w-3.5 text-amber-500" /> {project.location}
+              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 uppercase">
+                {project.status || 'Active'}
               </span>
             </div>
-
-            <h1 className="mt-2 text-2xl font-extrabold text-slate-900 font-sans tracking-tight">
+            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight mt-0.5">
               {project.name}
             </h1>
-            <p className="mt-1 text-xs text-slate-500 max-w-3xl">
-              Client: <strong className="text-slate-700">{project.client}</strong> • Lead: <strong className="text-slate-700">{project.projectManager}</strong> • Resident Eng: <strong className="text-slate-700">{project.siteEngineer}</strong>
-            </p>
-          </div>
-
-          {/* Top Progress & Budget Mini Card */}
-          <div className="flex items-center gap-6 bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 self-start md:self-auto">
-            <div>
-              <span className="text-[10px] font-bold uppercase text-slate-400 block">Progress</span>
-              <span className="text-lg font-bold text-amber-600 font-mono">{project.progress}%</span>
-            </div>
-            <div className="h-8 w-px bg-slate-200" />
-            <div>
-              <span className="text-[10px] font-bold uppercase text-slate-400 block">Budget</span>
-              <span className="text-sm font-bold text-slate-900 font-mono">{formatKES(project.budget)}</span>
-            </div>
-            <div className="h-8 w-px bg-slate-200" />
-            <div>
-              <span className="text-[10px] font-bold uppercase text-slate-400 block">Days Left</span>
-              <span className="text-sm font-bold text-emerald-700 font-mono">{daysRemaining}d</span>
-            </div>
           </div>
         </div>
 
-        {/* Tab Navigation Bar */}
-        <div className="border-t border-slate-100 px-4 overflow-x-auto scrollbar-none flex items-center gap-2">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Swift Site Workspace Status & Action */}
+          {(isAdmin || isDirector || hasFullAccess) && (
+            selectedProjectId === project.id ? (
+              <div className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-bold text-emerald-800">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Active Workspace</span>
+              </div>
+            ) : (
               <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 border-b-2 py-3 px-3 text-xs font-bold transition-colors whitespace-nowrap ${
-                  isActive
-                    ? 'border-amber-500 text-amber-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-900'
-                }`}
+                onClick={() => switchProject(project.id)}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500/15 border border-amber-500/40 px-3 py-2 text-xs font-bold text-amber-900 hover:bg-amber-500 hover:text-slate-950 transition-all cursor-pointer shadow-2xs"
+                title="Switch active workspace context to this site"
               >
-                <Icon className={`h-4 w-4 ${isActive ? 'text-amber-500' : 'text-slate-400'}`} />
-                <span>{tab.label}</span>
+                <ArrowRightLeft className="h-3.5 w-3.5" />
+                <span>Set as Active Workspace</span>
               </button>
-            );
-          })}
+            )
+          )}
+
+          {(isAdmin || isDirector) && (
+            <button
+              onClick={() => setShowEditProjectModal(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer shadow-2xs"
+            >
+              <Pencil className="h-3.5 w-3.5 text-slate-500" />
+              <span>Edit Details</span>
+            </button>
+          )}
+
+          {!isStoreKeeper && (
+            <button
+              onClick={() => setIsNewLaeOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-3.5 py-2 text-xs font-bold text-slate-950 hover:bg-amber-400 cursor-pointer shadow-md shadow-amber-500/20"
+            >
+              <HardHat className="h-4 w-4 stroke-[2.5]" />
+              <span>+ Log Labour & Equipment</span>
+            </button>
+          )}
+
+          {!isForeman && (
+            <button
+              onClick={() => setIsNewMatReqOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3.5 py-2 text-xs font-bold text-white hover:bg-slate-800 cursor-pointer"
+            >
+              <Boxes className="h-4 w-4" />
+              <span>+ Material Request</span>
+            </button>
+          )}
         </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-b border-slate-200 gap-2 overflow-x-auto">
+        <button
+          onClick={() => setActiveTab('overview')}
+          className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-colors cursor-pointer ${
+            activeTab === 'overview'
+              ? 'border-amber-500 text-amber-600'
+              : 'border-transparent text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          Project Overview
+        </button>
+
+        <button
+          onClick={() => setActiveTab('users')}
+          className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 cursor-pointer ${
+            activeTab === 'users'
+              ? 'border-amber-500 text-amber-600'
+              : 'border-transparent text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          <Users className="h-3.5 w-3.5" />
+          <span>Assigned Team ({assignedUsers.length})</span>
+        </button>
+
+        {!isStoreKeeper && (
+          <button
+            onClick={() => setActiveTab('lae-forms')}
+            className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'lae-forms'
+                ? 'border-amber-500 text-amber-600'
+                : 'border-transparent text-slate-500 hover:text-slate-900'
+            }`}
+          >
+            <HardHat className="h-3.5 w-3.5" />
+            <span>Labour & Equipment Forms ({projectLaeForms.length})</span>
+          </button>
+        )}
+
+        {!isForeman && (
+          <button
+            onClick={() => setActiveTab('materials')}
+            className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'materials'
+                ? 'border-amber-500 text-amber-600'
+                : 'border-transparent text-slate-500 hover:text-slate-900'
+            }`}
+          >
+            <Boxes className="h-3.5 w-3.5" />
+            <span>Material Requests ({projectMatRequests.length})</span>
+          </button>
+        )}
       </div>
 
       {/* TAB 1: OVERVIEW */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
-          {/* Financial or Operational Stat Cards */}
-          {canAccessCosts ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard
-                title="Allocated Budget"
-                value={formatKES(project.budget)}
-                subtitle={`Contract Value: ${formatKES(project.contractValue)}`}
-                icon={Coins}
-              />
-              <StatCard
-                title="Amount Spent"
-                value={formatKES(project.spent || 0)}
-                subtitle={`${budgetUtilization}% budget utilization`}
-                icon={TrendingUp}
-                variant={budgetUtilization > 90 ? 'warning' : 'default'}
-              />
-              <StatCard
-                title="Remaining Budget"
-                value={formatKES(remainingBudget)}
-                subtitle="Available for completion"
-                icon={CheckCircle2}
-                variant={remainingBudget === 0 ? 'danger' : 'default'}
-              />
-              <StatCard
-                title="Days to Handover"
-                value={`${daysRemaining} Days`}
-                subtitle={`Target: ${formatDate(project.expectedCompletion)}`}
-                icon={Calendar}
-              />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Site Location</span>
+              <div className="flex items-start gap-2 text-xs font-semibold text-slate-900">
+                <MapPin className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                <span>{project.location}</span>
+              </div>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard
-                title="Site Progress"
-                value={`${project.progress}% Complete`}
-                subtitle="Overall physical execution"
-                icon={TrendingUp}
-              />
-              <StatCard
-                title="Days to Handover"
-                value={`${daysRemaining} Days`}
-                subtitle={`Target: ${formatDate(project.expectedCompletion)}`}
-                icon={Calendar}
-              />
-              <StatCard
-                title="Active Site Workforce"
-                value={`${projectWorkers.length} Workers`}
-                subtitle="Tradespeople on project roll"
-                icon={Users}
-              />
-              <StatCard
-                title="Open Site Issues"
-                value={`${projectIssues.filter((i) => i.status !== 'Closed').length} Issues`}
-                subtitle="Active safety & snag logs"
-                icon={AlertTriangle}
-                variant={projectIssues.filter((i) => i.priority === 'Critical').length > 0 ? 'danger' : 'default'}
-              />
-            </div>
-          )}
 
-          {/* Progress Bar & Scope Narrative */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-900">
-                Physical Project Progress Schedule
-              </h3>
-              <span className="text-sm font-bold text-amber-600 font-mono">
-                {project.progress}% Complete
-              </span>
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Labour & Plant Forms</span>
+              <div className="text-xl font-extrabold text-slate-900 font-mono">
+                {projectLaeForms.length} submitted
+              </div>
             </div>
-            <ProgressBar progress={project.progress} size="lg" color="amber" />
 
-            <div className="border-t border-slate-100 pt-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                Scope of Work & Specification Summary
-              </h4>
-              <p className="mt-1 text-xs text-slate-600 leading-relaxed">
-                {project.description}
-              </p>
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Material Requisitions</span>
+              <div className="text-xl font-extrabold text-slate-900 font-mono">
+                {projectMatRequests.length} requisitions
+              </div>
             </div>
           </div>
 
-          {/* Grid: Recent Daily Reports & Open Issues */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Recent Daily Reports */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <h3 className="text-sm font-bold text-slate-900">
-                  Recent Site Reports ({projectReports.length})
-                </h3>
-                <button
-                  onClick={onOpenDailyReport}
-                  className="text-xs font-bold text-amber-600 hover:text-amber-700"
-                >
-                  + New Report
-                </button>
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+            <h3 className="font-bold text-slate-900 text-sm">Project Specifications</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div>
+                <span className="text-slate-400 block mb-0.5">Project ID (MySQL)</span>
+                <span className="font-mono font-semibold text-slate-800">{project.id}</span>
               </div>
-
-              {projectReports.length === 0 ? (
-                <p className="py-6 text-center text-xs text-slate-400">No daily reports filed yet.</p>
-              ) : (
-                <div className="divide-y divide-slate-100">
-                  {projectReports.slice(0, 3).map((rep) => (
-                    <div
-                      key={rep.id}
-                      onClick={() => setSelectedReport(rep)}
-                      className="py-3 flex items-center justify-between hover:bg-slate-50 p-2 rounded-xl cursor-pointer transition-colors"
-                    >
-                      <div>
-                        <div className="font-bold text-xs text-slate-900">
-                          {formatDate(rep.date)}
-                        </div>
-                        <div className="text-[11px] text-slate-500 truncate max-w-sm">
-                          {rep.workDoneToday || rep.workCompletedYesterday}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <StatusBadge status={rep.status} />
-                        <ChevronRight className="h-4 w-4 text-slate-400" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Open Site Issues */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <h3 className="text-sm font-bold text-slate-900">
-                  Open Site Issues ({projectIssues.filter((i) => i.status !== 'Closed').length})
-                </h3>
-                <button
-                  onClick={onOpenIssueModal}
-                  className="text-xs font-bold text-rose-600 hover:text-rose-700"
-                >
-                  + Report Issue
-                </button>
+              <div>
+                <span className="text-slate-400 block mb-0.5">Site Code</span>
+                <span className="font-mono font-semibold text-slate-800">{project.code}</span>
               </div>
-
-              {projectIssues.length === 0 ? (
-                <p className="py-6 text-center text-xs text-slate-400">Zero defects or safety issues open.</p>
-              ) : (
-                <div className="divide-y divide-slate-100">
-                  {projectIssues.slice(0, 3).map((iss) => (
-                    <div
-                      key={iss.id}
-                      onClick={() => setSelectedIssue(iss)}
-                      className="py-3 flex items-center justify-between hover:bg-slate-50 p-2 rounded-xl cursor-pointer transition-colors"
-                    >
-                      <div>
-                        <div className="font-bold text-xs text-slate-900 truncate max-w-xs">
-                          {iss.title}
-                        </div>
-                        <div className="text-[11px] text-slate-500">
-                          Assigned: {iss.assignedTo} • Due: {formatDate(iss.dueDate)}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <PriorityBadge priority={iss.priority} />
-                        <ChevronRight className="h-4 w-4 text-slate-400" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <div>
+                <span className="text-slate-400 block mb-0.5">Status</span>
+                <span className="font-semibold text-slate-800 capitalize">{project.status}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block mb-0.5">Enrolled Personnel</span>
+                <span className="font-semibold text-slate-800">{assignedUsers.length} authorized users</span>
+              </div>
             </div>
           </div>
-
-          {/* Recent Site Photos strip */}
-          {projectPhotos.length > 0 && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <h3 className="text-sm font-bold text-slate-900">
-                  Recent Site Photos ({projectPhotos.length})
-                </h3>
-                <button
-                  onClick={() => setActiveTab('photos')}
-                  className="text-xs font-bold text-amber-600 hover:text-amber-700"
-                >
-                  View All Gallery →
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
-                {projectPhotos.slice(0, 6).map((p) => (
-                  <div
-                    key={p.id}
-                    onClick={() => setSelectedPhoto(p)}
-                    className="group relative aspect-square overflow-hidden rounded-xl border border-slate-200 cursor-pointer"
-                  >
-                    <img
-                      src={p.url}
-                      alt={p.caption}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-2 flex items-end">
-                      <span className="text-[10px] text-white font-medium truncate">
-                        {p.caption}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
 
-      {/* TAB 2: DAILY REPORTS */}
-      {activeTab === 'daily-reports' && (
+      {/* TAB 2: ASSIGNED USERS */}
+      {activeTab === 'users' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-slate-900">Project Daily Reports</h3>
-            <button
-              onClick={onOpenDailyReport}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-3.5 py-2 text-xs font-bold text-slate-950 hover:bg-amber-400 transition-colors"
-            >
-              <Plus className="h-4 w-4" />
-              <span>+ Create Daily Report</span>
-            </button>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Project Personnel & Permissions</h3>
+              <p className="text-xs text-slate-500">
+                Staff assigned to {project.name}. Admins and Directors automatically hold global access across all sites.
+              </p>
+            </div>
+
+            {(isAdmin || isDirector) && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    loadAllSystemUsers();
+                    setShowAssignExistingModal(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer shadow-2xs"
+                >
+                  <UserCheck className="h-4 w-4 text-amber-500" />
+                  <span>Assign Existing User</span>
+                </button>
+
+                <button
+                  onClick={() => setShowCreateAndAssignModal(true)}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-3.5 py-2 text-xs font-bold text-slate-950 hover:bg-amber-400 cursor-pointer shadow-sm"
+                >
+                  <UserPlus className="h-4 w-4 stroke-[2.5]" />
+                  <span>+ Create & Assign User</span>
+                </button>
+              </div>
+            )}
           </div>
 
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xs">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-600">
-                <thead className="bg-slate-50 border-b border-slate-100 text-[11px] font-bold uppercase text-slate-500">
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+            {isLoadingUsers ? (
+              <div className="py-12 text-center">
+                <Loader2 className="h-6 w-6 animate-spin text-amber-500 mx-auto mb-2" />
+                <p className="text-xs text-slate-400">Loading project assignments...</p>
+              </div>
+            ) : assignedUsers.length === 0 ? (
+              <div className="py-12 text-center text-xs text-slate-400">
+                No specific user assignments for this project yet. (Admins and Directors hold universal access).
+              </div>
+            ) : (
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-slate-500 border-b border-slate-200 text-[10px] uppercase font-semibold">
                   <tr>
-                    <th className="px-5 py-3.5">Date</th>
-                    <th className="px-5 py-3.5">Weather</th>
-                    <th className="px-5 py-3.5">Workers</th>
-                    <th className="px-5 py-3.5">Plant Hrs</th>
-                    <th className="px-5 py-3.5">Work Done Today</th>
-                    <th className="px-5 py-3.5">Status</th>
-                    <th className="px-5 py-3.5 text-right">Action</th>
+                    <th className="py-3 px-4">Name</th>
+                    <th className="py-3 px-4">User ID</th>
+                    <th className="py-3 px-4">System Role</th>
+                    <th className="py-3 px-4">Project Role</th>
+                    <th className="py-3 px-4">Contact</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {projectReports.map((r) => (
-                    <tr key={r.id} className="hover:bg-slate-50">
-                      <td className="px-5 py-3.5 font-bold text-slate-900">{formatDate(r.date)}</td>
-                      <td className="px-5 py-3.5">{r.weather}</td>
-                      <td className="px-5 py-3.5">{r.workersPresent} Workers</td>
-                      <td className="px-5 py-3.5 font-mono">{r.equipmentOperatingHours}h</td>
-                      <td className="px-5 py-3.5 max-w-xs truncate">{r.workDoneToday || r.workCompletedYesterday}</td>
-                      <td className="px-5 py-3.5"><StatusBadge status={r.status} /></td>
-                      <td className="px-5 py-3.5 text-right">
+                  {assignedUsers.map((u) => (
+                    <tr key={u.id} className="hover:bg-slate-50/80">
+                      <td className="py-3 px-4 font-bold text-slate-900">{u.name}</td>
+                      <td className="py-3 px-4 font-mono text-slate-600">{u.user_id}</td>
+                      <td className="py-3 px-4">
+                        <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700 uppercase">
+                          {u.role}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-900 uppercase">
+                          {u.project_role || u.role}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-slate-500">{u.phone || u.email || '—'}</td>
+                      <td className="py-3 px-4 text-right">
+                        {(isAdmin || isDirector) && (
+                          <button
+                            onClick={() => handleRemoveAssignment(u.id, u.name)}
+                            className="rounded-lg border border-rose-200 p-1.5 text-rose-600 hover:bg-rose-50 cursor-pointer"
+                            title="Remove assignment"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: LAE FORMS */}
+      {activeTab === 'lae-forms' && !isStoreKeeper && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-slate-900">Submitted Labour, Activity & Equipment Forms</h3>
+            {todayLaeForm ? (
+              <button
+                onClick={() => setSelectedLaeId(todayLaeForm.id)}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-3.5 py-1.5 text-xs font-bold text-slate-950 hover:bg-amber-400 cursor-pointer shadow-sm"
+                title="Today's daily form has already been submitted. View to edit."
+              >
+                <Edit3 className="h-3.5 w-3.5" />
+                <span>Edit Today's Form ({todayLaeForm.form_number})</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => setIsNewLaeOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-3.5 py-1.5 text-xs font-bold text-slate-950 hover:bg-amber-400 cursor-pointer shadow-sm"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>New Form</span>
+              </button>
+            )}
+          </div>
+
+          {todayLaeForm && (
+            <div className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50/90 p-3">
+              <Clock className="h-4 w-4 text-amber-800 shrink-0" />
+              <p className="text-xs text-amber-800">
+                Today's form (<strong>{todayLaeForm.form_number}</strong>) was submitted by <strong>{todayLaeForm.prepared_by_name}</strong>. Only 1 form per day is allowed — edit the existing form to update.
+              </p>
+            </div>
+          )}
+
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+            {projectLaeForms.length === 0 ? (
+              <div className="py-12 text-center text-xs text-slate-400">
+                No Labour, Activity & Equipment forms logged for this project yet.
+              </div>
+            ) : (
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-slate-500 border-b border-slate-200 text-[10px] uppercase font-semibold">
+                  <tr>
+                    <th className="py-3 px-4">Form Ref</th>
+                    <th className="py-3 px-4">Date</th>
+                    <th className="py-3 px-4">Prepared By</th>
+                    <th className="py-3 px-4">Weather</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {projectLaeForms.map((f) => (
+                    <tr key={f.id} className="hover:bg-slate-50/80">
+                      <td className="py-3 px-4 font-mono font-bold text-slate-900">{f.form_number}</td>
+                      <td className="py-3 px-4">
+                        <div className="font-semibold text-slate-900">{getDayOfWeek(f.date)}</div>
+                        <div className="text-[10px] text-slate-500 font-mono">{f.date}</div>
+                      </td>
+                      <td className="py-3 px-4 font-medium text-slate-800">{f.prepared_by_name}</td>
+                      <td className="py-3 px-4 text-slate-600">{f.weather}</td>
+                      <td className="py-3 px-4">
+                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 uppercase">
+                          {f.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right">
                         <button
-                          onClick={() => setSelectedReport(r)}
-                          className="rounded-lg bg-slate-100 px-3 py-1 font-bold text-slate-800 hover:bg-amber-500 hover:text-slate-950"
+                          onClick={() => setSelectedLaeId(f.id)}
+                          className="rounded-lg border border-slate-200 px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
+                        >
+                          View Details
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 4: MATERIALS */}
+      {activeTab === 'materials' && !isForeman && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-slate-900">Material Needed Requests</h3>
+            {todayMatRequest ? (
+              <button
+                onClick={() => setSelectedMatReqId(todayMatRequest.id)}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-3.5 py-1.5 text-xs font-bold text-slate-950 hover:bg-amber-400 cursor-pointer shadow-sm"
+                title="Today's material request has already been submitted. View to edit."
+              >
+                <Edit3 className="h-3.5 w-3.5" />
+                <span>Edit Today's Request ({todayMatRequest.request_number})</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => setIsNewMatReqOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-3.5 py-1.5 text-xs font-bold text-slate-950 hover:bg-amber-400 cursor-pointer shadow-sm"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>New Request</span>
+              </button>
+            )}
+          </div>
+
+          {todayMatRequest && (
+            <div className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50/90 p-3">
+              <Clock className="h-4 w-4 text-amber-800 shrink-0" />
+              <p className="text-xs text-amber-800">
+                Today's request (<strong>{todayMatRequest.request_number}</strong>) was submitted by <strong>{todayMatRequest.requested_by_name}</strong>. Only 1 form per day is allowed — edit the existing form to update.
+              </p>
+            </div>
+          )}
+
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+            {projectMatRequests.length === 0 ? (
+              <div className="py-12 text-center text-xs text-slate-400">
+                No material requests logged for this project yet.
+              </div>
+            ) : (
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-slate-500 border-b border-slate-200 text-[10px] uppercase font-semibold">
+                  <tr>
+                    <th className="py-3 px-4">Request #</th>
+                    <th className="py-3 px-4">Needed By</th>
+                    <th className="py-3 px-4">Requested By</th>
+                    <th className="py-3 px-4">Urgency</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {projectMatRequests.map((r) => (
+                    <tr key={r.id} className="hover:bg-slate-50/80">
+                      <td className="py-3 px-4 font-mono font-bold text-slate-900">{r.request_number}</td>
+                      <td className="py-3 px-4">
+                        <div className="font-semibold text-slate-900">{getDayOfWeek(r.date_needed)}</div>
+                        <div className="text-[10px] text-slate-500 font-mono">{r.date_needed}</div>
+                      </td>
+                      <td className="py-3 px-4 font-medium text-slate-800">{r.requested_by_name}</td>
+                      <td className="py-3 px-4">
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                          r.urgency === 'critical' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-800'
+                        }`}>
+                          {r.urgency}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-700">
+                          {r.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <button
+                          onClick={() => setSelectedMatReqId(r.id)}
+                          className="rounded-lg border border-slate-200 px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
                         >
                           View
                         </button>
@@ -511,298 +694,274 @@ export const ProjectDetailPage = () => {
                   ))}
                 </tbody>
               </table>
-            </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* TAB 3: LABOUR */}
-      {activeTab === 'labour' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-slate-900">Site Labour Workforce</h3>
+      {/* MODAL 1: Edit Project Details */}
+      {showEditProjectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900 p-6 text-white shadow-2xl relative">
             <button
-              onClick={onOpenAttendance}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-3.5 py-2 text-xs font-bold text-slate-950 hover:bg-amber-400 transition-colors"
+              onClick={() => setShowEditProjectModal(false)}
+              className="absolute top-5 right-5 text-slate-400 hover:text-white"
             >
-              <Users className="h-4 w-4" />
-              <span>Take Attendance</span>
+              <X className="h-5 w-5" />
             </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {projectWorkers.map((w) => (
-              <div key={w.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-bold text-xs text-slate-900">{w.fullName}</h4>
-                  <span className="font-mono text-[10px] text-slate-400">{w.id}</span>
-                </div>
-                <div className="text-[11px] text-slate-500">
-                  Role: <strong className="text-slate-700">{w.role}</strong> ({w.trade})
-                </div>
-                <div className="text-[11px] text-slate-500">
-                  Daily Wage: <strong className="text-amber-600 font-mono">{formatKES(w.dailyRate)}/day</strong>
-                </div>
-                <div className="text-[11px] text-slate-500">
-                  Subcontractor: {w.company}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* TAB 4: MATERIALS */}
-      {activeTab === 'materials' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-slate-900">Project Material Stores</h3>
-            <button
-              onClick={onOpenMaterialTx}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-3.5 py-2 text-xs font-bold text-slate-950 hover:bg-amber-400"
-            >
-              <Boxes className="h-4 w-4" />
-              <span>Record Stock Movement</span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {projectMaterials.map((m) => (
-              <div key={m.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-bold text-xs text-slate-900 truncate">{m.name}</h4>
-                  <span className="text-[10px] rounded-md bg-slate-100 px-1.5 py-0.5 text-slate-600">
-                    {m.category}
-                  </span>
-                </div>
-                <div className="flex items-baseline justify-between pt-1">
-                  <span className="text-xs text-slate-500">Available Stock:</span>
-                  <span className={`text-base font-bold font-mono ${m.currentStock <= m.minimumStock ? 'text-rose-600' : 'text-slate-900'}`}>
-                    {m.currentStock} {m.unit}
-                  </span>
-                </div>
-                <div className="text-[11px] text-slate-500 flex justify-between">
-                  <span>Unit Rate: {formatKES(m.unitCost)}</span>
-                  <span>Min Reserve: {m.minimumStock} {m.unit}</span>
-                </div>
-                {m.currentStock <= m.minimumStock && (
-                  <div className="rounded-lg bg-rose-50 p-1.5 text-[10px] font-bold text-rose-700 flex items-center gap-1">
-                    <AlertTriangle className="h-3 w-3" /> Low Stock Threshold Warning!
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* TAB 5: EQUIPMENT */}
-      {activeTab === 'equipment' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-slate-900">Machinery & Plant Fleet</h3>
-            <button
-              onClick={onOpenEquipmentLog}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-3.5 py-2 text-xs font-bold text-slate-950 hover:bg-amber-400"
-            >
-              <Truck className="h-4 w-4" />
-              <span>Log Machine Hours</span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {projectEquipment.map((eq) => (
-              <div key={eq.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-bold text-xs text-slate-900">{eq.name}</h4>
-                  <StatusBadge status={eq.status} />
-                </div>
-                <div className="text-[11px] text-slate-500">Operator: <strong>{eq.operator}</strong></div>
-                <div className="text-[11px] text-slate-500">Daily Rate: <strong>{formatKES(eq.dailyRate)}</strong></div>
-                <div className="text-[11px] text-slate-500">Total Operating Hours: <strong className="font-mono">{eq.totalHours || 0} hrs</strong></div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* TAB 6: ISSUES */}
-      {activeTab === 'issues' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-slate-900">Defects & Safety Issues</h3>
-            <button
-              onClick={onOpenIssueModal}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-3.5 py-2 text-xs font-bold text-white hover:bg-rose-700"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Report Issue</span>
-            </button>
-          </div>
-
-          <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">
-            {projectIssues.map((iss) => (
-              <div
-                key={iss.id}
-                onClick={() => setSelectedIssue(iss)}
-                className="p-4 flex items-center justify-between hover:bg-slate-50 cursor-pointer"
-              >
-                <div>
-                  <div className="font-bold text-xs text-slate-900 flex items-center gap-2">
-                    <span>{iss.title}</span>
-                    <PriorityBadge priority={iss.priority} />
-                  </div>
-                  <div className="text-[11px] text-slate-500 mt-1">
-                    Location: {iss.location} • Assigned: {iss.assignedTo}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <StatusBadge status={iss.status} />
-                  <ChevronRight className="h-4 w-4 text-slate-400" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* TAB 7: PHOTOS */}
-      {activeTab === 'photos' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-slate-900">Project Photo Evidence</h3>
-            <button
-              onClick={onOpenPhotoUpload}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-3.5 py-2 text-xs font-bold text-slate-950 hover:bg-amber-400"
-            >
-              <Camera className="h-4 w-4" />
-              <span>Upload Photo</span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {projectPhotos.map((p) => (
-              <div
-                key={p.id}
-                onClick={() => setSelectedPhoto(p)}
-                className="group relative aspect-square overflow-hidden rounded-2xl border border-slate-200 bg-slate-900 cursor-pointer"
-              >
-                <img
-                  src={p.url}
-                  alt={p.caption}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+            <h3 className="text-base font-bold mb-4">Edit Project Details</h3>
+            <form onSubmit={handleSaveEditProject} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Project Name</label>
+                <input
+                  type="text"
+                  required
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white focus:border-amber-400 focus:outline-hidden"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent p-3 flex flex-col justify-end text-white">
-                  <span className="text-[10px] text-amber-400 font-bold uppercase">{p.category}</span>
-                  <p className="text-xs font-semibold truncate">{p.caption}</p>
-                  <span className="text-[10px] text-slate-300 font-mono mt-0.5">{formatDate(p.date)}</span>
+              </div>
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Site Location</label>
+                <input
+                  type="text"
+                  required
+                  value={editLocation}
+                  onChange={(e) => setEditLocation(e.target.value)}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white focus:border-amber-400 focus:outline-hidden"
+                />
+              </div>
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Code</label>
+                <input
+                  type="text"
+                  value={editCode}
+                  onChange={(e) => setEditCode(e.target.value)}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white font-mono focus:border-amber-400 focus:outline-hidden"
+                />
+              </div>
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Status</label>
+                <select
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value)}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white focus:border-amber-400 focus:outline-hidden"
+                >
+                  <option value="active">Active</option>
+                  <option value="on_hold">On Hold</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </div>
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowEditProjectModal(false)}
+                  className="rounded-xl border border-slate-700 px-3 py-2 text-slate-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-xl bg-amber-500 px-4 py-2 font-bold text-slate-950 hover:bg-amber-400 cursor-pointer"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: Assign Existing User */}
+      {showAssignExistingModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900 p-6 text-white shadow-2xl relative">
+            <button
+              onClick={() => setShowAssignExistingModal(false)}
+              className="absolute top-5 right-5 text-slate-400 hover:text-white"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <h3 className="text-base font-bold mb-1">Assign Existing User</h3>
+            <p className="text-[11px] text-slate-400 mb-4">
+              Search for an existing user account without creating a duplicate.
+            </p>
+
+            <form onSubmit={handleAssignExistingUser} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Select User Account</label>
+                <select
+                  value={selectedUserId}
+                  onChange={(e) => setSelectedUserId(e.target.value)}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white focus:border-amber-400 focus:outline-hidden"
+                >
+                  {availableSystemUsers.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name} ({u.user_id}) — Role: {u.role}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Project Role Assignment</label>
+                <select
+                  value={assignRole}
+                  onChange={(e) => setAssignRole(e.target.value)}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white focus:border-amber-400 focus:outline-hidden"
+                >
+                  <option value="Partner">Partner</option>
+                  <option value="Storekeeper">Storekeeper</option>
+                  <option value="Foreman">Foreman</option>
+                  <option value="Director">Director</option>
+                  <option value="Admin">Admin</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowAssignExistingModal(false)}
+                  className="rounded-xl border border-slate-700 px-3 py-2 text-slate-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-xl bg-amber-500 px-4 py-2 font-bold text-slate-950 hover:bg-amber-400 cursor-pointer"
+                >
+                  Confirm Assignment
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: Create New User & Assign */}
+      {showCreateAndAssignModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900 p-6 text-white shadow-2xl relative">
+            <button
+              onClick={() => setShowCreateAndAssignModal(false)}
+              className="absolute top-5 right-5 text-slate-400 hover:text-white"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <h3 className="text-base font-bold mb-1">Create User & Assign to Site</h3>
+            <p className="text-[11px] text-slate-400 mb-4">
+              Generates a secure activation credential for the new user.
+            </p>
+
+            <form onSubmit={handleCreateAndAssignUser} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Full Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={newUserName}
+                  onChange={(e) => setNewUserName(e.target.value)}
+                  placeholder="e.g. John Mwangi"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white focus:border-amber-400 focus:outline-hidden"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Unique User ID *</label>
+                <input
+                  type="text"
+                  required
+                  value={newUserId}
+                  onChange={(e) => setNewUserId(e.target.value)}
+                  placeholder="e.g. john.mwangi"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white font-mono focus:border-amber-400 focus:outline-hidden"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Assigned Role *</label>
+                <select
+                  value={newUserRole}
+                  onChange={(e) => setNewUserRole(e.target.value)}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white focus:border-amber-400 focus:outline-hidden"
+                >
+                  <option value="Foreman">Foreman (Labour & Equipment only)</option>
+                  <option value="Storekeeper">Storekeeper (Materials only)</option>
+                  <option value="Partner">Partner (Assigned project access)</option>
+                  <option value="Director">Director (Global access)</option>
+                  <option value="Admin">Admin (Full global access)</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Email (Optional)</label>
+                  <input
+                    type="email"
+                    value={newUserEmail}
+                    onChange={(e) => setNewUserEmail(e.target.value)}
+                    placeholder="email@example.com"
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white focus:border-amber-400 focus:outline-hidden"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Phone (Optional)</label>
+                  <input
+                    type="text"
+                    value={newUserPhone}
+                    onChange={(e) => setNewUserPhone(e.target.value)}
+                    placeholder="+254 700 000"
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white focus:border-amber-400 focus:outline-hidden"
+                  />
                 </div>
               </div>
-            ))}
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateAndAssignModal(false)}
+                  className="rounded-xl border border-slate-700 px-3 py-2 text-slate-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreatingUser}
+                  className="rounded-xl bg-amber-500 px-4 py-2 font-bold text-slate-950 hover:bg-amber-400 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {isCreatingUser ? <Loader2 className="h-4 w-4 animate-spin" /> : <span>Create & Assign</span>}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
 
-      {/* TAB 8: COSTS */}
-      {activeTab === 'costs' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-slate-900">Project Expenditures (KES)</h3>
-            <button
-              onClick={onOpenAddCost}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-3.5 py-2 text-xs font-bold text-slate-950 hover:bg-amber-400"
-            >
-              <Coins className="h-4 w-4" />
-              <span>Record Expense</span>
-            </button>
-          </div>
+      {/* Form Detail Modals */}
+      <ViewLaeFormModal
+        formId={selectedLaeId}
+        isOpen={Boolean(selectedLaeId)}
+        onClose={() => setSelectedLaeId(null)}
+      />
 
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xs">
-            <table className="w-full text-left text-xs text-slate-600">
-              <thead className="bg-slate-50 border-b border-slate-100 text-[11px] font-bold uppercase text-slate-500">
-                <tr>
-                  <th className="px-5 py-3.5">Date</th>
-                  <th className="px-5 py-3.5">Category</th>
-                  <th className="px-5 py-3.5">Description</th>
-                  <th className="px-5 py-3.5">Supplier / Payee</th>
-                  <th className="px-5 py-3.5">Amount (KES)</th>
-                  <th className="px-5 py-3.5">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {projectCosts.map((c) => (
-                  <tr key={c.id} className="hover:bg-slate-50">
-                    <td className="px-5 py-3.5">{formatDate(c.date)}</td>
-                    <td className="px-5 py-3.5 font-semibold text-slate-800">{c.category}</td>
-                    <td className="px-5 py-3.5 font-medium text-slate-900">{c.description}</td>
-                    <td className="px-5 py-3.5">{c.supplier}</td>
-                    <td className="px-5 py-3.5 font-bold font-mono text-slate-900">{formatKES(c.amount)}</td>
-                    <td className="px-5 py-3.5"><StatusBadge status={c.paymentStatus} /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      <ViewMaterialRequestModal
+        requestId={selectedMatReqId}
+        isOpen={Boolean(selectedMatReqId)}
+        onClose={() => setSelectedMatReqId(null)}
+      />
 
-      {/* TAB 9: SITE TIMELINE */}
-      {activeTab === 'timeline' && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs space-y-6">
-          <div className="border-b border-slate-100 pb-3">
-            <h3 className="text-base font-bold text-slate-900">
-              Site Operations Chronological Timeline
-            </h3>
-            <p className="text-xs text-slate-500">
-              Hourly milestone logs for shifts and deliveries on this construction site
-            </p>
-          </div>
+      {/* New Form Modals */}
+      <NewLaeFormModal
+        isOpen={isNewLaeOpen}
+        onClose={() => setIsNewLaeOpen(false)}
+      />
 
-          <div className="relative border-l-2 border-amber-400 pl-6 ml-3 space-y-6">
-            <div className="relative">
-              <span className="absolute -left-[31px] top-0 h-4 w-4 rounded-full bg-amber-500 ring-4 ring-white" />
-              <div className="text-[11px] font-mono font-bold text-amber-600">07:00 AM</div>
-              <h4 className="text-xs font-bold text-slate-900">Site Gates Open & HSE Toolbox Talk</h4>
-              <p className="text-xs text-slate-600 mt-0.5">Safety briefing on high-altitude harness inspection conducted by HSE Officer.</p>
-            </div>
-
-            <div className="relative">
-              <span className="absolute -left-[31px] top-0 h-4 w-4 rounded-full bg-blue-500 ring-4 ring-white" />
-              <div className="text-[11px] font-mono font-bold text-blue-600">08:30 AM</div>
-              <h4 className="text-xs font-bold text-slate-900">Tower Crane & Concrete Boom Pump Operation Started</h4>
-              <p className="text-xs text-slate-600 mt-0.5">Pre-lift checks signed off by resident plant operator.</p>
-            </div>
-
-            <div className="relative">
-              <span className="absolute -left-[31px] top-0 h-4 w-4 rounded-full bg-emerald-500 ring-4 ring-white" />
-              <div className="text-[11px] font-mono font-bold text-emerald-600">11:15 AM</div>
-              <h4 className="text-xs font-bold text-slate-900">Material Delivery: 200 Bags Bamburi Portland Cement Received</h4>
-              <p className="text-xs text-slate-600 mt-0.5">GRN-0921 verified and offloaded to Warehouse Bay 3.</p>
-            </div>
-
-            <div className="relative">
-              <span className="absolute -left-[31px] top-0 h-4 w-4 rounded-full bg-rose-500 ring-4 ring-white" />
-              <div className="text-[11px] font-mono font-bold text-rose-600">01:45 PM</div>
-              <h4 className="text-xs font-bold text-slate-900">Structural QA Inspection: Shear Wall Rebar Deviation Noted</h4>
-              <p className="text-xs text-slate-600 mt-0.5">Critical defect logged by consulting structural engineer for rebar remediation.</p>
-            </div>
-
-            <div className="relative">
-              <span className="absolute -left-[31px] top-0 h-4 w-4 rounded-full bg-amber-500 ring-4 ring-white" />
-              <div className="text-[11px] font-mono font-bold text-amber-600">05:00 PM</div>
-              <h4 className="text-xs font-bold text-slate-900">Shift Completed & Daily Site Report Submitted</h4>
-              <p className="text-xs text-slate-600 mt-0.5">Roll call concluded: 46 workers present. Shift diary transmitted for approval.</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modals */}
-      <DailyReportDetailModal
-        isOpen={!!selectedReport}
-        onClose={() => setSelectedReport(null)}
-        report={selectedReport}
+      <NewMaterialRequestModal
+        isOpen={isNewMatReqOpen}
+        onClose={() => setIsNewMatReqOpen(false)}
       />
     </div>
   );
 };
+
+export default ProjectDetailPage;

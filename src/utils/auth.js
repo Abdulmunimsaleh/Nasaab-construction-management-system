@@ -1,104 +1,153 @@
-// Authentication, Roles & Authorization Utilities for BuildTrack Africa
+// Authentication, Roles & Authorization Utilities for NASAAB CONSTRUCTION LIMITED
 
-export const SYSTEM_ACCOUNTS = [
-  {
-    id: 'USR-001',
-    username: 'admin',
-    email: 'abdulmuniim@buildtrack.africa',
-    password: 'password123',
-    name: 'Eng. Abdulmuniim Al-Habsi',
-    role: 'Admin',
-    company: 'BuildTrack Infrastructure Ltd',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-    phone: '+254 700 123 456',
-    location: 'Nairobi, Kenya',
-    licenseNo: 'EBK-PE-2018-8492'
-  },
-  {
-    id: 'USR-002',
-    username: 'contractor',
-    email: 'david.ochieng@kpa.co.ke',
-    password: 'password123',
-    name: 'Eng. Ali Hussein',
-    role: 'Contractor',
-    company: 'Consortium Marine & Civil Works',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
-    phone: '+254 722 001 928',
-    location: 'Mombasa, Kenya',
-    licenseNo: 'NCA-CTR-2015-1049'
-  },
-  {
-    id: 'USR-003',
-    username: 'pm',
-    email: 'amina.hassan@buildtrack.africa',
-    password: 'password123',
-    name: 'Eng. Mohammad Amoody',
-    role: 'Project Manager',
-    company: 'BuildTrack Infrastructure Ltd',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80',
-    phone: '+254 733 998 877',
-    location: 'Nairobi, Kenya',
-    licenseNo: 'EBK-PE-2019-3891'
-  },
-  {
-    id: 'USR-004',
-    username: 'foreman',
-    email: 'john.mwangi@buildtrack.africa',
-    password: 'password123',
-    name: 'John Mwangi',
-    role: 'Foreman',
-    company: 'BuildTrack Core Staff',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80',
-    phone: '+254 712 345 678',
-    location: 'Upperhill, Nairobi',
-    licenseNo: 'NCA-SITE-FM-8821',
-    assignedProjectId: 'PRJ-002' // Nairobi Commercial Tower - Upperhill
-  }
-];
+// Standard normalized role identifiers:
+// - 'admin'
+// - 'director'
+// - 'partner'
+// - 'foreman'
+// - 'storekeeper'
+
+export const ROLE_MAPPING = {
+  contractor: 'Director',
+  director: 'Director',
+  'project manager': 'Partner',
+  'project_manager': 'Partner',
+  'projectmanager': 'Partner',
+  pm: 'Partner',
+  partner: 'Partner',
+  foreman: 'Foreman',
+  admin: 'Admin',
+  administrator: 'Admin',
+  'store keeper': 'Storekeeper',
+  'storekeeper': 'Storekeeper',
+  'store_keeper': 'Storekeeper',
+  store: 'Storekeeper'
+};
+
+// Normalize any role or legacy string to standard role
+export const normalizeRole = (role) => {
+  if (!role) return 'Admin';
+  const clean = String(role).trim().toLowerCase();
+  return ROLE_MAPPING[clean] || (clean.charAt(0).toUpperCase() + clean.slice(1));
+};
 
 // Helper: Check if role is Foreman
 export const isForemanRole = (role) => {
-  return role === 'Foreman';
+  if (!role) return false;
+  const clean = String(role).trim().toLowerCase();
+  return clean === 'foreman';
 };
 
-// Helper: Check if role has full administrative access (Admin, Contractor, Project Manager)
+// Helper: Check if role is Storekeeper
+export const isStoreKeeperRole = (role) => {
+  if (!role) return false;
+  const clean = String(role).trim().toLowerCase();
+  return clean === 'storekeeper' || clean === 'store keeper' || clean === 'store_keeper';
+};
+
+// Helper: Check if role is Director
+export const isDirectorRole = (role) => {
+  if (!role) return false;
+  const clean = String(role).trim().toLowerCase();
+  return clean === 'director' || clean === 'contractor';
+};
+
+// Helper: Check if role is Partner
+export const isPartnerRole = (role) => {
+  if (!role) return false;
+  const clean = String(role).trim().toLowerCase();
+  return clean === 'partner' || clean === 'pm' || clean === 'project manager' || clean === 'project_manager';
+};
+
+// Helper: Check if role is Admin
+export const isAdminRole = (role) => {
+  if (!role) return false;
+  const clean = String(role).trim().toLowerCase();
+  return clean === 'admin' || clean === 'administrator';
+};
+
+// Helper: Check if role has universal full administrative access across all projects (Admin and Director only)
 export const hasFullAccess = (role) => {
-  return ['Admin', 'Contractor', 'Project Manager'].includes(role);
+  return isAdminRole(role) || isDirectorRole(role);
 };
 
 // Helper: Check if user/role can access or view financial costs
+// Only Admin, Director, and Partner can view costs.
+// Foremen and Storekeepers are strictly forbidden.
 export const canAccessCosts = (role) => {
-  return ['Admin', 'Contractor', 'Project Manager'].includes(role);
+  return isAdminRole(role) || isDirectorRole(role) || isPartnerRole(role);
 };
 
 // Helper: Check if user/role can EDIT labour rates
-// Only Admin, Contractor, and Project Manager can modify rates.
-// Foreman can view rates but never edit them.
+// Only Admin, Director, and Partner can modify rates.
 export const canEditRates = (role) => {
-  return ['Admin', 'Contractor', 'Project Manager'].includes(role);
+  return isAdminRole(role) || isDirectorRole(role) || isPartnerRole(role);
+};
+
+// ============================================================================
+// WEEKLY REPORTS PERMISSIONS
+// 1. Full weekly report: Admin, Director, Partner only
+// 2. Labour, activity & equipment weekly report: Admin, Director, Partner, Foreman only (Storekeeper forbidden)
+// 3. Material weekly report: Admin, Director, Partner, Storekeeper only (Foreman forbidden)
+// ============================================================================
+export const canAccessFullWeeklyReport = (role) => {
+  return isAdminRole(role) || isDirectorRole(role) || isPartnerRole(role);
+};
+
+export const canAccessLaeWeeklyReport = (role) => {
+  return isAdminRole(role) || isDirectorRole(role) || isPartnerRole(role) || isForemanRole(role);
+};
+
+export const canAccessMaterialWeeklyReport = (role) => {
+  return isAdminRole(role) || isDirectorRole(role) || isPartnerRole(role) || isStoreKeeperRole(role);
+};
+
+export const canAccessAnyWeeklyReport = (role) => {
+  return isAdminRole(role) || isDirectorRole(role) || isPartnerRole(role) || isForemanRole(role) || isStoreKeeperRole(role);
 };
 
 // Helper: Check if user/role can access a specific route path
-export const isRouteAllowedForRole = (role, pathname, assignedProjectId = 'PRJ-002') => {
+export const isRouteAllowedForRole = (role, pathname, assignedProjectId = 'PRJ-001') => {
+  // Admin and Director have access to all routes
   if (hasFullAccess(role)) return true;
 
+  // Partner has full access to operational routes within assigned projects
+  if (isPartnerRole(role)) {
+    if (pathname.startsWith('/projects/')) {
+      const pId = pathname.split('/')[2];
+      // Handled in project context/detail
+      return true;
+    }
+    return true;
+  }
+
+  // Storekeeper: Access ONLY to Materials, Projects, Dashboard, Reports
+  // FORBIDDEN from Labour and Costs
+  if (isStoreKeeperRole(role)) {
+    if (pathname === '/materials') return true;
+    if (pathname === '/dashboard') return true;
+    if (pathname === '/projects' || pathname.startsWith('/projects/')) return true;
+    if (pathname === '/reports') return true;
+    if (pathname === '/settings') return true;
+    // Labour is strictly forbidden for Storekeeper
+    if (pathname === '/labour') return false;
+    return false;
+  }
+
+  // Foreman: Access to Labour & Equipment, Reports, Projects, and Profile/Settings
+  // FORBIDDEN from Materials and Costs
   if (isForemanRole(role)) {
-    // Foreman can only access:
-    // 1. Projects (/projects or /projects/:assignedProjectId)
-    // 2. Daily reports (/daily-reports)
-    // 3. Labour (/labour)
-    // 4. Issues (/issues)
+    if (pathname === '/labour') return true;
+    if (pathname === '/daily-reports') return true;
+    if (pathname === '/reports') return true;
+    if (pathname === '/dashboard') return true;
     if (pathname === '/projects') return true;
     if (pathname.startsWith('/projects/')) {
-      const projectId = pathname.split('/')[2];
-      return projectId === assignedProjectId;
+      return true;
     }
-    if (pathname === '/daily-reports') return true;
-    if (pathname === '/labour') return true;
-    if (pathname === '/issues') return true;
-    if (pathname === '/reports') return true;
-    
-    // All other routes are restricted for Foreman (costs, materials, equipment, photos, settings, dashboard)
+    if (pathname === '/settings') return true;
+    // Materials is strictly forbidden for Foreman
+    if (pathname === '/materials') return false;
     return false;
   }
 
@@ -110,8 +159,7 @@ export const isReportWithin24Hours = (report) => {
   if (!report) return false;
   const now = new Date();
 
-  // If exact timestamp is saved
-  const timestampStr = report.createdAt || report.submittedAt;
+  const timestampStr = report.createdAt || report.created_at || report.submittedAt || report.submitted_at;
   if (timestampStr) {
     const ts = new Date(timestampStr).getTime();
     if (!isNaN(ts)) {
@@ -120,7 +168,6 @@ export const isReportWithin24Hours = (report) => {
     }
   }
 
-  // Fallback to report.date ('YYYY-MM-DD')
   if (report.date) {
     const todayStr = now.toISOString().split('T')[0];
     if (report.date === todayStr) {
@@ -137,11 +184,10 @@ export const isReportWithin24Hours = (report) => {
 };
 
 // Helper: Check if a user role has authority to edit a daily report
-// Admin, Contractor, and Project Manager always have authority.
+// Admin, Director, and Partner always have authority.
 // Foreman only has authority within 24 hours of submission.
 export const canUserEditReport = (role, report) => {
-  if (hasFullAccess(role)) return true;
+  if (hasFullAccess(role) || isPartnerRole(role)) return true;
   if (isForemanRole(role)) return isReportWithin24Hours(report);
   return false;
 };
-

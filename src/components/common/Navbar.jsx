@@ -6,15 +6,13 @@ import { formatRelativeTime } from '../../utils/formatters';
 import {
   Bell,
   Menu,
-  Sparkles,
   User,
   Settings,
   LogOut,
   ChevronDown,
   CheckCircle2,
   AlertTriangle,
-  RotateCcw,
-  Plus
+  Download
 } from 'lucide-react';
 
 export const Navbar = ({ onToggleMobile, onOpenQuickAction, onOpenCreateProject }) => {
@@ -23,9 +21,8 @@ export const Navbar = ({ onToggleMobile, onOpenQuickAction, onOpenCreateProject 
     notifications,
     markNotificationRead,
     markAllNotificationsRead,
-    resetToDemoData,
-    switchRole,
-    isForeman
+    logoutUser,
+    exportLocalStorageBackup
   } = useApp();
 
   const [showNotifications, setShowNotifications] = useState(false);
@@ -34,9 +31,8 @@ export const Navbar = ({ onToggleMobile, onOpenQuickAction, onOpenCreateProject 
   const userRef = useRef(null);
   const navigate = useNavigate();
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadCount = (notifications || []).filter((n) => !n.read).length;
 
-  // Dynamic greeting based on current hour
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good morning';
@@ -57,6 +53,14 @@ export const Navbar = ({ onToggleMobile, onOpenQuickAction, onOpenCreateProject 
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const handleSignOut = async () => {
+    setShowUserMenu(false);
+    await logoutUser();
+    navigate('/login', { replace: true });
+  };
+
+  if (!currentUser) return null;
+
   return (
     <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-slate-200 bg-white/95 px-4 sm:px-6 backdrop-blur-md">
       {/* Left Section: Mobile Menu Button & Greeting */}
@@ -70,7 +74,7 @@ export const Navbar = ({ onToggleMobile, onOpenQuickAction, onOpenCreateProject 
 
         <div>
           <h2 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <span>{getGreeting()}, {currentUser.name.split(' ')[0]}</span>
+            <span>{getGreeting()}, {currentUser.name ? currentUser.name.split(' ')[0] : 'User'}</span>
             <span className="hidden sm:inline-block rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-bold text-amber-800 uppercase tracking-wider">
               {currentUser.role}
             </span>
@@ -124,7 +128,7 @@ export const Navbar = ({ onToggleMobile, onOpenQuickAction, onOpenCreateProject 
               </div>
 
               <div className="mt-2 space-y-1.5 max-h-72 overflow-y-auto">
-                {notifications.length === 0 ? (
+                {(!notifications || notifications.length === 0) ? (
                   <div className="py-6 text-center text-xs text-slate-400">
                     No notifications right now.
                   </div>
@@ -169,18 +173,6 @@ export const Navbar = ({ onToggleMobile, onOpenQuickAction, onOpenCreateProject 
                   ))
                 )}
               </div>
-
-              <div className="border-t border-slate-100 pt-2 text-center">
-                <button
-                  onClick={() => {
-                    navigate('/issues');
-                    setShowNotifications(false);
-                  }}
-                  className="text-xs font-semibold text-slate-600 hover:text-slate-900"
-                >
-                  View All Site Issues →
-                </button>
-              </div>
             </div>
           )}
         </div>
@@ -192,7 +184,7 @@ export const Navbar = ({ onToggleMobile, onOpenQuickAction, onOpenCreateProject 
             className="flex items-center gap-2 rounded-xl border border-slate-200 p-1 sm:px-2.5 sm:py-1.5 hover:bg-slate-50 transition-colors"
           >
             <img
-              src={currentUser.avatar}
+              src={currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'}
               alt={currentUser.name}
               className="h-7 w-7 rounded-lg object-cover border border-slate-200"
             />
@@ -200,7 +192,7 @@ export const Navbar = ({ onToggleMobile, onOpenQuickAction, onOpenCreateProject 
               <div className="text-xs font-bold text-slate-900 leading-tight truncate max-w-[110px]">
                 {currentUser.name}
               </div>
-              <div className="text-[10px] text-slate-500 leading-none">
+              <div className="text-[10px] text-slate-500 leading-none capitalize">
                 {currentUser.role}
               </div>
             </div>
@@ -217,64 +209,51 @@ export const Navbar = ({ onToggleMobile, onOpenQuickAction, onOpenCreateProject 
                     {currentUser.role}
                   </span>
                   <span className="text-[10px] text-slate-400 font-mono">
-                    {currentUser.licenseNo}
+                    {currentUser.licenseNo || 'ACTIVE'}
                   </span>
                 </div>
               </div>
 
               <div className="py-1">
-                {!isForeman && (
-                  <>
-                    <button
-                      onClick={() => {
-                        navigate('/settings');
-                        setShowUserMenu(false);
-                      }}
-                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-                    >
-                      <User className="h-4 w-4 text-slate-400" />
-                      My Profile & License
-                    </button>
-                    <button
-                      onClick={() => {
-                        navigate('/settings');
-                        setShowUserMenu(false);
-                      }}
-                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-                    >
-                      <Settings className="h-4 w-4 text-slate-400" />
-                      Company & System Settings
-                    </button>
-                    <button
-                      onClick={() => {
-                        resetToDemoData();
-                        setShowUserMenu(false);
-                      }}
-                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-amber-700 hover:bg-amber-50 transition-colors cursor-pointer"
-                    >
-                      <RotateCcw className="h-4 w-4 text-amber-600" />
-                      Reset to Kenyan Demo Data
-                    </button>
-                  </>
-                )}
-                {isForeman && (
-                  <div className="px-3 py-2 text-[11px] text-slate-500 bg-slate-50 rounded-lg mx-1 mb-1">
-                    <span className="font-semibold text-slate-700 block">Site Foreman Access</span>
-                    Scoped strictly to your assigned construction site.
-                  </div>
-                )}
+                <button
+                  onClick={() => {
+                    navigate('/settings');
+                    setShowUserMenu(false);
+                  }}
+                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  <User className="h-4 w-4 text-slate-400" />
+                  My Profile & Account
+                </button>
+                <button
+                  onClick={() => {
+                    navigate('/settings');
+                    setShowUserMenu(false);
+                  }}
+                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  <Settings className="h-4 w-4 text-slate-400" />
+                  System & Database Settings
+                </button>
+                <button
+                  onClick={() => {
+                    exportLocalStorageBackup();
+                    setShowUserMenu(false);
+                  }}
+                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  <Download className="h-4 w-4 text-slate-400" />
+                  Export LocalStorage Backup
+                </button>
               </div>
 
               <div className="border-t border-slate-100 pt-1">
                 <button
-                  onClick={() => {
-                    navigate('/login');
-                    setShowUserMenu(false);
-                  }}
-                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 transition-colors"
+                  onClick={handleSignOut}
+                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                 >
                   <LogOut className="h-4 w-4 text-rose-500" />
-                  Sign Out / Switch Account
+                  Sign Out
                 </button>
               </div>
             </div>

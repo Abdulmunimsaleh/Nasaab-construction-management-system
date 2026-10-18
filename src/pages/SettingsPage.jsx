@@ -1,18 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
+import api from '../services/api';
 import {
   Settings,
   Building,
-  Users,
   Shield,
   FileText,
   Bell,
   User,
   Key,
-  RotateCcw,
+  Save,
+  Lock,
+  Layers,
   CheckCircle2,
-  HardHat,
-  Save
+  Users as UsersIcon,
+  HardHat
 } from 'lucide-react';
 
 export const SettingsPage = () => {
@@ -21,59 +23,158 @@ export const SettingsPage = () => {
     setCompanySettings,
     currentUser,
     updateUserProfile,
-    switchRole,
-    resetToDemoData,
+    isForeman,
+    isStoreKeeper,
+    isAdmin,
+    isDirector,
     addToast
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState('company');
+  const isLimitedUser = isForeman || isStoreKeeper;
+
+  const [activeTab, setActiveTab] = useState(isLimitedUser ? 'profile' : 'company');
+
+  // If user role changes/loads, ensure limited user starts on profile
+  useEffect(() => {
+    if (isLimitedUser && (activeTab === 'company' || activeTab === 'users-roles')) {
+      setActiveTab('profile');
+    }
+  }, [isLimitedUser, activeTab]);
 
   // Local form states
-  const [companyForm, setCompanyForm] = useState(companySettings);
-  const [userForm, setUserForm] = useState(currentUser);
+  const [companyForm, setCompanyForm] = useState(companySettings || {});
+  const [userForm, setUserForm] = useState(currentUser || {});
   const [securityForm, setSecurityForm] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
+  const [isSavingCompany, setIsSavingCompany] = useState(false);
+  const [isSavingSecurity, setIsSavingSecurity] = useState(false);
+  const [systemUsers, setSystemUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
 
-  const handleSaveCompany = (e) => {
-    e.preventDefault();
-    setCompanySettings(companyForm);
-    addToast('Company profile settings saved!');
+  useEffect(() => {
+    if (companySettings) {
+      setCompanyForm(companySettings);
+    }
+  }, [companySettings]);
+
+  useEffect(() => {
+    if (currentUser) {
+      setUserForm(currentUser);
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    if ((isAdmin || isDirector) && activeTab === 'users-roles') {
+      fetchUsers();
+    }
+  }, [activeTab, isAdmin, isDirector]);
+
+  const fetchUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const res = await api.users.list();
+      setSystemUsers(res.data?.users || []);
+    } catch (err) {
+      // Non-critical, ignore
+    } finally {
+      setLoadingUsers(false);
+    }
   };
 
-  const handleSaveUser = (e) => {
+  const handleSaveCompany = async (e) => {
     e.preventDefault();
-    updateUserProfile(userForm);
+    setIsSavingCompany(true);
+    try {
+      await api.settings.updateCompany(companyForm);
+      setCompanySettings(companyForm);
+      addToast('Company profile settings saved to database!', 'success');
+    } catch (err) {
+      addToast(err.message || 'Failed to save company settings', 'error');
+    } finally {
+      setIsSavingCompany(false);
+    }
   };
 
-  const handleSaveSecurity = (e) => {
+  const handleSaveUser = async (e) => {
+    e.preventDefault();
+    try {
+      await updateUserProfile(userForm);
+    } catch (err) {
+      // Toast handled in context
+    }
+  };
+
+  const handleSaveSecurity = async (e) => {
     e.preventDefault();
     if (securityForm.newPassword !== securityForm.confirmPassword) {
-      alert('Passwords do not match.');
+      addToast('New password and confirm password do not match.', 'error');
       return;
     }
-    addToast('Security password updated successfully!');
-    setSecurityForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    if (securityForm.newPassword.length < 8) {
+      addToast('New password must be at least 8 characters long.', 'error');
+      return;
+    }
+    setIsSavingSecurity(true);
+    try {
+      await api.users.changePassword({
+        currentPassword: securityForm.currentPassword,
+        newPassword: securityForm.newPassword
+      });
+      addToast('Security password updated successfully in database!', 'success');
+      setSecurityForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (err) {
+      addToast(err.message || 'Failed to update password. Please check your current password.', 'error');
+    } finally {
+      setIsSavingSecurity(false);
+    }
   };
 
-  const tabs = [
-    { id: 'company', label: 'Company Profile', icon: Building },
-    { id: 'users-roles', label: 'Roles & Permissions', icon: Shield },
+  const allTabs = [
+    { id: 'company', label: 'Company Profile', icon: Building, privilegedOnly: true },
+    { id: 'users-roles', label: 'Roles & Access Matrix', icon: Shield, privilegedOnly: true },
     { id: 'profile', label: 'User Profile & EBK License', icon: User },
-    { id: 'reports', label: 'Report Settings', icon: FileText },
-    { id: 'notifications', label: 'Notification Settings', icon: Bell },
-    { id: 'security', label: 'Security & Access', icon: Key }
+    { id: 'reports', label: 'Report Settings', icon: FileText, privilegedOnly: true },
+    { id: 'security', label: 'Security & Password', icon: Key }
   ];
 
+  const tabs = isLimitedUser
+    ? allTabs.filter(t => !t.privilegedOnly)
+    : allTabs;
+
   const rolesMatrix = [
-    { role: 'Admin', desc: 'Full system control, financial budgets, project archives and settings', scope: 'Full Access' },
-    { role: 'Project Manager', desc: 'Manage assigned sites, schedule approvals, cost oversight', scope: 'Project Scoped' },
-    { role: 'Site Engineer', desc: 'Create daily reports, inspect rebar, log plant hours, QA check', scope: 'Technical Field' },
-    { role: 'Foreman', desc: 'Take daily attendance, submit site diaries, upload photos', scope: 'Shift Execution' },
-    { role: 'Quantity Surveyor', desc: 'Procurement bills, material ledger, financial variance audit', scope: 'Financial/BOQ' },
-    { role: 'Worker', desc: 'View attendance records and personal shift rosters', scope: 'Read Only' }
+    {
+      role: 'Admin',
+      scope: 'Global System Control',
+      badge: 'bg-rose-100 text-rose-800',
+      desc: 'Full system-wide access to every project and module. Can create projects, manage users, modify assignments, and manage all forms, costs, and audit settings.'
+    },
+    {
+      role: 'Director',
+      scope: 'Global Executive Oversight',
+      badge: 'bg-purple-100 text-purple-800',
+      desc: 'Same global access as Admin: creates projects, provisions users, assigns project memberships, and monitors construction diaries and cost summaries.'
+    },
+    {
+      role: 'Partner',
+      scope: 'Assigned Project Isolation',
+      badge: 'bg-blue-100 text-blue-800',
+      desc: 'Full access to available modules strictly within their assigned project(s). Cannot view, create, or alter records for unassigned sites.'
+    },
+    {
+      role: 'Storekeeper',
+      scope: 'Stores & Material Requisitions',
+      badge: 'bg-emerald-100 text-emerald-800',
+      desc: 'Permitted exclusively to Material Needed forms within their assigned project. Strictly blocked from Labour, Equipment, Costs, and Admin controls.'
+    },
+    {
+      role: 'Foreman',
+      scope: 'Site Shift Operations',
+      badge: 'bg-amber-100 text-amber-800',
+      desc: 'Permitted exclusively to Labour, Activity, and Equipment forms within their assigned project. Strictly blocked from Materials, Costs, and Admin controls.'
+    }
   ];
 
   return (
@@ -86,17 +187,9 @@ export const SettingsPage = () => {
             <span>Platform & Company Settings</span>
           </h1>
           <p className="mt-1 text-xs text-slate-500">
-            Configure contractor accreditation, company details, user permissions, and report headers
+            Enterprise database parameters, role security boundaries, and engineering profile
           </p>
         </div>
-
-        <button
-          onClick={resetToDemoData}
-          className="inline-flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-xs font-bold text-amber-900 hover:bg-amber-100 transition-colors shadow-2xs self-start sm:self-auto"
-        >
-          <RotateCcw className="h-4 w-4 text-amber-600" />
-          <span>Reset Initial Kenyan Data</span>
-        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -109,7 +202,7 @@ export const SettingsPage = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-xs font-bold transition-colors ${
+                className={`flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-xs font-bold transition-colors cursor-pointer ${
                   isActive
                     ? 'bg-amber-500 text-slate-950 shadow-sm'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
@@ -132,7 +225,7 @@ export const SettingsPage = () => {
                   Registered Construction Enterprise Profile
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Details printed on formal engineering dossiers, invoices, and PDF site diaries
+                  Details stored in MySQL and printed on engineering reports and PDF exports
                 </p>
               </div>
 
@@ -144,7 +237,7 @@ export const SettingsPage = () => {
                   <input
                     type="text"
                     required
-                    value={companyForm.companyName}
+                    value={companyForm.companyName || ''}
                     onChange={(e) => setCompanyForm({ ...companyForm, companyName: e.target.value })}
                     className="mt-1 w-full rounded-xl border border-slate-200 px-3.5 py-2 text-slate-900 focus:border-amber-500 focus:outline-hidden"
                   />
@@ -157,7 +250,7 @@ export const SettingsPage = () => {
                     </label>
                     <input
                       type="text"
-                      value={companyForm.ncaRegistration}
+                      value={companyForm.ncaRegistration || ''}
                       onChange={(e) => setCompanyForm({ ...companyForm, ncaRegistration: e.target.value })}
                       className="mt-1 w-full rounded-xl border border-slate-200 px-3.5 py-2 text-slate-900 focus:border-amber-500 focus:outline-hidden"
                     />
@@ -169,7 +262,7 @@ export const SettingsPage = () => {
                     </label>
                     <input
                       type="text"
-                      value={companyForm.taxPin}
+                      value={companyForm.taxPin || ''}
                       onChange={(e) => setCompanyForm({ ...companyForm, taxPin: e.target.value })}
                       className="mt-1 w-full rounded-xl border border-slate-200 px-3.5 py-2 text-slate-900 focus:border-amber-500 focus:outline-hidden"
                     />
@@ -182,7 +275,7 @@ export const SettingsPage = () => {
                   </label>
                   <input
                     type="text"
-                    value={companyForm.address}
+                    value={companyForm.address || ''}
                     onChange={(e) => setCompanyForm({ ...companyForm, address: e.target.value })}
                     className="mt-1 w-full rounded-xl border border-slate-200 px-3.5 py-2 text-slate-900 focus:border-amber-500 focus:outline-hidden"
                   />
@@ -195,7 +288,7 @@ export const SettingsPage = () => {
                     </label>
                     <input
                       type="text"
-                      value={companyForm.phone}
+                      value={companyForm.phone || ''}
                       onChange={(e) => setCompanyForm({ ...companyForm, phone: e.target.value })}
                       className="mt-1 w-full rounded-xl border border-slate-200 px-3.5 py-2 text-slate-900 focus:border-amber-500 focus:outline-hidden"
                     />
@@ -207,7 +300,7 @@ export const SettingsPage = () => {
                     </label>
                     <input
                       type="email"
-                      value={companyForm.email}
+                      value={companyForm.email || ''}
                       onChange={(e) => setCompanyForm({ ...companyForm, email: e.target.value })}
                       className="mt-1 w-full rounded-xl border border-slate-200 px-3.5 py-2 text-slate-900 focus:border-amber-500 focus:outline-hidden"
                     />
@@ -229,30 +322,31 @@ export const SettingsPage = () => {
                 <div className="pt-3 border-t border-slate-100 flex justify-end">
                   <button
                     type="submit"
-                    className="flex items-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 font-bold text-slate-950 hover:bg-amber-400 transition-colors shadow-sm"
+                    disabled={isSavingCompany}
+                    className="flex items-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 font-bold text-slate-950 hover:bg-amber-400 transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
                   >
                     <Save className="h-4 w-4" />
-                    <span>Save Company Profile</span>
+                    <span>{isSavingCompany ? 'Saving...' : 'Save Company Profile'}</span>
                   </button>
                 </div>
               </form>
             </div>
           )}
 
-          {/* TAB 2: ROLES & PERMISSIONS */}
+          {/* TAB 2: ROLES & PERMISSIONS MATRIX */}
           {activeTab === 'users-roles' && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs space-y-5">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs space-y-6">
               <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
                 <div>
                   <h3 className="text-base font-bold text-slate-900">
-                    Roles & Access Control Architecture
+                    Role-Based Access Control Architecture
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Test different site permission levels live in BuildTrack
+                    Strict database-enforced permissions governing projects, forms, and authorization barriers
                   </p>
                 </div>
                 <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">
-                  Active: {currentUser.role}
+                  Your Role: {currentUser?.role}
                 </span>
               </div>
 
@@ -260,35 +354,97 @@ export const SettingsPage = () => {
                 {rolesMatrix.map((rm) => (
                   <div
                     key={rm.role}
-                    className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
-                      currentUser.role === rm.role
-                        ? 'border-amber-400 bg-amber-50/50 shadow-2xs'
-                        : 'border-slate-200 bg-white hover:bg-slate-50'
+                    className={`p-4 rounded-xl border transition-all ${
+                      currentUser?.role === rm.role
+                        ? 'border-amber-400 bg-amber-50/40 shadow-2xs'
+                        : 'border-slate-200 bg-white'
                     }`}
                   >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-bold text-xs text-slate-900">{rm.role}</h4>
-                        <span className="rounded bg-slate-100 px-1.5 py-0.2 text-[10px] font-mono text-slate-600">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <h4 className="font-bold text-sm text-slate-900">{rm.role}</h4>
+                        <span className={`rounded-md px-2 py-0.5 text-[10px] font-bold ${rm.badge}`}>
                           {rm.scope}
                         </span>
                       </div>
-                      <p className="mt-1 text-[11px] text-slate-500">{rm.desc}</p>
+                      {currentUser?.role === rm.role && (
+                        <span className="flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          <span>Active Account</span>
+                        </span>
+                      )}
                     </div>
-
-                    <button
-                      onClick={() => switchRole(rm.role)}
-                      className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
-                        currentUser.role === rm.role
-                          ? 'bg-amber-500 text-slate-950 cursor-default'
-                          : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
-                      }`}
-                    >
-                      {currentUser.role === rm.role ? 'Current Active' : 'Switch Role'}
-                    </button>
+                    <p className="mt-2 text-xs text-slate-600 leading-relaxed">{rm.desc}</p>
                   </div>
                 ))}
               </div>
+
+              {/* Database User Directory for Admins/Directors */}
+              {(currentUser?.role === 'Admin' || currentUser?.role === 'Director') && (
+                <div className="border-t border-slate-100 pt-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                        MySQL System Users Directory
+                      </h4>
+                      <p className="text-[11px] text-slate-500">
+                        Real user accounts retrieved from MySQL database
+                      </p>
+                    </div>
+                    <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg">
+                      {systemUsers.length} Registered Accounts
+                    </span>
+                  </div>
+
+                  {loadingUsers ? (
+                    <div className="p-4 text-center text-xs text-slate-400">Loading users from MySQL...</div>
+                  ) : (
+                    <div className="overflow-x-auto rounded-xl border border-slate-200">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[10px]">
+                          <tr>
+                            <th className="px-3.5 py-2.5">User</th>
+                            <th className="px-3.5 py-2.5">User ID / Username</th>
+                            <th className="px-3.5 py-2.5">Role</th>
+                            <th className="px-3.5 py-2.5">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {systemUsers.map((u) => (
+                            <tr key={u.id} className="hover:bg-slate-50/70">
+                              <td className="px-3.5 py-2.5 font-bold text-slate-900">
+                                {u.full_name || u.name}
+                              </td>
+                              <td className="px-3.5 py-2.5 font-mono text-slate-600">
+                                {u.username}
+                              </td>
+                              <td className="px-3.5 py-2.5">
+                                <span className={`rounded-md px-2 py-0.5 text-[10px] font-bold ${
+                                  u.role === 'Admin' ? 'bg-rose-100 text-rose-800' :
+                                  u.role === 'Director' ? 'bg-purple-100 text-purple-800' :
+                                  u.role === 'Partner' ? 'bg-blue-100 text-blue-800' :
+                                  u.role === 'Storekeeper' ? 'bg-emerald-100 text-emerald-800' :
+                                  'bg-amber-100 text-amber-800'
+                                }`}>
+                                  {u.role}
+                                </span>
+                              </td>
+                              <td className="px-3.5 py-2.5">
+                                <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                  u.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'
+                                }`}>
+                                  <span className={`h-1.5 w-1.5 rounded-full ${u.is_active ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                                  <span>{u.is_active ? 'Active' : 'Inactive'}</span>
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -300,17 +456,15 @@ export const SettingsPage = () => {
                   User Profile & Engineers Board of Kenya (EBK) Credentials
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Personal sign-off credentials for site reports and project authorization
+                  Personal credentials stored in MySQL and used for site authorizations
                 </p>
               </div>
 
               <form onSubmit={handleSaveUser} className="space-y-4 text-xs">
                 <div className="flex items-center gap-4">
-                  <img
-                    src={userForm.avatar}
-                    alt={userForm.name}
-                    className="h-16 w-16 rounded-2xl object-cover border border-slate-200 shadow-2xs"
-                  />
+                  <div className="h-14 w-14 rounded-2xl bg-amber-500 text-slate-950 font-extrabold text-xl flex items-center justify-center border border-amber-300 shadow-2xs">
+                    {userForm.name ? userForm.name.charAt(0).toUpperCase() : 'U'}
+                  </div>
                   <div>
                     <h4 className="font-bold text-sm text-slate-900">{userForm.name}</h4>
                     <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 uppercase">
@@ -327,7 +481,7 @@ export const SettingsPage = () => {
                     <input
                       type="text"
                       required
-                      value={userForm.name}
+                      value={userForm.name || ''}
                       onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
                       className="mt-1 w-full rounded-xl border border-slate-200 px-3.5 py-2 text-slate-900 focus:border-amber-500 focus:outline-hidden"
                     />
@@ -339,8 +493,7 @@ export const SettingsPage = () => {
                     </label>
                     <input
                       type="email"
-                      required
-                      value={userForm.email}
+                      value={userForm.email || ''}
                       onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
                       className="mt-1 w-full rounded-xl border border-slate-200 px-3.5 py-2 text-slate-900 focus:border-amber-500 focus:outline-hidden"
                     />
@@ -354,7 +507,7 @@ export const SettingsPage = () => {
                     </label>
                     <input
                       type="text"
-                      value={userForm.licenseNo}
+                      value={userForm.licenseNo || ''}
                       onChange={(e) => setUserForm({ ...userForm, licenseNo: e.target.value })}
                       className="mt-1 w-full rounded-xl border border-slate-200 px-3.5 py-2 text-slate-900 focus:border-amber-500 focus:outline-hidden font-mono"
                     />
@@ -366,7 +519,7 @@ export const SettingsPage = () => {
                     </label>
                     <input
                       type="tel"
-                      value={userForm.phone}
+                      value={userForm.phone || ''}
                       onChange={(e) => setUserForm({ ...userForm, phone: e.target.value })}
                       className="mt-1 w-full rounded-xl border border-slate-200 px-3.5 py-2 text-slate-900 focus:border-amber-500 focus:outline-hidden"
                     />
@@ -376,7 +529,7 @@ export const SettingsPage = () => {
                 <div className="pt-3 border-t border-slate-100 flex justify-end">
                   <button
                     type="submit"
-                    className="flex items-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 font-bold text-slate-950 hover:bg-amber-400 transition-colors shadow-sm"
+                    className="flex items-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 font-bold text-slate-950 hover:bg-amber-400 transition-colors shadow-sm cursor-pointer"
                   >
                     <Save className="h-4 w-4" />
                     <span>Update Profile</span>
@@ -393,30 +546,22 @@ export const SettingsPage = () => {
                 <h3 className="text-base font-bold text-slate-900">
                   PDF Layout & Formatting Parameters
                 </h3>
-                <p className="text-slate-500">Settings for automated document generation</p>
+                <p className="text-slate-500">Settings for automated PDF document generation</p>
               </div>
 
               <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 rounded-xl border border-slate-200">
+                <div className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200">
                   <div>
                     <h4 className="font-bold text-slate-900">Include Official Company Stamp & Banner</h4>
-                    <p className="text-[11px] text-slate-500">Render high-res NCA accreditation header on page 1</p>
+                    <p className="text-[11px] text-slate-500">Render high-resolution NCA accreditation header on page 1</p>
                   </div>
                   <input type="checkbox" defaultChecked className="rounded border-slate-300 text-amber-500" />
                 </div>
 
-                <div className="flex items-center justify-between p-3 rounded-xl border border-slate-200">
+                <div className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200">
                   <div>
-                    <h4 className="font-bold text-slate-900">Include Weather History In Reports</h4>
-                    <p className="text-[11px] text-slate-500">Print daily rainfall and temperature for delay justification</p>
-                  </div>
-                  <input type="checkbox" defaultChecked className="rounded border-slate-300 text-amber-500" />
-                </div>
-
-                <div className="flex items-center justify-between p-3 rounded-xl border border-slate-200">
-                  <div>
-                    <h4 className="font-bold text-slate-900">Watermark Draft Reports</h4>
-                    <p className="text-[11px] text-slate-500">Show diagonal "DRAFT - NOT SIGNED" until approved by PM</p>
+                    <h4 className="font-bold text-slate-900">Include Weather History In Site Summaries</h4>
+                    <p className="text-[11px] text-slate-500">Print recorded rainfall and temperature in LAE site summaries</p>
                   </div>
                   <input type="checkbox" defaultChecked className="rounded border-slate-300 text-amber-500" />
                 </div>
@@ -424,52 +569,16 @@ export const SettingsPage = () => {
             </div>
           )}
 
-          {/* TAB 5: NOTIFICATIONS */}
-          {activeTab === 'notifications' && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs space-y-4 text-xs">
-              <div className="border-b border-slate-100 pb-3">
-                <h3 className="text-base font-bold text-slate-900">
-                  Site Alerts & Notification Preferences
-                </h3>
-                <p className="text-slate-500">Configure instant threshold alerts</p>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 rounded-xl border border-slate-200">
-                  <div>
-                    <h4 className="font-bold text-slate-900">Low Material Stock Alerts</h4>
-                    <p className="text-[11px] text-slate-500">Trigger alert when inventory drops below safety minimum</p>
-                  </div>
-                  <input type="checkbox" defaultChecked className="rounded border-slate-300 text-amber-500" />
-                </div>
-
-                <div className="flex items-center justify-between p-3 rounded-xl border border-slate-200">
-                  <div>
-                    <h4 className="font-bold text-slate-900">Critical HSE & Defect Notifications</h4>
-                    <p className="text-[11px] text-slate-500">Immediate push notice when critical safety hazard logged</p>
-                  </div>
-                  <input type="checkbox" defaultChecked className="rounded border-slate-300 text-amber-500" />
-                </div>
-
-                <div className="flex items-center justify-between p-3 rounded-xl border border-slate-200">
-                  <div>
-                    <h4 className="font-bold text-slate-900">Budget Overrun Warnings</h4>
-                    <p className="text-[11px] text-slate-500">Alert managers when project cost reaches 90% of contract ceiling</p>
-                  </div>
-                  <input type="checkbox" defaultChecked className="rounded border-slate-300 text-amber-500" />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 6: SECURITY */}
+          {/* TAB 5: SECURITY & PASSWORD */}
           {activeTab === 'security' && (
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs space-y-5 text-xs">
               <div className="border-b border-slate-100 pb-3">
                 <h3 className="text-base font-bold text-slate-900">
                   Security, Passwords & Access Token
                 </h3>
-                <p className="text-slate-500">Manage login credentials and two-factor safety</p>
+                <p className="text-slate-500">
+                  Update your MySQL database password securely using bcrypt hashing
+                </p>
               </div>
 
               <form onSubmit={handleSaveSecurity} className="space-y-3 max-w-md">
@@ -493,10 +602,12 @@ export const SettingsPage = () => {
                   <input
                     type="password"
                     required
+                    minLength={8}
                     value={securityForm.newPassword}
                     onChange={(e) => setSecurityForm({ ...securityForm, newPassword: e.target.value })}
                     className="mt-1 w-full rounded-xl border border-slate-200 px-3.5 py-2 text-slate-900 focus:border-amber-500 focus:outline-hidden"
                   />
+                  <p className="mt-1 text-[10px] text-slate-400">Must be at least 8 characters</p>
                 </div>
 
                 <div>
@@ -514,9 +625,10 @@ export const SettingsPage = () => {
 
                 <button
                   type="submit"
-                  className="rounded-xl bg-slate-900 px-5 py-2.5 font-bold text-white hover:bg-slate-800 transition-colors"
+                  disabled={isSavingSecurity}
+                  className="rounded-xl bg-slate-900 px-5 py-2.5 font-bold text-white hover:bg-slate-800 transition-colors cursor-pointer disabled:opacity-50"
                 >
-                  Change Password
+                  {isSavingSecurity ? 'Updating...' : 'Change Password'}
                 </button>
               </form>
             </div>

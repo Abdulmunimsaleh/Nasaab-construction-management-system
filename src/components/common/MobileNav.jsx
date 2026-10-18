@@ -4,15 +4,85 @@ import { useApp } from '../../context/AppContext';
 import {
   LayoutDashboard,
   FolderKanban,
-  FileSpreadsheet,
+  HardHat,
   FileText,
+  Boxes,
   Plus,
   Menu
 } from 'lucide-react';
 
 export const MobileNav = ({ onOpenQuickAction, onToggleMobileMenu }) => {
-  const { currentUser, isForeman } = useApp();
+  const { currentUser, isForeman, isStoreKeeper } = useApp();
   const assignedSiteId = currentUser?.assignedProjectId || 'PRJ-002';
+
+  if (isStoreKeeper) {
+    return (
+      <div className="fixed bottom-0 left-0 right-0 z-40 block lg:hidden border-t border-slate-200 bg-white/95 px-2 py-2 backdrop-blur-lg">
+        <div className="flex items-center justify-around">
+          {/* Materials */}
+          <NavLink
+            to="/materials"
+            className={({ isActive }) =>
+              `flex flex-col items-center gap-1 py-1 px-2 text-[10px] font-semibold transition-colors ${
+                isActive ? 'text-amber-600' : 'text-slate-500 hover:text-slate-900'
+              }`
+            }
+          >
+            <Boxes className="h-5 w-5" />
+            <span>Materials</span>
+          </NavLink>
+
+          {/* Projects */}
+          <NavLink
+            to="/projects"
+            className={({ isActive }) =>
+              `flex flex-col items-center gap-1 py-1 px-2 text-[10px] font-semibold transition-colors ${
+                isActive ? 'text-amber-600' : 'text-slate-500 hover:text-slate-900'
+              }`
+            }
+          >
+            <FolderKanban className="h-5 w-5" />
+            <span>Sites</span>
+          </NavLink>
+
+          {/* Dashboard */}
+          <NavLink
+            to="/dashboard"
+            className={({ isActive }) =>
+              `flex flex-col items-center gap-1 py-1 px-2 text-[10px] font-semibold transition-colors ${
+                isActive ? 'text-amber-600' : 'text-slate-500 hover:text-slate-900'
+              }`
+            }
+          >
+            <LayoutDashboard className="h-5 w-5" />
+            <span>Dashboard</span>
+          </NavLink>
+
+          {/* PDF Reports */}
+          <NavLink
+            to="/reports"
+            className={({ isActive }) =>
+              `flex flex-col items-center gap-1 py-1 px-2 text-[10px] font-semibold transition-colors ${
+                isActive ? 'text-amber-600' : 'text-slate-500 hover:text-slate-900'
+              }`
+            }
+          >
+            <FileText className="h-5 w-5" />
+            <span>Reports</span>
+          </NavLink>
+
+          {/* More Menu Drawer */}
+          <button
+            onClick={onToggleMobileMenu}
+            className="flex flex-col items-center gap-1 py-1 px-2 text-[10px] font-semibold text-slate-500 hover:text-slate-900 transition-colors"
+          >
+            <Menu className="h-5 w-5" />
+            <span>More</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (isForeman) {
     return (
@@ -31,17 +101,17 @@ export const MobileNav = ({ onOpenQuickAction, onToggleMobileMenu }) => {
             <span>My Site</span>
           </NavLink>
 
-          {/* Daily Reports */}
+          {/* Labour */}
           <NavLink
-            to="/daily-reports"
+            to="/labour"
             className={({ isActive }) =>
               `flex flex-col items-center gap-1 py-1 px-2 text-[10px] font-semibold transition-colors ${
                 isActive ? 'text-amber-600' : 'text-slate-500 hover:text-slate-900'
               }`
             }
           >
-            <FileSpreadsheet className="h-5 w-5" />
-            <span>Reports</span>
+            <HardHat className="h-5 w-5" />
+            <span>Labour</span>
           </NavLink>
 
           {/* Quick Action */}
@@ -114,17 +184,17 @@ export const MobileNav = ({ onOpenQuickAction, onToggleMobileMenu }) => {
           <Plus className="h-6 w-6 stroke-[2.5]" />
         </button>
 
-        {/* Daily Reports */}
+        {/* Labour */}
         <NavLink
-          to="/daily-reports"
+          to="/labour"
           className={({ isActive }) =>
             `flex flex-col items-center gap-1 py-1 px-2 text-[10px] font-semibold transition-colors ${
               isActive ? 'text-amber-600' : 'text-slate-500 hover:text-slate-900'
             }`
           }
         >
-          <FileSpreadsheet className="h-5 w-5" />
-          <span>Reports</span>
+          <HardHat className="h-5 w-5" />
+          <span>Labour</span>
         </NavLink>
 
         {/* More Menu Drawer */}

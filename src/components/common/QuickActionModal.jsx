@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal } from './Modal';
 import {
-  FileSpreadsheet
+  HardHat
 } from 'lucide-react';
 
 export const QuickActionModal = ({
@@ -11,10 +11,10 @@ export const QuickActionModal = ({
 }) => {
   const actions = [
     {
-      id: 'daily-report',
-      title: 'Submit Daily Site Report',
-      description: 'Record weather, activities, plant hours & daily site progress',
-      icon: FileSpreadsheet,
+      id: 'labour-shift',
+      title: 'Log Labour & Activity Shift',
+      description: 'Record trade headcounts, wage rates, daily work executed & machinery',
+      icon: HardHat,
       color: 'bg-amber-100 text-amber-700',
       badge: 'Primary'
     }
