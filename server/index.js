@@ -32,29 +32,25 @@ import weeklyReportsRoutes from './routes/weekly_reports.routes.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const isProd = process.env.NODE_ENV === 'production';
+const isProd = process.env.NODE_ENV === 'production' || Boolean(process.env.RENDER);
 
 // Render & production reverse-proxy support (enables secure cookies over HTTPS)
 if (isProd) {
   app.set('trust proxy', 1);
 }
 
-// --------------- Middleware ---------------
+// --------------- 1. Serve Static Frontend Files First ---------------
+// Static assets (JS, CSS, images) should never be blocked by CORS or session overhead
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+}
 
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://127.0.0.1:5173',
-  process.env.CLIENT_URL
-].filter(Boolean);
+// --------------- 2. API Middleware ---------------
 
 app.use(cors({
   origin: (origin, callback) => {
-    // In production same-origin requests or allowed local origins
-    if (!origin || allowedOrigins.includes(origin) || isProd) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
+    // Allow any origin with credentials (vital for same-origin and custom Render domains)
+    callback(null, true);
   },
   credentials: true,
 }));
@@ -106,11 +102,9 @@ app.all('/api/*', (_req, res) => {
   res.status(404).json({ error: 'API endpoint not found' });
 });
 
-// --------------- Serve Frontend SPA in Production ---------------
+// --------------- SPA Client-Side Routing Fallback ---------------
 
 if (fs.existsSync(distPath)) {
-  app.use(express.static(distPath));
-
   // Guard against sending index.html for non-existent static assets
   app.all('/assets/*', (_req, res) => {
     res.status(404).json({ error: 'Static asset not found' });
