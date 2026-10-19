@@ -119,6 +119,7 @@ async function provision() {
 
       // MMA Personnel
       { id: 'usr-abdulfatah-sabir', name: 'Abdulfatah Sabir', userId: 'abdulfatah.sabir', role: 'Partner' },
+      { id: 'usr-fatma-jumaan', name: 'Fatma Jumaan', userId: 'fatma.jumaan', role: 'Partner' },
       { id: 'usr-abdikadir-osman', name: 'Abdikadir Osman', userId: 'abdikadir.osman', role: 'Storekeeper' },
       { id: 'usr-mohammad-hassan', name: 'Mohammad Hassan', userId: 'mohammad.hassan', role: 'Foreman' },
 
@@ -186,6 +187,7 @@ async function provision() {
 
       // MMA
       { projectId: 'prj-mma', userId: 'usr-abdulfatah-sabir', role: 'Partner' },
+      { projectId: 'prj-mma', userId: 'usr-fatma-jumaan', role: 'Partner' },
       { projectId: 'prj-mma', userId: 'usr-abdikadir-osman', role: 'Storekeeper' },
       { projectId: 'prj-mma', userId: 'usr-mohammad-hassan', role: 'Foreman' },
 

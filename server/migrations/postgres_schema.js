@@ -300,7 +300,8 @@ export async function initPostgresSchema(pool) {
       { id: 'usr-mohamed-hussein', name: 'Mohamed Hussein', userId: 'mohamed.hussein', role: 'Partner', token: '7b545f44da235775c742353a29082ebc22d1df7b663b6a98', pass: 'Nsb#9d67bc88!315', project: 'prj-seacrest' },
       { id: 'usr-abdi-mahad', name: 'Abdi Mahad', userId: 'abdi.mahad', role: 'Partner', token: '870420d40232c9540b79da9d682490aa563b73e5bf2a82fa', pass: 'Nsb#7da69622!166', project: 'prj-seacrest' },
       { id: 'usr-yusuf-faiz', name: 'Yusuf Faiz', userId: 'yusuf.faiz', role: 'Storekeeper', token: 'da3039d6ec67e4dd38b0e6e73685f09623545dfc04c0ec8f', pass: 'Nsb#0b65a587!594', project: 'prj-seacrest' },
-      { id: 'usr-hussein-munga', name: 'Hussein Munga', userId: 'hussein.munga', role: 'Foreman', token: '5c0cf3b1e32d189bb53e7d6a50cbe5c3b1ea0cf200c9ea47', pass: 'Nsb#120c904e!442', project: 'prj-seacrest' }
+      { id: 'usr-hussein-munga', name: 'Hussein Munga', userId: 'hussein.munga', role: 'Foreman', token: '5c0cf3b1e32d189bb53e7d6a50cbe5c3b1ea0cf200c9ea47', pass: 'Nsb#120c904e!442', project: 'prj-seacrest' },
+      { id: 'usr-fatma-jumaan', name: 'Fatma Jumaan', userId: 'fatma.jumaan', role: 'Partner', token: '3692e74a6fd2fa7889d5d48e7abe2c8f06815f616b6727df', pass: 'Fatma@MMA2026', project: 'prj-mma' }
     ];
 
     for (const u of defaultUsers) {
