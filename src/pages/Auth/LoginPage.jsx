@@ -277,12 +277,6 @@ export const LoginPage = () => {
             </button>
           </form>
 
-          {/* Site auto-mapping footnote */}
-          <div className="mt-5 border-t border-slate-800/80 pt-3.5 text-center">
-            <p className="text-[11px] text-slate-400">
-              Your site workspace (MMA, Majestic Palms, SeaCrest) is automatically mapped upon sign in.
-            </p>
-          </div>
         </div>
 
         {/* Public Landing Link */}
