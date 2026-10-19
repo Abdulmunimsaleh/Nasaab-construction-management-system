@@ -125,7 +125,7 @@ export const MaterialsPage = () => {
   };
 
   const todayRequest = (materialRequests || []).find((r) =>
-    isFormToday(r) && (selectedProjectId === 'all' || r.project_id === currentProject?.id)
+    isFormToday(r) && (selectedProjectId === 'all' || r.project_id === selectedProjectId || r.project_id === currentProject?.id)
   );
 
   const filteredRequests = (materialRequests || []).filter((r) => {

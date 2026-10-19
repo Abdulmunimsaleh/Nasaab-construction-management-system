@@ -98,6 +98,14 @@ function translateToPgSql(sql) {
     );
   }
 
+  // 3. PostgreSQL GROUP BY compatibility for joined forms
+  if (converted.includes('material_request_forms') && /GROUP BY\s+r\.id\b(?!\s*,\s*p\.id)/i.test(converted)) {
+    converted = converted.replace(/GROUP BY\s+r\.id\b/i, 'GROUP BY r.id, p.id, p.name, p.code');
+  }
+  if (converted.includes('labour_activity_equipment_forms') && /GROUP BY\s+f\.id\b(?!\s*,\s*p\.id)/i.test(converted)) {
+    converted = converted.replace(/GROUP BY\s+f\.id\b/i, 'GROUP BY f.id, p.id, p.name, p.code');
+  }
+
   return converted;
 }
 

@@ -60,7 +60,7 @@ router.get('/', requireProjectAccess, async (req, res) => {
       params.push(projectId);
     }
 
-    query += ' GROUP BY r.id ORDER BY r.date_needed DESC, r.created_at DESC';
+    query += ' GROUP BY r.id, p.id, p.name, p.code ORDER BY r.date_needed DESC, r.created_at DESC';
 
     const [requests] = await pool.query(query, params);
 

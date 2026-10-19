@@ -161,7 +161,7 @@ export const AppProvider = ({ children }) => {
           setCurrentUser(mappedUser);
           setAccessibleProjects(sessionData.accessibleProjects || []);
 
-          const initialPId = isForemanRole(normRole)
+          const initialPId = !hasFullAccess(normRole)
             ? (sessionData.activeProjectId || sessionData.accessibleProjects?.[0]?.id)
             : (sessionData.activeProjectId || 'all');
 
@@ -197,7 +197,7 @@ export const AppProvider = ({ children }) => {
     setCurrentUser(mappedUser);
     setAccessibleProjects(accessibleProjs);
 
-    const activePId = isForemanRole(normRole)
+    const activePId = !hasFullAccess(normRole)
       ? (activeProject?.id || accessibleProjs[0]?.id)
       : (activeProject?.id || 'all');
 
@@ -227,6 +227,11 @@ export const AppProvider = ({ children }) => {
   const switchProject = async (pId) => {
     if (isForemanRole(currentUser?.role)) {
       addToast('Foremen are restricted to their assigned site workspace.', 'warning');
+      return;
+    }
+
+    if (!hasFullAccess(currentUser?.role) && pId === 'all') {
+      addToast('Cross-project view is restricted to Administrators & Directors.', 'warning');
       return;
     }
 
@@ -323,6 +328,9 @@ export const AppProvider = ({ children }) => {
       const targetPId = formData.projectId || (selectedProjectId !== 'all' ? selectedProjectId : projects[0]?.id);
       const res = await api.laeForms.create({ ...formData, projectId: targetPId });
 
+      if (targetPId && targetPId !== selectedProjectId) {
+        setSelectedProjectId(targetPId);
+      }
       await loadProjectData(targetPId, currentUser?.role);
       logActivity(`Labour, Activity & Equipment form submitted`, 'form');
       addToast(`Labour, Activity & Equipment Form submitted successfully!`);
@@ -339,6 +347,9 @@ export const AppProvider = ({ children }) => {
       const targetPId = formData.projectId || (selectedProjectId !== 'all' ? selectedProjectId : projects[0]?.id);
       const res = await api.laeForms.update(id, { ...formData, projectId: targetPId });
 
+      if (targetPId && targetPId !== selectedProjectId) {
+        setSelectedProjectId(targetPId);
+      }
       await loadProjectData(targetPId, currentUser?.role);
       logActivity(`Labour, Activity and Equipment Form updated`, 'labour');
       addToast('Labour and Equipment form updated successfully!');
@@ -368,6 +379,9 @@ export const AppProvider = ({ children }) => {
       const targetPId = requestData.projectId || (selectedProjectId !== 'all' ? selectedProjectId : projects[0]?.id);
       const res = await api.materialRequests.create({ ...requestData, projectId: targetPId });
 
+      if (targetPId && targetPId !== selectedProjectId) {
+        setSelectedProjectId(targetPId);
+      }
       await loadProjectData(targetPId, currentUser?.role);
       logActivity(`Material Needed Request submitted`, 'materials');
       addToast(`Material Needed Request submitted successfully!`);
@@ -384,6 +398,9 @@ export const AppProvider = ({ children }) => {
       const targetPId = requestData.projectId || (selectedProjectId !== 'all' ? selectedProjectId : projects[0]?.id);
       const res = await api.materialRequests.update(id, { ...requestData, projectId: targetPId });
 
+      if (targetPId && targetPId !== selectedProjectId) {
+        setSelectedProjectId(targetPId);
+      }
       await loadProjectData(targetPId, currentUser?.role);
       logActivity(`Material Needed Request updated`, 'materials');
       addToast(`Material request updated successfully!`);

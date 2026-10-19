@@ -125,7 +125,7 @@ export const LabourPage = () => {
   };
 
   const todayForm = (laeForms || []).find((f) =>
-    isFormToday(f) && (selectedProjectId === 'all' || f.project_id === currentProject?.id)
+    isFormToday(f) && (selectedProjectId === 'all' || f.project_id === selectedProjectId || f.project_id === currentProject?.id)
   );
 
   const filteredForms = (laeForms || []).filter((f) =>
