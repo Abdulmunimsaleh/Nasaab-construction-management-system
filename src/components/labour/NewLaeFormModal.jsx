@@ -308,9 +308,15 @@ export const NewLaeFormModal = ({
   }, 0);
 
   const totalLabourCost = labourTrades.reduce((acc, t) => {
-    const fRate = canEditRate ? (Number(t.foremanRate) || 1500) : 1500;
-    const sRate = canEditRate ? (Number(t.skilledRate) || 1000) : 1000;
-    const uRate = canEditRate ? (Number(t.unskilledRate) || 500) : 500;
+    const fRate = canEditRate
+      ? (t.foremanRate !== '' && t.foremanRate !== undefined && !isNaN(t.foremanRate) ? Number(t.foremanRate) : 1500)
+      : 1500;
+    const sRate = canEditRate
+      ? (t.skilledRate !== '' && t.skilledRate !== undefined && !isNaN(t.skilledRate) ? Number(t.skilledRate) : 1000)
+      : 1000;
+    const uRate = canEditRate
+      ? (t.unskilledRate !== '' && t.unskilledRate !== undefined && !isNaN(t.unskilledRate) ? Number(t.unskilledRate) : 500)
+      : 500;
 
     const fCost = (Number(t.foremanCount) || 0) * fRate;
     const sCost = (Number(t.skilledCount) || 0) * sRate;
@@ -354,9 +360,15 @@ export const NewLaeFormModal = ({
           foremanCount: Number(t.foremanCount) || 0,
           skilledCount: Number(t.skilledCount) || 0,
           unskilledCount: Number(t.unskilledCount) || 0,
-          foremanRate: canEditRate ? (Number(t.foremanRate) || 1500) : 1500,
-          skilledRate: canEditRate ? (Number(t.skilledRate) || 1000) : 1000,
-          unskilledRate: canEditRate ? (Number(t.unskilledRate) || 500) : 500,
+          foremanRate: canEditRate
+            ? (t.foremanRate !== '' && t.foremanRate !== undefined && !isNaN(t.foremanRate) ? Number(t.foremanRate) : 1500)
+            : 1500,
+          skilledRate: canEditRate
+            ? (t.skilledRate !== '' && t.skilledRate !== undefined && !isNaN(t.skilledRate) ? Number(t.skilledRate) : 1000)
+            : 1000,
+          unskilledRate: canEditRate
+            ? (t.unskilledRate !== '' && t.unskilledRate !== undefined && !isNaN(t.unskilledRate) ? Number(t.unskilledRate) : 500)
+            : 500,
           workDoneToday: t.workDoneToday || '',
           workPlanTomorrow: t.workPlanTomorrow || ''
         })),
@@ -526,12 +538,18 @@ export const NewLaeFormModal = ({
                 const fCount = Number(tradeItem.foremanCount) || 0;
                 const sCount = Number(tradeItem.skilledCount) || 0;
                 const uCount = Number(tradeItem.unskilledCount) || 0;
-                const fRate = canEditRate ? (Number(tradeItem.foremanRate) || 1500) : 1500;
-                const sRate = canEditRate ? (Number(tradeItem.skilledRate) || 1000) : 1000;
-                const uRate = canEditRate ? (Number(tradeItem.unskilledRate) || 500) : 500;
+                const fRateNum = canEditRate
+                  ? (tradeItem.foremanRate !== '' && tradeItem.foremanRate !== undefined && !isNaN(tradeItem.foremanRate) ? Number(tradeItem.foremanRate) : 1500)
+                  : 1500;
+                const sRateNum = canEditRate
+                  ? (tradeItem.skilledRate !== '' && tradeItem.skilledRate !== undefined && !isNaN(tradeItem.skilledRate) ? Number(tradeItem.skilledRate) : 1000)
+                  : 1000;
+                const uRateNum = canEditRate
+                  ? (tradeItem.unskilledRate !== '' && tradeItem.unskilledRate !== undefined && !isNaN(tradeItem.unskilledRate) ? Number(tradeItem.unskilledRate) : 500)
+                  : 500;
 
                 const tradeHeadcount = fCount + sCount + uCount;
-                const tradeEstCost = (fCount * fRate) + (sCount * sRate) + (uCount * uRate);
+                const tradeEstCost = (fCount * fRateNum) + (sCount * sRateNum) + (uCount * uRateNum);
 
                 return (
                   <div
@@ -611,7 +629,8 @@ export const NewLaeFormModal = ({
                           </label>
                           <input
                             type="number"
-                            value={fRate}
+                            value={tradeItem.foremanRate !== undefined ? tradeItem.foremanRate : (canEditRate ? 1500 : 1500)}
+                            placeholder="1500"
                             readOnly={!canEditRate}
                             disabled={!canEditRate}
                             onChange={(e) => handleUpdateTrade(idx, 'foremanRate', e.target.value)}
@@ -629,7 +648,8 @@ export const NewLaeFormModal = ({
                           </label>
                           <input
                             type="number"
-                            value={sRate}
+                            value={tradeItem.skilledRate !== undefined ? tradeItem.skilledRate : (canEditRate ? 1000 : 1000)}
+                            placeholder="1000"
                             readOnly={!canEditRate}
                             disabled={!canEditRate}
                             onChange={(e) => handleUpdateTrade(idx, 'skilledRate', e.target.value)}
@@ -647,7 +667,8 @@ export const NewLaeFormModal = ({
                           </label>
                           <input
                             type="number"
-                            value={uRate}
+                            value={tradeItem.unskilledRate !== undefined ? tradeItem.unskilledRate : (canEditRate ? 500 : 500)}
+                            placeholder="500"
                             readOnly={!canEditRate}
                             disabled={!canEditRate}
                             onChange={(e) => handleUpdateTrade(idx, 'unskilledRate', e.target.value)}
