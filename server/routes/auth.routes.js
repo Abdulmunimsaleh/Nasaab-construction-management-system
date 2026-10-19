@@ -51,39 +51,25 @@ router.get('/projects', async (_req, res) => {
 
 /**
  * POST /api/auth/login
- * Exactly 3 fields: projectId, userId, password.
+ * User ID and Password required.
+ * Automatically resolves and maps user to their assigned project site.
+ * (Optional projectId supported for explicit targeting / backward compatibility).
  */
 router.post('/login', loginLimiter, async (req, res) => {
   const { projectId, userId, password } = req.body;
 
-  if (!projectId || !userId || !password) {
+  if (!userId || !password) {
     return res.status(400).json({
       error: 'Missing fields',
-      message: 'Project, User ID, and Password are all required.'
+      message: 'User ID and Password are required.'
     });
   }
 
   const cleanUserId = String(userId).trim();
-  const cleanProjectId = String(projectId).trim();
+  const cleanProjectId = projectId ? String(projectId).trim() : null;
 
   try {
-    // 1. Verify project exists
-    const [projectRows] = await pool.query(
-      'SELECT id, name, code, location, status FROM projects WHERE id = ?',
-      [cleanProjectId]
-    );
-
-    if (projectRows.length === 0) {
-      // Return generic failure to prevent project enumeration
-      return res.status(401).json({
-        error: 'Authentication failed',
-        message: 'Invalid User ID, password, or project authorization.'
-      });
-    }
-
-    const targetProject = projectRows[0];
-
-    // 2. Fetch user by user_id or id
+    // 1. Fetch user by user_id or id
     const [userRows] = await pool.query(
       `SELECT id, user_id, name, password_hash, role, must_change_password, status, email, phone
        FROM users
@@ -94,7 +80,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     // Generic error message: NEVER reveal whether user ID or password was invalid
     const genericAuthError = {
       error: 'Authentication failed',
-      message: 'Invalid User ID, password, or project authorization.'
+      message: 'Invalid User ID or password.'
     };
 
     if (userRows.length === 0) {
@@ -104,7 +90,7 @@ router.post('/login', loginLimiter, async (req, res) => {
 
     const user = userRows[0];
 
-    // 3. Verify account is active
+    // 2. Verify account is active
     if (user.status !== 'active') {
       await logAuditEvent(req, 'LOGIN_BLOCKED_INACTIVE', 'user', user.id);
       return res.status(403).json({
@@ -113,50 +99,71 @@ router.post('/login', loginLimiter, async (req, res) => {
       });
     }
 
-    // 4. Verify password with bcrypt
+    // 3. Verify password with bcrypt
     const passwordMatch = await bcrypt.compare(String(password), user.password_hash);
     if (!passwordMatch) {
       await logAuditEvent(req, 'LOGIN_FAILED_CREDENTIALS', 'user', user.id);
       return res.status(401).json(genericAuthError);
     }
 
-    // 5. Verify Project Assignment
-    // Admins and Directors have universal access to all projects, including future ones
+    // 4. Resolve Project Assignment & Auto-Map to Site
     const isGlobalRole = ['admin', 'director'].includes(user.role.toLowerCase());
     let accessibleProjects = [];
+    let targetProject = null;
 
     if (isGlobalRole) {
+      // Universal access to all projects
       const [allProjects] = await pool.query(
         'SELECT id, name, code, location, status FROM projects ORDER BY name ASC'
       );
       accessibleProjects = allProjects;
+
+      if (allProjects.length === 0) {
+        return res.status(500).json({
+          error: 'Configuration error',
+          message: 'No construction projects are currently configured in the database.'
+        });
+      }
+
+      if (cleanProjectId) {
+        targetProject = allProjects.find((p) => p.id === cleanProjectId) || allProjects[0];
+      } else {
+        targetProject = allProjects[0];
+      }
     } else {
-      // Partner, Storekeeper, Foreman: verify membership in project_user_assignments
+      // Partner, Storekeeper, Foreman: fetch membership from project_user_assignments
       const [assignments] = await pool.query(
         `SELECT p.id, p.name, p.code, p.location, p.status, pua.role AS assigned_role
          FROM project_user_assignments pua
          JOIN projects p ON pua.project_id = p.id
-         WHERE pua.user_id = ?`,
+         WHERE pua.user_id = ?
+         ORDER BY p.name ASC`,
         [user.id]
       );
 
       accessibleProjects = assignments;
 
-      const isAssigned = assignments.some((a) => a.id === targetProject.id);
-      if (!isAssigned) {
-        await logAuditEvent(req, 'LOGIN_REJECTED_UNAUTHORIZED_PROJECT', 'user', user.id, {
-          role: user.role,
-          attemptedProject: targetProject.name
+      if (assignments.length === 0) {
+        await logAuditEvent(req, 'LOGIN_REJECTED_NO_ASSIGNED_PROJECT', 'user', user.id, {
+          role: user.role
         });
 
         return res.status(403).json({
-          error: 'Unauthorized project',
-          message: `Your account is not assigned to "${targetProject.name}". Please select an assigned project or contact an Administrator.`
+          error: 'No assigned project',
+          message: 'Your account is not assigned to any construction site. Please contact an Administrator.'
         });
+      }
+
+      if (cleanProjectId) {
+        const matched = assignments.find((a) => a.id === cleanProjectId);
+        targetProject = matched || assignments[0];
+      } else {
+        // Automatically map user to their assigned site
+        targetProject = assignments[0];
       }
     }
 
-    // 6. Establish Session
+    // 5. Establish Session
     const sessionUserData = {
       id: user.id,
       userId: user.user_id,

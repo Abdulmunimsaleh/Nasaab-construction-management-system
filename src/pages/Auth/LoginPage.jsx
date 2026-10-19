@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import api from '../../services/api';
@@ -6,65 +6,24 @@ import {
   HardHat,
   Lock,
   User,
-  Building2,
   ArrowRight,
   AlertCircle,
   Eye,
   EyeOff,
-  Check,
-  ChevronDown,
-  Search,
   Loader2,
   KeyRound,
   ShieldCheck,
   X
 } from 'lucide-react';
 
-// Default project catalog ensures MMA, Majestic Palms, and SeaCrest are always available
-// even during initial page load, slow connections, or if backend server is starting up.
-const FALLBACK_PROJECTS = [
-  {
-    id: 'prj-mma',
-    code: 'MMA-01',
-    name: 'MMA',
-    location: 'Tudor, Mombasa, Kenya',
-    status: 'Active'
-  },
-  {
-    id: 'prj-majestic-palms',
-    code: 'MP-01',
-    name: 'Majestic Palms',
-    location: 'Kizingo, opposite Masjid Ummu Kulthum, Mombasa, Kenya',
-    status: 'Active'
-  },
-  {
-    id: 'prj-seacrest',
-    code: 'SC-01',
-    name: 'SeaCrest',
-    location: 'Nyali, near Masjid Taib, Mombasa, Kenya',
-    status: 'Active'
-  }
-];
-
 export const LoginPage = () => {
   const navigate = useNavigate();
   const { handleLoginSuccess, addToast } = useApp();
 
-  // 3 Required Form Fields
-  const [selectedProject, setSelectedProject] = useState(FALLBACK_PROJECTS[0]);
+  // Credentials Form State
   const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-
-  // Projects from DB
-  const [projects, setProjects] = useState(FALLBACK_PROJECTS);
-  const [projectSearch, setProjectSearch] = useState('');
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef(null);
-  const searchInputRef = useRef(null);
-  const [isProjectsLoading, setIsProjectsLoading] = useState(false);
-  const [serverOffline, setServerOffline] = useState(false);
-
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -86,57 +45,6 @@ export const LoginPage = () => {
   const [forcedError, setForcedError] = useState('');
   const [pendingLoginResult, setPendingLoginResult] = useState(null);
 
-  // Load active projects dynamically from MySQL database
-  const fetchProjects = useCallback(() => {
-    setIsProjectsLoading(true);
-    api.auth.getPublicProjects()
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setProjects(data);
-          setServerOffline(false);
-          // Preserve currently selected project if it exists in the fetched list
-          setSelectedProject((prev) => {
-            if (prev) {
-              const matched = data.find((p) => p.id === prev.id || p.name.toLowerCase() === prev.name.toLowerCase());
-              if (matched) return matched;
-            }
-            return data[0];
-          });
-        }
-      })
-      .catch((err) => {
-        console.warn('Could not load live projects from server; utilizing local project registry:', err.message);
-        setServerOffline(true);
-      })
-      .finally(() => {
-        setIsProjectsLoading(false);
-      });
-  }, []);
-
-  useEffect(() => {
-    fetchProjects();
-  }, [fetchProjects]);
-
-  // Handle outside click for searchable dropdown
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setIsDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const searchTrimmed = projectSearch.trim().toLowerCase();
-  const filteredProjects = projects.filter((p) => {
-    if (!searchTrimmed) return true;
-    const nameMatch = (p.name || '').toLowerCase().includes(searchTrimmed);
-    const codeMatch = (p.code || '').toLowerCase().includes(searchTrimmed);
-    const locMatch = (p.location || '').toLowerCase().includes(searchTrimmed);
-    return nameMatch || codeMatch || locMatch;
-  });
-
   const routeByRole = (userRole, activeProjectId) => {
     const role = (userRole || '').toLowerCase();
     if (role === 'foreman') {
@@ -152,13 +60,8 @@ export const LoginPage = () => {
     e.preventDefault();
     setErrorMessage('');
 
-    if (!selectedProject) {
-      setErrorMessage('Please select a project to access.');
-      return;
-    }
-
     if (!userId.trim()) {
-      setErrorMessage('Please enter your unique User ID.');
+      setErrorMessage('Please enter your User ID.');
       return;
     }
 
@@ -170,7 +73,8 @@ export const LoginPage = () => {
     setIsLoading(true);
 
     try {
-      const result = await api.auth.login(selectedProject.id, userId.trim(), password);
+      // Backend automatically authenticates and maps user to their assigned project site
+      const result = await api.auth.login(userId.trim(), password);
 
       // Check if user must set a new password on first login
       if (result.requirePasswordChange) {
@@ -181,12 +85,13 @@ export const LoginPage = () => {
         return;
       }
 
-      addToast(result.message || `Signed in as ${result.user.name}`);
+      const siteName = result.activeProject?.name ? ` — ${result.activeProject.name}` : '';
+      addToast(result.message || `Signed in as ${result.user.name}${siteName}`);
       handleLoginSuccess(result.user, result.activeProject, result.accessibleProjects);
       routeByRole(result.user.role, result.activeProject?.id);
 
     } catch (err) {
-      setErrorMessage(err.message || 'Invalid User ID, password, or project authorization.');
+      setErrorMessage(err.message || 'Invalid User ID or password.');
     } finally {
       setIsLoading(false);
     }
@@ -289,205 +194,33 @@ export const LoginPage = () => {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4.5 text-xs">
-            {/* FIELD 1: Project Name (Dropdown populated from projects table) */}
-            <div className="relative" ref={dropdownRef}>
-              <label className="block font-bold uppercase tracking-wider text-slate-300 mb-1.5 flex items-center justify-between">
-                <span>1. Project Name</span>
-                {/* <span className={`text-[10px] font-normal ${serverOffline ? 'text-amber-400' : 'text-emerald-400'}`}>
-                  {serverOffline ? '● Offline Mode' : '● MySQL Connected'}
-                </span> */}
-              </label>
-
-              <button
-                type="button"
-                onClick={() => {
-                  const nextState = !isDropdownOpen;
-                  setIsDropdownOpen(nextState);
-                  if (nextState) {
-                    setTimeout(() => searchInputRef.current?.focus(), 50);
-                  }
-                }}
-                className={`w-full flex items-center justify-between rounded-xl border bg-slate-950/70 px-3.5 py-3 text-white text-left transition-colors cursor-pointer ${isDropdownOpen
-                  ? 'border-amber-400 ring-2 ring-amber-400/20'
-                  : 'border-slate-700 hover:border-slate-600'
-                  }`}
-              >
-                <div className="flex items-center gap-2.5 truncate">
-                  <Building2 className="h-4 w-4 text-amber-400 shrink-0" />
-                  <div className="truncate">
-                    <span className="font-semibold text-white">
-                      {selectedProject ? selectedProject.name : 'Select a Project...'}
-                    </span>
-                    {selectedProject?.code && (
-                      <span className="ml-2 text-[10px] text-amber-300/90 font-mono bg-slate-900 px-1.5 py-0.5 rounded border border-amber-500/20">
-                        {selectedProject.code}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {isProjectsLoading && (
-                    <Loader2 className="h-3.5 w-3.5 text-amber-400 animate-spin" />
-                  )}
-                  <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
-                </div>
-              </button>
-
-              {isDropdownOpen && (
-                <div className="absolute left-0 right-0 mt-2 rounded-2xl border border-slate-700 bg-slate-900 p-2.5 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150">
-                  {/* Search Input */}
-                  <div className="relative mb-2">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                    <input
-                      ref={searchInputRef}
-                      type="text"
-                      placeholder="Type MMA, Majestic Palms, SeaCrest..."
-                      value={projectSearch}
-                      onChange={(e) => setProjectSearch(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          if (filteredProjects.length > 0) {
-                            setSelectedProject(filteredProjects[0]);
-                            setIsDropdownOpen(false);
-                            setProjectSearch('');
-                            if (errorMessage) setErrorMessage('');
-                          }
-                        }
-                      }}
-                      className="w-full rounded-lg border border-slate-700 bg-slate-950 pl-8.5 pr-8 py-2 text-xs text-white placeholder:text-slate-500 focus:border-amber-400 focus:outline-hidden"
-                      autoFocus
-                    />
-                    {projectSearch && (
-                      <button
-                        type="button"
-                        onClick={() => setProjectSearch('')}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
-                        title="Clear search"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Quick Select Project Buttons */}
-                  <div className="mb-2 flex items-center gap-1.5 overflow-x-auto pb-1">
-                    <span className="text-[10px] text-slate-400 shrink-0 font-medium">Quick:</span>
-                    {projects.map((p) => (
-                      <button
-                        key={`quick-${p.id}`}
-                        type="button"
-                        onClick={() => {
-                          setSelectedProject(p);
-                          setIsDropdownOpen(false);
-                          setProjectSearch('');
-                          if (errorMessage) setErrorMessage('');
-                        }}
-                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-md transition-colors shrink-0 cursor-pointer ${selectedProject?.id === p.id
-                          ? 'bg-amber-400 text-slate-950 font-bold'
-                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/60'
-                          }`}
-                      >
-                        {p.name}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Offline Warning Notice if server is not responding */}
-                  {serverOffline && (
-                    <div className="mb-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[10px] text-amber-300 flex items-center justify-between">
-                      <span>Server offline. Displaying cached projects.</span>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          fetchProjects();
-                        }}
-                        className="underline font-bold hover:text-amber-200 cursor-pointer ml-2 shrink-0"
-                      >
-                        Retry
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Filtered Project List */}
-                  <div className="max-h-52 overflow-y-auto space-y-1">
-                    {filteredProjects.length === 0 ? (
-                      <div className="py-4 text-center">
-                        <p className="text-[11px] text-slate-400">No projects matching "{projectSearch}"</p>
-                        <button
-                          type="button"
-                          onClick={() => setProjectSearch('')}
-                          className="mt-1 text-[10px] text-amber-400 hover:underline cursor-pointer"
-                        >
-                          Clear filter
-                        </button>
-                      </div>
-                    ) : (
-                      filteredProjects.map((p) => {
-                        const isSelected = selectedProject?.id === p.id;
-                        return (
-                          <button
-                            key={p.id}
-                            type="button"
-                            onClick={() => {
-                              setSelectedProject(p);
-                              setIsDropdownOpen(false);
-                              setProjectSearch('');
-                              if (errorMessage) setErrorMessage('');
-                            }}
-                            className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs text-left transition-colors cursor-pointer ${isSelected
-                              ? 'bg-amber-500/20 text-white font-semibold border border-amber-500/30'
-                              : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                              }`}
-                          >
-                            <div className="truncate pr-2">
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-semibold text-white truncate">{p.name}</span>
-                                {p.code && (
-                                  <span className="text-[9px] font-mono text-amber-300/80 bg-slate-950 px-1 py-0.2 rounded border border-slate-700">
-                                    {p.code}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-[10px] text-slate-400 truncate">{p.location}</div>
-                            </div>
-                            {isSelected && <Check className="h-4 w-4 text-amber-400 shrink-0" />}
-                          </button>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* FIELD 2: User ID */}
+            {/* FIELD 1: User ID */}
             <div>
               <label className="block font-bold uppercase tracking-wider text-slate-300 mb-1.5">
-                2. User ID
+                User ID
               </label>
               <div className="relative">
                 <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                 <input
                   type="text"
                   required
+                  autoFocus
                   value={userId}
                   onChange={(e) => {
                     setUserId(e.target.value);
                     if (errorMessage) setErrorMessage('');
                   }}
-                  placeholder="e.g. abdulmunim.swaleh, daniel.arap"
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950/70 pl-10 pr-3.5 py-3 text-white placeholder:text-slate-500 focus:border-amber-400 focus:outline-hidden"
+                  placeholder="e.g. fatma.jumaan, daniel.arap"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950/70 pl-10 pr-3.5 py-3 text-white placeholder:text-slate-500 focus:border-amber-400 focus:outline-hidden transition-colors"
                 />
               </div>
             </div>
 
-            {/* FIELD 3: Password */}
+            {/* FIELD 2: Password */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="block font-bold uppercase tracking-wider text-slate-300">
-                  3. Password
+                  Password
                 </label>
                 <button
                   type="button"
@@ -511,7 +244,7 @@ export const LoginPage = () => {
                     if (errorMessage) setErrorMessage('');
                   }}
                   placeholder="Enter your account password"
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950/70 pl-10 pr-10 py-3 text-white placeholder:text-slate-500 focus:border-amber-400 focus:outline-hidden"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950/70 pl-10 pr-10 py-3 text-white placeholder:text-slate-500 focus:border-amber-400 focus:outline-hidden transition-colors"
                 />
                 <button
                   type="button"
@@ -533,23 +266,23 @@ export const LoginPage = () => {
               {isLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Authenticating...</span>
+                  <span>Signing In...</span>
                 </>
               ) : (
                 <>
-                  <span>Sign In to Project</span>
+                  <span>Sign In</span>
                   <ArrowRight className="h-4 w-4" />
                 </>
               )}
             </button>
           </form>
 
-          {/* Security Notice */}
-          {/* <div className="mt-6 border-t border-slate-800/80 pt-4 text-center">
-            <p className="text-[10px] text-slate-500 leading-relaxed">
-              Strict role-based project isolation. Non-administrative users are verified against project membership in MySQL.
+          {/* Site auto-mapping footnote */}
+          <div className="mt-5 border-t border-slate-800/80 pt-3.5 text-center">
+            <p className="text-[11px] text-slate-400">
+              Your site workspace (MMA, Majestic Palms, SeaCrest) is automatically mapped upon sign in.
             </p>
-          </div> */}
+          </div>
         </div>
 
         {/* Public Landing Link */}

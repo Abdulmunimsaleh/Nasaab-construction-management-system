@@ -57,10 +57,20 @@ export const api = {
   // 1. AUTHENTICATION & SESSION
   auth: {
     getPublicProjects: () => request('/auth/projects'),
-    login: (projectId, userId, password) => request('/auth/login', {
-      method: 'POST',
-      body: { projectId, userId, password }
-    }),
+    login: (arg1, arg2, arg3) => {
+      let body;
+      if (arg3 !== undefined) {
+        // Legacy call: login(projectId, userId, password)
+        body = { projectId: arg1, userId: arg2, password: arg3 };
+      } else {
+        // Direct call: login(userId, password)
+        body = { userId: arg1, password: arg2 };
+      }
+      return request('/auth/login', {
+        method: 'POST',
+        body
+      });
+    },
     logout: () => request('/auth/logout', { method: 'POST' }),
     getMe: () => request('/auth/me'),
     switchProject: (projectId) => request('/auth/switch-project', {
