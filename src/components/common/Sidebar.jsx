@@ -19,8 +19,7 @@ import {
   ShieldAlert,
   PackageCheck,
   ShoppingCart,
-  Coins,
-  TrendingUp
+  Coins
 } from 'lucide-react';
 
 export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen }) => {
@@ -54,13 +53,12 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
         { label: 'Daily', path: '/labour/daily', icon: CalendarCheck }
       ]
     },
-    { type: 'link', label: 'Activities', path: '/activities', icon: Activity },
+    { type: 'link', label: 'Site Progress', path: '/activities', icon: Activity },
     { type: 'link', label: 'Equipment Report', path: '/equipment-report', icon: Truck },
     { type: 'link', label: 'Safety & Delays', path: '/safety-delays', icon: ShieldAlert },
     { type: 'link', label: 'Materials Received', path: '/materials-received', icon: PackageCheck },
     { type: 'link', label: 'Material Order', path: '/material-order', icon: ShoppingCart },
     { type: 'link', label: 'Material Expenses', path: '/material-expenses', icon: Coins },
-    { type: 'link', label: 'Site Progress', path: '/site-progress', icon: TrendingUp },
     { type: 'link', label: 'Material Requests', path: '/materials', icon: Boxes, badge: 'Requisitions' },
     { type: 'link', label: 'PDF Reports', path: '/reports', icon: FileText },
     { type: 'link', label: 'Settings & Users', path: '/settings', icon: Settings },
@@ -80,13 +78,12 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
         { label: 'Daily', path: '/labour/daily', icon: CalendarCheck }
       ]
     },
-    { type: 'link', label: 'Activities', path: '/activities', icon: Activity },
+    { type: 'link', label: 'Site Progress', path: '/activities', icon: Activity },
     { type: 'link', label: 'Equipment Report', path: '/equipment-report', icon: Truck },
     { type: 'link', label: 'Safety & Delays', path: '/safety-delays', icon: ShieldAlert },
     { type: 'link', label: 'Materials Received', path: '/materials-received', icon: PackageCheck },
     { type: 'link', label: 'Material Order', path: '/material-order', icon: ShoppingCart },
     { type: 'link', label: 'Material Expenses', path: '/material-expenses', icon: Coins },
-    { type: 'link', label: 'Site Progress', path: '/site-progress', icon: TrendingUp },
     { type: 'link', label: 'Material Requests', path: '/materials', icon: Boxes },
     { type: 'link', label: 'PDF Reports', path: '/reports', icon: FileText },
     { type: 'link', label: 'Settings', path: '/settings', icon: Settings },
@@ -105,10 +102,9 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
         { label: 'Daily', path: '/labour/daily', icon: CalendarCheck }
       ]
     },
-    { type: 'link', label: 'Activities', path: '/activities', icon: Activity },
+    { type: 'link', label: 'Site Progress', path: '/activities', icon: Activity },
     { type: 'link', label: 'Equipment Report', path: '/equipment-report', icon: Truck },
     { type: 'link', label: 'Safety & Delays', path: '/safety-delays', icon: ShieldAlert },
-    { type: 'link', label: 'Site Progress', path: '/site-progress', icon: TrendingUp },
     { type: 'link', label: 'PDF Reports', path: '/reports', icon: FileText },
     { type: 'link', label: 'Profile & Settings', path: '/settings', icon: Settings },
   ];
