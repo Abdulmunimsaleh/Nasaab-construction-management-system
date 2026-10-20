@@ -1,5 +1,5 @@
-import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import {
   LayoutDashboard,
@@ -10,47 +10,118 @@ import {
   Boxes,
   ChevronLeft,
   ChevronRight,
-  ExternalLink
+  ChevronDown,
+  ExternalLink,
+  Briefcase,
+  CalendarCheck,
+  Activity,
+  Truck,
+  ShieldAlert,
+  PackageCheck,
+  ShoppingCart,
+  Coins,
+  TrendingUp
 } from 'lucide-react';
 
 export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen }) => {
   const { currentUser, currentProject, selectedProjectId, isForeman, isStoreKeeper, isAdmin, isDirector } = useApp();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Accordion state for Labour dropdown wing
+  const isLabourCurrent = location.pathname.startsWith('/labour');
+  const [isLabourExpanded, setIsLabourExpanded] = useState(true);
+  const [isFlyoutOpen, setIsFlyoutOpen] = useState(false);
+
+  // Automatically keep Labour expanded when navigating to labour routes
+  useEffect(() => {
+    if (isLabourCurrent) {
+      setIsLabourExpanded(true);
+    }
+  }, [isLabourCurrent]);
 
   // Full admin & director navigation items
   const adminNavItems = [
-    { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { label: 'Projects & Sites', path: '/projects', icon: FolderKanban },
-    { label: 'Labour & Equipment', path: '/labour', icon: HardHat, badge: 'LAE Form' },
-    { label: 'Material Requests', path: '/materials', icon: Boxes, badge: 'Materials' },
-    { label: 'PDF Reports', path: '/reports', icon: FileText },
-    { label: 'Settings & Users', path: '/settings', icon: Settings },
+    { type: 'link', label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    { type: 'link', label: 'Projects & Sites', path: '/projects', icon: FolderKanban },
+    {
+      type: 'group',
+      label: 'Labour',
+      icon: HardHat,
+      badge: 'Workforce',
+      children: [
+        { label: 'Subcontract (PW)', path: '/labour/subcontract', icon: Briefcase },
+        { label: 'Daily', path: '/labour/daily', icon: CalendarCheck }
+      ]
+    },
+    { type: 'link', label: 'Activities', path: '/activities', icon: Activity },
+    { type: 'link', label: 'Equipment Report', path: '/equipment-report', icon: Truck },
+    { type: 'link', label: 'Safety & Delays', path: '/safety-delays', icon: ShieldAlert },
+    { type: 'link', label: 'Materials Received', path: '/materials-received', icon: PackageCheck },
+    { type: 'link', label: 'Material Order', path: '/material-order', icon: ShoppingCart },
+    { type: 'link', label: 'Material Expenses', path: '/material-expenses', icon: Coins },
+    { type: 'link', label: 'Site Progress', path: '/site-progress', icon: TrendingUp },
+    { type: 'link', label: 'Material Requests', path: '/materials', icon: Boxes, badge: 'Requisitions' },
+    { type: 'link', label: 'PDF Reports', path: '/reports', icon: FileText },
+    { type: 'link', label: 'Settings & Users', path: '/settings', icon: Settings },
   ];
 
-  // Partner navigation items (full access within assigned projects)
+  // Partner navigation items (full project access)
   const partnerNavItems = [
-    { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { label: 'My Projects', path: '/projects', icon: FolderKanban },
-    { label: 'Labour & Equipment', path: '/labour', icon: HardHat },
-    { label: 'Material Requests', path: '/materials', icon: Boxes },
-    { label: 'PDF Reports', path: '/reports', icon: FileText },
-    { label: 'Settings', path: '/settings', icon: Settings },
+    { type: 'link', label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    { type: 'link', label: 'My Projects', path: '/projects', icon: FolderKanban },
+    {
+      type: 'group',
+      label: 'Labour',
+      icon: HardHat,
+      badge: 'Workforce',
+      children: [
+        { label: 'Subcontract (PW)', path: '/labour/subcontract', icon: Briefcase },
+        { label: 'Daily', path: '/labour/daily', icon: CalendarCheck }
+      ]
+    },
+    { type: 'link', label: 'Activities', path: '/activities', icon: Activity },
+    { type: 'link', label: 'Equipment Report', path: '/equipment-report', icon: Truck },
+    { type: 'link', label: 'Safety & Delays', path: '/safety-delays', icon: ShieldAlert },
+    { type: 'link', label: 'Materials Received', path: '/materials-received', icon: PackageCheck },
+    { type: 'link', label: 'Material Order', path: '/material-order', icon: ShoppingCart },
+    { type: 'link', label: 'Material Expenses', path: '/material-expenses', icon: Coins },
+    { type: 'link', label: 'Site Progress', path: '/site-progress', icon: TrendingUp },
+    { type: 'link', label: 'Material Requests', path: '/materials', icon: Boxes },
+    { type: 'link', label: 'PDF Reports', path: '/reports', icon: FileText },
+    { type: 'link', label: 'Settings', path: '/settings', icon: Settings },
   ];
 
-  // Foreman navigation items: Labour, Activity & Equipment, Reports, and Profile
+  // Foreman navigation items
   const foremanNavItems = [
-    { label: 'Site Overview', path: '/dashboard', icon: LayoutDashboard },
-    { label: 'Labour, Activity & Equip.', path: '/labour', icon: HardHat, badge: 'Active' },
-    { label: 'PDF Reports', path: '/reports', icon: FileText },
-    { label: 'Profile & Settings', path: '/settings', icon: Settings },
+    { type: 'link', label: 'Site Overview', path: '/dashboard', icon: LayoutDashboard },
+    {
+      type: 'group',
+      label: 'Labour',
+      icon: HardHat,
+      badge: 'Active',
+      children: [
+        { label: 'Subcontract (PW)', path: '/labour/subcontract', icon: Briefcase },
+        { label: 'Daily', path: '/labour/daily', icon: CalendarCheck }
+      ]
+    },
+    { type: 'link', label: 'Activities', path: '/activities', icon: Activity },
+    { type: 'link', label: 'Equipment Report', path: '/equipment-report', icon: Truck },
+    { type: 'link', label: 'Safety & Delays', path: '/safety-delays', icon: ShieldAlert },
+    { type: 'link', label: 'Site Progress', path: '/site-progress', icon: TrendingUp },
+    { type: 'link', label: 'PDF Reports', path: '/reports', icon: FileText },
+    { type: 'link', label: 'Profile & Settings', path: '/settings', icon: Settings },
   ];
 
-  // Storekeeper navigation items: Material requests, Reports, and Profile
+  // Storekeeper navigation items
   const storekeeperNavItems = [
-    { label: 'Stores Overview', path: '/dashboard', icon: LayoutDashboard },
-    { label: 'Material Requests', path: '/materials', icon: Boxes, badge: 'Needed' },
-    { label: 'PDF Reports', path: '/reports', icon: FileText },
-    { label: 'Profile & Settings', path: '/settings', icon: Settings },
+    { type: 'link', label: 'Stores Overview', path: '/dashboard', icon: LayoutDashboard },
+    { type: 'link', label: 'Materials Received', path: '/materials-received', icon: PackageCheck },
+    { type: 'link', label: 'Material Order', path: '/material-order', icon: ShoppingCart },
+    { type: 'link', label: 'Material Expenses', path: '/material-expenses', icon: Coins },
+    { type: 'link', label: 'Material Requests', path: '/materials', icon: Boxes, badge: 'Needed' },
+    { type: 'link', label: 'PDF Reports', path: '/reports', icon: FileText },
+    { type: 'link', label: 'Profile & Settings', path: '/settings', icon: Settings },
   ];
 
   const navigationItems = isForeman
@@ -78,7 +149,7 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
         } ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
       >
         {/* Brand Header */}
-        <div className="flex h-16 items-center justify-between border-b border-slate-800/80 px-4">
+        <div className="flex h-16 shrink-0 items-center justify-between border-b border-slate-800/80 px-4">
           <div
             onClick={() => navigate('/dashboard')}
             className="flex items-center gap-3 cursor-pointer select-none overflow-hidden"
@@ -101,7 +172,7 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
           {/* Desktop Collapse Toggle */}
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="hidden lg:flex h-7 w-7 items-center justify-center rounded-lg border border-slate-700/60 bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+            className="hidden lg:flex h-7 w-7 items-center justify-center rounded-lg border border-slate-700/60 bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors cursor-pointer"
           >
             {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
           </button>
@@ -109,7 +180,7 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
 
         {/* Current Active Project Micro-Badge */}
         {!isCollapsed && (
-          <div className="mx-3 my-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5">
+          <div className="mx-3 my-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5 shrink-0">
             <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-amber-400">
               <span>Scoped Workspace</span>
               <span className="text-amber-300 font-mono">
@@ -123,8 +194,149 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
         )}
 
         {/* Main Navigation Links */}
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-3 scrollbar-none">
-          {navigationItems.map((item) => {
+        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
+          {navigationItems.map((item, index) => {
+            // Group Accordion item (e.g. Labour -> Subcontract (PW) & Daily)
+            if (item.type === 'group') {
+              const GroupIcon = item.icon;
+              const hasActiveChild = item.children.some(
+                (child) => location.pathname === child.path || (child.path === '/labour/daily' && location.pathname === '/labour')
+              );
+
+              return (
+                <div key={item.label || index} className="relative">
+                  {/* Collapsed Mode Button with Flyout Popover */}
+                  {isCollapsed ? (
+                    <div
+                      className="relative"
+                      onMouseEnter={() => setIsFlyoutOpen(true)}
+                      onMouseLeave={() => setIsFlyoutOpen(false)}
+                    >
+                      <button
+                        onClick={() => navigate(item.children[0].path)}
+                        className={`group flex w-full items-center justify-center rounded-xl p-2.5 text-xs font-semibold transition-all duration-150 cursor-pointer ${
+                          hasActiveChild
+                            ? 'bg-amber-500 text-slate-950 shadow-sm shadow-amber-500/30'
+                            : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                        }`}
+                        title={item.label}
+                      >
+                        <GroupIcon
+                          className={`h-5 w-5 shrink-0 transition-transform group-hover:scale-105 ${
+                            hasActiveChild ? 'text-slate-950' : 'text-slate-400 group-hover:text-amber-400'
+                          }`}
+                        />
+                      </button>
+
+                      {/* Floating Flyout Menu when Collapsed */}
+                      {isFlyoutOpen && (
+                        <div className="absolute left-full top-0 ml-2 z-50 w-48 rounded-2xl border border-slate-700 bg-slate-900 p-2 shadow-2xl backdrop-blur-md">
+                          <div className="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-400 border-b border-slate-800">
+                            {item.label} Workforce
+                          </div>
+                          <div className="mt-1 space-y-1">
+                            {item.children.map((child) => {
+                              const ChildIcon = child.icon;
+                              const isChildActive =
+                                location.pathname === child.path ||
+                                (child.path === '/labour/daily' && location.pathname === '/labour');
+
+                              return (
+                                <NavLink
+                                  key={child.path}
+                                  to={child.path}
+                                  onClick={() => {
+                                    setIsFlyoutOpen(false);
+                                    setIsMobileOpen(false);
+                                  }}
+                                  className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-semibold transition-colors ${
+                                    isChildActive
+                                      ? 'bg-amber-500 text-slate-950 font-bold'
+                                      : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                                  }`}
+                                >
+                                  <ChildIcon className="h-4 w-4 shrink-0" />
+                                  <span className="truncate">{child.label}</span>
+                                </NavLink>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* Expanded Mode: Accordion Wing */
+                    <div className="space-y-1">
+                      <button
+                        type="button"
+                        onClick={() => setIsLabourExpanded(!isLabourExpanded)}
+                        className={`group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs font-semibold transition-all duration-150 cursor-pointer ${
+                          hasActiveChild
+                            ? 'bg-slate-800 text-white font-bold'
+                            : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 truncate">
+                          <GroupIcon
+                            className={`h-5 w-5 shrink-0 transition-transform group-hover:scale-105 ${
+                              hasActiveChild ? 'text-amber-400' : 'text-slate-400 group-hover:text-amber-400'
+                            }`}
+                          />
+                          <span className="truncate">{item.label}</span>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {item.badge && (
+                            <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[9px] font-bold text-amber-400 border border-amber-500/20">
+                              {item.badge}
+                            </span>
+                          )}
+                          <ChevronDown
+                            className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${
+                              isLabourExpanded ? 'rotate-180 text-amber-400' : ''
+                            }`}
+                          />
+                        </div>
+                      </button>
+
+                      {/* Sub-Items Wing */}
+                      {isLabourExpanded && (
+                        <div className="ml-5 pl-3 border-l-2 border-slate-800 space-y-1 py-0.5 animate-fadeIn">
+                          {item.children.map((child) => {
+                            const ChildIcon = child.icon;
+                            const isChildActive =
+                              location.pathname === child.path ||
+                              (child.path === '/labour/daily' && location.pathname === '/labour');
+
+                            return (
+                              <NavLink
+                                key={child.path}
+                                to={child.path}
+                                onClick={() => setIsMobileOpen(false)}
+                                className={`group flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all duration-150 ${
+                                  isChildActive
+                                    ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
+                                    : 'text-slate-400 hover:bg-slate-800/70 hover:text-white'
+                                }`}
+                              >
+                                <ChildIcon
+                                  className={`h-4 w-4 shrink-0 transition-transform group-hover:scale-105 ${
+                                    isChildActive ? 'text-slate-950' : 'text-slate-400 group-hover:text-amber-400'
+                                  }`}
+                                />
+                                <span className="truncate">{child.label}</span>
+                              </NavLink>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            // Standard Navigation Link
             const Icon = item.icon;
             return (
               <NavLink
@@ -163,7 +375,7 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
 
         {/* Public Landing Link */}
         {!isCollapsed && (
-          <div className="border-t border-slate-800 p-3">
+          <div className="border-t border-slate-800 p-2.5 shrink-0">
             <a
               href="/"
               target="_blank"
@@ -177,7 +389,7 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
         )}
 
         {/* Current User Micro-Footer */}
-        <div className="border-t border-slate-800/80 p-3">
+        <div className="border-t border-slate-800/80 p-3 shrink-0">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400 font-bold border border-amber-500/30 text-xs">
               {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}

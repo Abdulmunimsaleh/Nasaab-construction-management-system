@@ -11,6 +11,13 @@ import { Dashboard } from './pages/Dashboard';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { ProjectDetailPage } from './pages/ProjectDetailPage';
 import { LabourPage } from './pages/LabourPage';
+import { ActivitiesPage } from './pages/ActivitiesPage';
+import { EquipmentReportPage } from './pages/EquipmentReportPage';
+import { SafetyDelaysPage } from './pages/SafetyDelaysPage';
+import { MaterialsReceivedPage } from './pages/MaterialsReceivedPage';
+import { MaterialOrderPage } from './pages/MaterialOrderPage';
+import { MaterialExpensesPage } from './pages/MaterialExpensesPage';
+import { SiteProgressPage } from './pages/SiteProgressPage';
 import { MaterialsPage } from './pages/MaterialsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { SettingsPage } from './pages/SettingsPage';
@@ -35,7 +42,22 @@ function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/projects" element={<ProjectsPage />} />
               <Route path="/projects/:id" element={<ProjectDetailPage />} />
+              
+              {/* Labour (Daily & Subcontract PW) */}
               <Route path="/labour" element={<LabourPage />} />
+              <Route path="/labour/daily" element={<LabourPage />} />
+              <Route path="/labour/subcontract" element={<LabourPage />} />
+              
+              {/* Site Operations & Intelligence */}
+              <Route path="/activities" element={<ActivitiesPage />} />
+              <Route path="/equipment-report" element={<EquipmentReportPage />} />
+              <Route path="/safety-delays" element={<SafetyDelaysPage />} />
+              <Route path="/materials-received" element={<MaterialsReceivedPage />} />
+              <Route path="/material-order" element={<MaterialOrderPage />} />
+              <Route path="/material-expenses" element={<MaterialExpensesPage />} />
+              <Route path="/site-progress" element={<SiteProgressPage />} />
+
+              {/* Materials Requisitions & PDF Reports & Settings */}
               <Route path="/materials" element={<MaterialsPage />} />
               <Route path="/reports" element={<ReportsPage />} />
               <Route path="/settings" element={<SettingsPage />} />

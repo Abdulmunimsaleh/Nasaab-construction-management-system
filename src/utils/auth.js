@@ -121,31 +121,45 @@ export const isRouteAllowedForRole = (role, pathname, assignedProjectId = 'PRJ-0
     return true;
   }
 
-  // Storekeeper: Access ONLY to Materials, Projects, Dashboard, Reports
-  // FORBIDDEN from Labour and Costs
+  // Storekeeper: Access to Materials modules, Projects, Dashboard, Reports
+  // FORBIDDEN from Labour
   if (isStoreKeeperRole(role)) {
-    if (pathname === '/materials') return true;
-    if (pathname === '/dashboard') return true;
-    if (pathname === '/projects' || pathname.startsWith('/projects/')) return true;
-    if (pathname === '/reports') return true;
-    if (pathname === '/settings') return true;
+    if (
+      pathname === '/materials' ||
+      pathname === '/materials-received' ||
+      pathname === '/material-order' ||
+      pathname === '/material-expenses' ||
+      pathname === '/dashboard' ||
+      pathname === '/projects' ||
+      pathname.startsWith('/projects/') ||
+      pathname === '/reports' ||
+      pathname === '/settings'
+    ) {
+      return true;
+    }
     // Labour is strictly forbidden for Storekeeper
-    if (pathname === '/labour') return false;
+    if (pathname.startsWith('/labour')) return false;
     return false;
   }
 
-  // Foreman: Access to Labour & Equipment, Reports, Projects, and Profile/Settings
-  // FORBIDDEN from Materials and Costs
+  // Foreman: Access to Labour, Activities, Equipment, Safety & Delays, Site Progress, Reports, Projects, and Profile/Settings
+  // FORBIDDEN from Materials requisitions
   if (isForemanRole(role)) {
-    if (pathname === '/labour') return true;
-    if (pathname === '/daily-reports') return true;
-    if (pathname === '/reports') return true;
-    if (pathname === '/dashboard') return true;
-    if (pathname === '/projects') return true;
-    if (pathname.startsWith('/projects/')) {
+    if (
+      pathname.startsWith('/labour') ||
+      pathname === '/activities' ||
+      pathname === '/equipment-report' ||
+      pathname === '/safety-delays' ||
+      pathname === '/site-progress' ||
+      pathname === '/daily-reports' ||
+      pathname === '/reports' ||
+      pathname === '/dashboard' ||
+      pathname === '/projects' ||
+      pathname.startsWith('/projects/') ||
+      pathname === '/settings'
+    ) {
       return true;
     }
-    if (pathname === '/settings') return true;
     // Materials is strictly forbidden for Foreman
     if (pathname === '/materials') return false;
     return false;
