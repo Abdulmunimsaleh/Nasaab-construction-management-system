@@ -14,7 +14,6 @@ import { LabourPage } from './pages/LabourPage';
 import { EquipmentReportPage } from './pages/EquipmentReportPage';
 import { SafetyDelaysPage } from './pages/SafetyDelaysPage';
 import { MaterialsReceivedPage } from './pages/MaterialsReceivedPage';
-import { MaterialOrderPage } from './pages/MaterialOrderPage';
 import { MaterialExpensesPage } from './pages/MaterialExpensesPage';
 import { SiteProgressPage } from './pages/SiteProgressPage';
 import { MaterialsPage } from './pages/MaterialsPage';
@@ -52,7 +51,6 @@ function App() {
               <Route path="/equipment-report" element={<EquipmentReportPage />} />
               <Route path="/safety-delays" element={<SafetyDelaysPage />} />
               <Route path="/materials-received" element={<MaterialsReceivedPage />} />
-              <Route path="/material-order" element={<MaterialOrderPage />} />
               <Route path="/material-expenses" element={<MaterialExpensesPage />} />
               <Route path="/site-progress" element={<SiteProgressPage />} />
 

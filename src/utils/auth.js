@@ -127,7 +127,6 @@ export const isRouteAllowedForRole = (role, pathname, assignedProjectId = 'PRJ-0
     if (
       pathname === '/materials' ||
       pathname === '/materials-received' ||
-      pathname === '/material-order' ||
       pathname === '/material-expenses' ||
       pathname === '/dashboard' ||
       pathname === '/projects' ||
