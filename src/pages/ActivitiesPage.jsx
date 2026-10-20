@@ -330,8 +330,8 @@ export const ActivitiesPage = () => {
                 key={s}
                 onClick={() => setStatusFilter(s)}
                 className={`rounded-lg px-2.5 py-1 text-xs font-semibold capitalize transition-all cursor-pointer ${statusFilter === s
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-900'
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900'
                   }`}
               >
                 {s === 'in_progress' ? 'In Progress' : s}
@@ -385,10 +385,10 @@ export const ActivitiesPage = () => {
                   <div className="flex flex-wrap items-center gap-2">
                     <span
                       className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${act.status === 'completed'
-                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                        : act.status === 'delayed'
-                          ? 'bg-rose-100 text-rose-800 border border-rose-200'
-                          : 'bg-amber-100 text-amber-800 border border-amber-200'
+                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                          : act.status === 'delayed'
+                            ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                            : 'bg-amber-100 text-amber-800 border border-amber-200'
                         }`}
                     >
                       {act.status.replace('_', ' ')}
@@ -446,10 +446,10 @@ export const ActivitiesPage = () => {
                   <div className="mt-1 h-2 w-full bg-slate-100 rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all duration-300 ${act.progress === 100
-                        ? 'bg-emerald-500'
-                        : act.progress >= 50
-                          ? 'bg-amber-500'
-                          : 'bg-amber-400'
+                          ? 'bg-emerald-500'
+                          : act.progress >= 50
+                            ? 'bg-amber-500'
+                            : 'bg-amber-400'
                         }`}
                       style={{ width: `${act.progress}%` }}
                     />
@@ -553,6 +553,19 @@ export const ActivitiesPage = () => {
                   placeholder="Detail exact milestones reached during today's shift..."
                   value={newActivity.workDoneToday}
                   onChange={(e) => setNewActivity({ ...newActivity, workDoneToday: e.target.value })}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Planned Work for Tomorrow
+                </label>
+                <input
+                  type="text"
+                  placeholder="What is scheduled next?"
+                  value={newActivity.workPlanTomorrow}
+                  onChange={(e) => setNewActivity({ ...newActivity, workPlanTomorrow: e.target.value })}
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
                 />
               </div>
