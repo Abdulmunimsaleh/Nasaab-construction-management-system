@@ -18,8 +18,8 @@ import {
   Truck,
   ShieldAlert,
   PackageCheck,
-  ShoppingCart,
-  Coins
+  Coins,
+  Package
 } from 'lucide-react';
 
 export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen }) => {
@@ -27,17 +27,28 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Accordion state for Labour dropdown wing
-  const isLabourCurrent = location.pathname.startsWith('/labour');
-  const [isLabourExpanded, setIsLabourExpanded] = useState(true);
-  const [isFlyoutOpen, setIsFlyoutOpen] = useState(false);
+  // Accordion state for group dropdown wings
+  const isLabourCurrent = location.pathname.startsWith('/labour') || location.pathname === '/equipment-report' || location.pathname === '/safety-delays';
+  const isMaterialCurrent = location.pathname === '/materials' || location.pathname === '/materials-received' || location.pathname === '/material-expenses';
+  const [expandedGroups, setExpandedGroups] = useState({ Labour: true, Material: true });
+  const [flyoutGroup, setFlyoutGroup] = useState(null);
 
-  // Automatically keep Labour expanded when navigating to labour routes
+  const toggleGroup = (groupLabel) => {
+    setExpandedGroups((prev) => ({ ...prev, [groupLabel]: !prev[groupLabel] }));
+  };
+
+  // Automatically keep groups expanded when navigating to their routes
   useEffect(() => {
     if (isLabourCurrent) {
-      setIsLabourExpanded(true);
+      setExpandedGroups((prev) => ({ ...prev, Labour: true }));
     }
   }, [isLabourCurrent]);
+
+  useEffect(() => {
+    if (isMaterialCurrent) {
+      setExpandedGroups((prev) => ({ ...prev, Material: true }));
+    }
+  }, [isMaterialCurrent]);
 
   // Full admin & director navigation items
   const adminNavItems = [
@@ -50,16 +61,24 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
       badge: 'Workforce',
       children: [
         { label: 'Subcontract (PW)', path: '/labour/subcontract', icon: Briefcase },
-        { label: 'Daily', path: '/labour/daily', icon: CalendarCheck }
+        { label: 'Daily', path: '/labour/daily', icon: CalendarCheck },
+        { label: 'Equipments', path: '/equipment-report', icon: Truck },
+        { label: 'Equipment Expenses', path: '/equipment-report', icon: Coins },
+        { label: 'Safety & Delays', path: '/safety-delays', icon: ShieldAlert }
       ]
     },
     { type: 'link', label: 'Site Progress', path: '/activities', icon: TrendingUp },
-    { type: 'link', label: 'Equipment Report', path: '/equipment-report', icon: Truck },
-    { type: 'link', label: 'Safety & Delays', path: '/safety-delays', icon: ShieldAlert },
-    { type: 'link', label: 'Materials Received', path: '/materials-received', icon: PackageCheck },
-    { type: 'link', label: 'Material Order', path: '/material-order', icon: ShoppingCart },
-    { type: 'link', label: 'Material Expenses', path: '/material-expenses', icon: Coins },
-    { type: 'link', label: 'Material Requests', path: '/materials', icon: Boxes, badge: 'Requisitions' },
+    {
+      type: 'group',
+      label: 'Material',
+      icon: Package,
+      badge: 'Stores',
+      children: [
+        { label: 'Material Requests', path: '/materials', icon: Boxes },
+        { label: 'Materials Received', path: '/materials-received', icon: PackageCheck },
+        { label: 'Material Expenses', path: '/material-expenses', icon: Coins }
+      ]
+    },
     { type: 'link', label: 'PDF Reports', path: '/reports', icon: FileText },
     { type: 'link', label: 'Settings & Users', path: '/settings', icon: Settings },
   ];
@@ -75,16 +94,24 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
       badge: 'Workforce',
       children: [
         { label: 'Subcontract (PW)', path: '/labour/subcontract', icon: Briefcase },
-        { label: 'Daily', path: '/labour/daily', icon: CalendarCheck }
+        { label: 'Daily', path: '/labour/daily', icon: CalendarCheck },
+        { label: 'Equipments', path: '/equipment-report', icon: Truck },
+        { label: 'Equipment Expenses', path: '/equipment-report', icon: Coins },
+        { label: 'Safety & Delays', path: '/safety-delays', icon: ShieldAlert }
       ]
     },
     { type: 'link', label: 'Site Progress', path: '/activities', icon: TrendingUp },
-    { type: 'link', label: 'Equipment Report', path: '/equipment-report', icon: Truck },
-    { type: 'link', label: 'Safety & Delays', path: '/safety-delays', icon: ShieldAlert },
-    { type: 'link', label: 'Materials Received', path: '/materials-received', icon: PackageCheck },
-    { type: 'link', label: 'Material Order', path: '/material-order', icon: ShoppingCart },
-    { type: 'link', label: 'Material Expenses', path: '/material-expenses', icon: Coins },
-    { type: 'link', label: 'Material Requests', path: '/materials', icon: Boxes },
+    {
+      type: 'group',
+      label: 'Material',
+      icon: Package,
+      badge: 'Stores',
+      children: [
+        { label: 'Material Requests', path: '/materials', icon: Boxes },
+        { label: 'Materials Received', path: '/materials-received', icon: PackageCheck },
+        { label: 'Material Expenses', path: '/material-expenses', icon: Coins }
+      ]
+    },
     { type: 'link', label: 'PDF Reports', path: '/reports', icon: FileText },
     { type: 'link', label: 'Settings', path: '/settings', icon: Settings },
   ];
@@ -99,12 +126,13 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
       badge: 'Active',
       children: [
         { label: 'Subcontract (PW)', path: '/labour/subcontract', icon: Briefcase },
-        { label: 'Daily', path: '/labour/daily', icon: CalendarCheck }
+        { label: 'Daily', path: '/labour/daily', icon: CalendarCheck },
+        { label: 'Equipments', path: '/equipment-report', icon: Truck },
+        { label: 'Equipment Expenses', path: '/equipment-report', icon: Coins },
+        { label: 'Safety & Delays', path: '/safety-delays', icon: ShieldAlert }
       ]
     },
     { type: 'link', label: 'Site Progress', path: '/activities', icon: TrendingUp },
-    { type: 'link', label: 'Equipment Report', path: '/equipment-report', icon: Truck },
-    { type: 'link', label: 'Safety & Delays', path: '/safety-delays', icon: ShieldAlert },
     { type: 'link', label: 'PDF Reports', path: '/reports', icon: FileText },
     { type: 'link', label: 'Profile & Settings', path: '/settings', icon: Settings },
   ];
@@ -112,10 +140,17 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
   // Storekeeper navigation items
   const storekeeperNavItems = [
     { type: 'link', label: 'Stores Overview', path: '/dashboard', icon: LayoutDashboard },
-    { type: 'link', label: 'Materials Received', path: '/materials-received', icon: PackageCheck },
-    { type: 'link', label: 'Material Order', path: '/material-order', icon: ShoppingCart },
-    { type: 'link', label: 'Material Expenses', path: '/material-expenses', icon: Coins },
-    { type: 'link', label: 'Material Requests', path: '/materials', icon: Boxes, badge: 'Needed' },
+    {
+      type: 'group',
+      label: 'Material',
+      icon: Package,
+      badge: 'Stores',
+      children: [
+        { label: 'Material Requests', path: '/materials', icon: Boxes },
+        { label: 'Materials Received', path: '/materials-received', icon: PackageCheck },
+        { label: 'Material Expenses', path: '/material-expenses', icon: Coins }
+      ]
+    },
     { type: 'link', label: 'PDF Reports', path: '/reports', icon: FileText },
     { type: 'link', label: 'Profile & Settings', path: '/settings', icon: Settings },
   ];
@@ -194,6 +229,7 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
             // Group Accordion item (e.g. Labour -> Subcontract (PW) & Daily)
             if (item.type === 'group') {
               const GroupIcon = item.icon;
+              const isGroupExpanded = expandedGroups[item.label] ?? false;
               const hasActiveChild = item.children.some(
                 (child) => location.pathname === child.path || (child.path === '/labour/daily' && location.pathname === '/labour')
               );
@@ -204,14 +240,14 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
                   {isCollapsed ? (
                     <div
                       className="relative"
-                      onMouseEnter={() => setIsFlyoutOpen(true)}
-                      onMouseLeave={() => setIsFlyoutOpen(false)}
+                      onMouseEnter={() => setFlyoutGroup(item.label)}
+                      onMouseLeave={() => setFlyoutGroup(null)}
                     >
                       <button
                         onClick={() => navigate(item.children[0].path)}
                         className={`group flex w-full items-center justify-center rounded-xl p-2.5 text-xs font-semibold transition-all duration-150 cursor-pointer ${hasActiveChild
-                            ? 'bg-amber-500 text-slate-950 shadow-sm shadow-amber-500/30'
-                            : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                          ? 'bg-amber-500 text-slate-950 shadow-sm shadow-amber-500/30'
+                          : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
                           }`}
                         title={item.label}
                       >
@@ -222,10 +258,10 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
                       </button>
 
                       {/* Floating Flyout Menu when Collapsed */}
-                      {isFlyoutOpen && (
+                      {flyoutGroup === item.label && (
                         <div className="absolute left-full top-0 ml-2 z-50 w-48 rounded-2xl border border-slate-700 bg-slate-900 p-2 shadow-2xl backdrop-blur-md">
                           <div className="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-400 border-b border-slate-800">
-                            {item.label} Workforce
+                            {item.label}
                           </div>
                           <div className="mt-1 space-y-1">
                             {item.children.map((child) => {
@@ -236,15 +272,15 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
 
                               return (
                                 <NavLink
-                                  key={child.path}
+                                  key={child.label}
                                   to={child.path}
                                   onClick={() => {
-                                    setIsFlyoutOpen(false);
+                                    setFlyoutGroup(null);
                                     setIsMobileOpen(false);
                                   }}
                                   className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-semibold transition-colors ${isChildActive
-                                      ? 'bg-amber-500 text-slate-950 font-bold'
-                                      : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                                    ? 'bg-amber-500 text-slate-950 font-bold'
+                                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                                     }`}
                                 >
                                   <ChildIcon className="h-4 w-4 shrink-0" />
@@ -261,10 +297,10 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
                     <div className="space-y-1">
                       <button
                         type="button"
-                        onClick={() => setIsLabourExpanded(!isLabourExpanded)}
+                        onClick={() => toggleGroup(item.label)}
                         className={`group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs font-semibold transition-all duration-150 cursor-pointer ${hasActiveChild
-                            ? 'bg-slate-800 text-white font-bold'
-                            : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                          ? 'bg-slate-800 text-white font-bold'
+                          : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
                           }`}
                       >
                         <div className="flex items-center gap-3 truncate">
@@ -282,14 +318,14 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
                             </span>
                           )}
                           <ChevronDown
-                            className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${isLabourExpanded ? 'rotate-180 text-amber-400' : ''
+                            className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${isGroupExpanded ? 'rotate-180 text-amber-400' : ''
                               }`}
                           />
                         </div>
                       </button>
 
                       {/* Sub-Items Wing */}
-                      {isLabourExpanded && (
+                      {isGroupExpanded && (
                         <div className="ml-5 pl-3 border-l-2 border-slate-800 space-y-1 py-0.5 animate-fadeIn">
                           {item.children.map((child) => {
                             const ChildIcon = child.icon;
@@ -299,12 +335,12 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
 
                             return (
                               <NavLink
-                                key={child.path}
+                                key={child.label}
                                 to={child.path}
                                 onClick={() => setIsMobileOpen(false)}
                                 className={`group flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all duration-150 ${isChildActive
-                                    ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
-                                    : 'text-slate-400 hover:bg-slate-800/70 hover:text-white'
+                                  ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
+                                  : 'text-slate-400 hover:bg-slate-800/70 hover:text-white'
                                   }`}
                               >
                                 <ChildIcon
