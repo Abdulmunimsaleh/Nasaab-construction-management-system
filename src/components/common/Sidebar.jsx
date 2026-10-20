@@ -123,10 +123,10 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
   const navigationItems = isForeman
     ? foremanNavItems
     : isStoreKeeper
-    ? storekeeperNavItems
-    : (isAdmin || isDirector)
-    ? adminNavItems
-    : partnerNavItems;
+      ? storekeeperNavItems
+      : (isAdmin || isDirector)
+        ? adminNavItems
+        : partnerNavItems;
 
   return (
     <>
@@ -140,9 +140,8 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
 
       {/* Sidebar Container */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-40 flex flex-col border-r border-slate-800 bg-slate-900 text-slate-300 transition-all duration-300 ${
-          isCollapsed ? 'w-20' : 'w-64'
-        } ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
+        className={`fixed top-0 bottom-0 left-0 z-40 flex flex-col border-r border-slate-800 bg-slate-900 text-slate-300 transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-64'
+          } ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
       >
         {/* Brand Header */}
         <div className="flex h-16 shrink-0 items-center justify-between border-b border-slate-800/80 px-4">
@@ -210,17 +209,15 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
                     >
                       <button
                         onClick={() => navigate(item.children[0].path)}
-                        className={`group flex w-full items-center justify-center rounded-xl p-2.5 text-xs font-semibold transition-all duration-150 cursor-pointer ${
-                          hasActiveChild
+                        className={`group flex w-full items-center justify-center rounded-xl p-2.5 text-xs font-semibold transition-all duration-150 cursor-pointer ${hasActiveChild
                             ? 'bg-amber-500 text-slate-950 shadow-sm shadow-amber-500/30'
                             : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
-                        }`}
+                          }`}
                         title={item.label}
                       >
                         <GroupIcon
-                          className={`h-5 w-5 shrink-0 transition-transform group-hover:scale-105 ${
-                            hasActiveChild ? 'text-slate-950' : 'text-slate-400 group-hover:text-amber-400'
-                          }`}
+                          className={`h-5 w-5 shrink-0 transition-transform group-hover:scale-105 ${hasActiveChild ? 'text-slate-950' : 'text-slate-400 group-hover:text-amber-400'
+                            }`}
                         />
                       </button>
 
@@ -245,11 +242,10 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
                                     setIsFlyoutOpen(false);
                                     setIsMobileOpen(false);
                                   }}
-                                  className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-semibold transition-colors ${
-                                    isChildActive
+                                  className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-semibold transition-colors ${isChildActive
                                       ? 'bg-amber-500 text-slate-950 font-bold'
                                       : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                                  }`}
+                                    }`}
                                 >
                                   <ChildIcon className="h-4 w-4 shrink-0" />
                                   <span className="truncate">{child.label}</span>
@@ -266,17 +262,15 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
                       <button
                         type="button"
                         onClick={() => setIsLabourExpanded(!isLabourExpanded)}
-                        className={`group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs font-semibold transition-all duration-150 cursor-pointer ${
-                          hasActiveChild
+                        className={`group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs font-semibold transition-all duration-150 cursor-pointer ${hasActiveChild
                             ? 'bg-slate-800 text-white font-bold'
                             : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center gap-3 truncate">
                           <GroupIcon
-                            className={`h-5 w-5 shrink-0 transition-transform group-hover:scale-105 ${
-                              hasActiveChild ? 'text-amber-400' : 'text-slate-400 group-hover:text-amber-400'
-                            }`}
+                            className={`h-5 w-5 shrink-0 transition-transform group-hover:scale-105 ${hasActiveChild ? 'text-amber-400' : 'text-slate-400 group-hover:text-amber-400'
+                              }`}
                           />
                           <span className="truncate">{item.label}</span>
                         </div>
@@ -288,9 +282,8 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
                             </span>
                           )}
                           <ChevronDown
-                            className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${
-                              isLabourExpanded ? 'rotate-180 text-amber-400' : ''
-                            }`}
+                            className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${isLabourExpanded ? 'rotate-180 text-amber-400' : ''
+                              }`}
                           />
                         </div>
                       </button>
@@ -309,16 +302,14 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
                                 key={child.path}
                                 to={child.path}
                                 onClick={() => setIsMobileOpen(false)}
-                                className={`group flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all duration-150 ${
-                                  isChildActive
+                                className={`group flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all duration-150 ${isChildActive
                                     ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
                                     : 'text-slate-400 hover:bg-slate-800/70 hover:text-white'
-                                }`}
+                                  }`}
                               >
                                 <ChildIcon
-                                  className={`h-4 w-4 shrink-0 transition-transform group-hover:scale-105 ${
-                                    isChildActive ? 'text-slate-950' : 'text-slate-400 group-hover:text-amber-400'
-                                  }`}
+                                  className={`h-4 w-4 shrink-0 transition-transform group-hover:scale-105 ${isChildActive ? 'text-slate-950' : 'text-slate-400 group-hover:text-amber-400'
+                                    }`}
                                 />
                                 <span className="truncate">{child.label}</span>
                               </NavLink>
@@ -340,19 +331,17 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
                 to={item.path}
                 onClick={() => setIsMobileOpen(false)}
                 className={({ isActive }) =>
-                  `group flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-semibold transition-all duration-150 ${
-                    isActive
-                      ? 'bg-amber-500 text-slate-950 shadow-sm shadow-amber-500/30'
-                      : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                  `group flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-semibold transition-all duration-150 ${isActive
+                    ? 'bg-amber-500 text-slate-950 shadow-sm shadow-amber-500/30'
+                    : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
                   }`
                 }
               >
                 {({ isActive }) => (
                   <>
                     <Icon
-                      className={`h-5 w-5 shrink-0 transition-transform group-hover:scale-105 ${
-                        isActive ? 'text-slate-950' : 'text-slate-400 group-hover:text-amber-400'
-                      }`}
+                      className={`h-5 w-5 shrink-0 transition-transform group-hover:scale-105 ${isActive ? 'text-slate-950' : 'text-slate-400 group-hover:text-amber-400'
+                        }`}
                     />
                     {!isCollapsed && (
                       <span className="flex-1 truncate">{item.label}</span>
