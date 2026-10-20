@@ -1001,11 +1001,10 @@ export const SiteProgressPage = () => {
                               key={cat}
                               type="button"
                               onClick={() => toggleAdditionalCategory(cat)}
-                              className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer ${
-                                isSelected
+                              className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer ${isSelected
                                   ? 'bg-amber-500 text-white shadow-2xs'
                                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                              }`}
+                                }`}
                             >
                               {isSelected && <CheckCircle2 className="h-3 w-3" />}
                               <span>{cat}</span>
