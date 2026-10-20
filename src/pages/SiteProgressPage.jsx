@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import {
   TrendingUp,
@@ -13,9 +13,42 @@ import {
   ChevronRight,
   HardHat,
   X,
-  FileText
+  FileText,
+  Camera,
+  Image as ImageIcon,
+  Tag,
+  Eye
 } from 'lucide-react';
 import { getDayOfWeek } from '../utils/formatters';
+
+// Predefined categories requested for site progress
+const DEFAULT_PROGRESS_CATEGORIES = [
+  'Blocks & Plasta',
+  'Casting',
+  'Deshuttering',
+  'Electrical',
+  'Foreman',
+  'Helpers',
+  'Operator',
+  'Painting',
+  'Plumbing',
+  'Scalfolding',
+  'Steelwork',
+  'Shuttering',
+  'Supervisor',
+  'Tiles',
+  'Unskilled'
+];
+
+// Helper to convert File to base64 Data URL
+const fileToBase64 = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = (err) => reject(err);
+  });
+};
 
 export const SiteProgressPage = () => {
   const {
@@ -32,16 +65,49 @@ export const SiteProgressPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedZone, setSelectedZone] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  // Available categories (default + user-created custom categories)
+  const [availableCategories, setAvailableCategories] = useState(() => {
+    try {
+      const saved = localStorage.getItem('nasaab_progress_categories');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const combined = [...DEFAULT_PROGRESS_CATEGORIES];
+        parsed.forEach((c) => {
+          if (!combined.includes(c)) combined.push(c);
+        });
+        return combined;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return DEFAULT_PROGRESS_CATEGORIES;
+  });
+
+  // Category addition UI state
+  const [newCategoryInput, setNewCategoryInput] = useState('');
+  const [showNewCategoryField, setShowNewCategoryField] = useState(false);
+  const [showOtherCategoriesPicker, setShowOtherCategoriesPicker] = useState(false);
+  const [viewingPhoto, setViewingPhoto] = useState(null);
+
+  // Refs for camera capture and gallery file selection
+  const cameraInputRef = useRef(null);
+  const galleryInputRef = useRef(null);
 
   // New activity/progress form state
   const [newActivity, setNewActivity] = useState({
+    category: '',
+    additionalCategories: [],
+    descriptionDetails: '',
     description: '',
     zone: 'Ground Floor',
     status: 'in_progress',
     progress: 50,
     workDoneToday: '',
-    remarks: ''
+    remarks: '',
+    photos: []
   });
 
   // Local storage key for custom logged progress
@@ -56,53 +122,155 @@ export const SiteProgressPage = () => {
     return [
       {
         id: 'act-demo-1',
-        description: 'Shuttering and formwork reinforcement for first floor suspended slab',
+        category: 'Shuttering',
+        additionalCategories: ['Scalfolding', 'Steelwork'],
+        description: 'Shuttering - Formwork reinforcement for first floor suspended slab',
         zone: 'First Floor Slab',
         status: 'in_progress',
         progress: 65,
         workDoneToday: 'Completed positioning 85% of props and marine plywood decking across Grid A-D.',
         date: new Date().toISOString().split('T')[0],
-        source: 'Site Log'
+        source: 'Site Log',
+        photos: []
       },
       {
         id: 'act-demo-2',
-        description: 'Plumbing rough-in and drainage sleeper pipe sleeves cast into ground beam',
+        category: 'Plumbing',
+        additionalCategories: ['Helpers'],
+        description: 'Plumbing - Rough-in and drainage sleeper pipe sleeves cast into ground beam',
         zone: 'Ground Floor / Substructure',
         status: 'completed',
         progress: 100,
         workDoneToday: 'All 110mm PVC waste lines pressure tested and sleeved through foundation footing.',
         date: new Date().toISOString().split('T')[0],
-        source: 'Subcontract Inspection'
+        source: 'Subcontract Inspection',
+        photos: []
       },
       {
         id: 'act-demo-3',
-        description: 'Casting reinforced concrete columns C1 to C12 with vibrator compaction',
+        category: 'Casting',
+        additionalCategories: ['Operator', 'Unskilled'],
+        description: 'Casting - Reinforced concrete columns C1 to C12 with vibrator compaction',
         zone: 'Columns Level 1',
         status: 'in_progress',
         progress: 40,
         workDoneToday: 'Columns C1-C6 poured with class 25 concrete and cube test samples taken.',
         date: new Date().toISOString().split('T')[0],
-        source: 'Daily Shift Log'
+        source: 'Daily Shift Log',
+        photos: []
       }
     ];
   });
 
+  // Photo handlers: take photo / choose from gallery
+  const handlePhotoUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    try {
+      const newPhotos = await Promise.all(
+        files.map(async (file) => {
+          const dataUrl = await fileToBase64(file);
+          return {
+            id: `photo-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+            name: file.name,
+            url: dataUrl
+          };
+        })
+      );
+      setNewActivity((prev) => ({
+        ...prev,
+        photos: [...(prev.photos || []), ...newPhotos]
+      }));
+      e.target.value = '';
+    } catch (err) {
+      console.error(err);
+      addToast && addToast('Failed to load selected photo(s)', 'error');
+    }
+  };
+
+  const handleRemovePhoto = (photoIdx) => {
+    setNewActivity((prev) => ({
+      ...prev,
+      photos: (prev.photos || []).filter((_, idx) => idx !== photoIdx)
+    }));
+  };
+
+  // Add custom category to list and persist
+  const handleAddCustomCategory = (nameToAdd) => {
+    const name = (nameToAdd || newCategoryInput).trim();
+    if (!name) return;
+
+    if (!availableCategories.includes(name)) {
+      const updated = [...availableCategories, name];
+      setAvailableCategories(updated);
+      try {
+        const customOnly = updated.filter((c) => !DEFAULT_PROGRESS_CATEGORIES.includes(c));
+        localStorage.setItem('nasaab_progress_categories', JSON.stringify(customOnly));
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    if (!newActivity.category) {
+      setNewActivity((prev) => ({ ...prev, category: name }));
+    } else if (!newActivity.additionalCategories.includes(name) && newActivity.category !== name) {
+      setNewActivity((prev) => ({
+        ...prev,
+        additionalCategories: [...(prev.additionalCategories || []), name]
+      }));
+    }
+
+    setNewCategoryInput('');
+    setShowNewCategoryField(false);
+    addToast && addToast(`Category "${name}" added!`);
+  };
+
+  const toggleAdditionalCategory = (cat) => {
+    setNewActivity((prev) => {
+      const current = prev.additionalCategories || [];
+      if (current.includes(cat)) {
+        return { ...prev, additionalCategories: current.filter((c) => c !== cat) };
+      } else {
+        return { ...prev, additionalCategories: [...current, cat] };
+      }
+    });
+  };
+
+  const removeAdditionalCategory = (catToRemove) => {
+    setNewActivity((prev) => ({
+      ...prev,
+      additionalCategories: (prev.additionalCategories || []).filter((c) => c !== catToRemove)
+    }));
+  };
+
   // Save custom progress entry
   const handleSaveActivity = (e) => {
     e.preventDefault();
-    if (!newActivity.description.trim()) {
-      addToast && addToast('Please enter a progress description', 'error');
+    const primaryCat = newActivity.category?.trim();
+    const details = newActivity.descriptionDetails?.trim();
+    const rawDesc = newActivity.description?.trim();
+
+    if (!primaryCat && !rawDesc) {
+      addToast && addToast('Please select a category for this progress entry', 'error');
       return;
     }
 
+    const finalDescription = details
+      ? `${primaryCat || rawDesc} - ${details}`
+      : (primaryCat || rawDesc);
+
     const created = {
       id: `act-${Date.now()}`,
-      description: newActivity.description,
+      category: primaryCat || 'General',
+      additionalCategories: newActivity.additionalCategories || [],
+      description: finalDescription,
       zone: newActivity.zone,
       status: newActivity.status,
       progress: Number(newActivity.progress) || 0,
       workDoneToday: newActivity.workDoneToday,
       remarks: newActivity.remarks,
+      photos: newActivity.photos || [],
       date: new Date().toISOString().split('T')[0],
       source: 'Direct Entry'
     };
@@ -118,13 +286,19 @@ export const SiteProgressPage = () => {
     addToast && addToast('Site progress logged successfully!');
     setIsAddModalOpen(false);
     setNewActivity({
+      category: '',
+      additionalCategories: [],
+      descriptionDetails: '',
       description: '',
       zone: 'Ground Floor',
       status: 'in_progress',
       progress: 50,
       workDoneToday: '',
-      remarks: ''
+      remarks: '',
+      photos: []
     });
+    setShowNewCategoryField(false);
+    setShowOtherCategoriesPicker(false);
   };
 
   // Compile all activities/progress from both LAE forms and custom entries
@@ -141,6 +315,7 @@ export const SiteProgressPage = () => {
         form.activityItems.forEach((act, idx) => {
           list.push({
             id: `lae-act-${form.id}-${idx}`,
+            category: act.category || 'General Operations',
             description: act.activity_description || act.description || 'Site construction activity',
             zone: act.location_or_zone || act.zone || 'Main Site Zone',
             status: act.status || 'in_progress',
@@ -149,7 +324,8 @@ export const SiteProgressPage = () => {
             date: form.date,
             formNumber: form.form_number,
             preparedBy: form.prepared_by_name,
-            source: `LAE Form (${form.form_number || 'Daily'})`
+            source: `LAE Form (${form.form_number || 'Daily'})`,
+            photos: Array.isArray(form.site_photos) ? form.site_photos : (form.sitePhotos || [])
           });
         });
       }
@@ -160,6 +336,7 @@ export const SiteProgressPage = () => {
           if (item.work_done_today) {
             list.push({
               id: `lae-trade-${form.id}-${lIdx}`,
+              category: item.trade || 'Trade Operations',
               description: `${item.trade}: ${item.work_done_today}`,
               zone: 'Trade Workspace',
               status: 'in_progress',
@@ -168,7 +345,8 @@ export const SiteProgressPage = () => {
               date: form.date,
               formNumber: form.form_number,
               preparedBy: form.prepared_by_name,
-              source: `LAE Trade Log`
+              source: `LAE Trade Log`,
+              photos: []
             });
           }
         });
@@ -192,6 +370,7 @@ export const SiteProgressPage = () => {
     return allActivities.filter((act) => {
       const matchesSearch =
         act.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (act.category && act.category.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (act.zone && act.zone.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (act.workDoneToday && act.workDoneToday.toLowerCase().includes(searchTerm.toLowerCase()));
 
@@ -202,9 +381,14 @@ export const SiteProgressPage = () => {
       const matchesZone =
         selectedZone === 'all' || act.zone === selectedZone;
 
-      return matchesSearch && matchesStatus && matchesZone;
+      const matchesCategory =
+        selectedCategory === 'all' ||
+        act.category === selectedCategory ||
+        (Array.isArray(act.additionalCategories) && act.additionalCategories.includes(selectedCategory));
+
+      return matchesSearch && matchesStatus && matchesZone && matchesCategory;
     });
-  }, [allActivities, searchTerm, statusFilter, selectedZone]);
+  }, [allActivities, searchTerm, statusFilter, selectedZone, selectedCategory]);
 
   // Statistics
   const stats = useMemo(() => {
@@ -330,6 +514,20 @@ export const SiteProgressPage = () => {
             ))}
           </div>
 
+          {/* Category Selector */}
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 focus:border-amber-500 focus:outline-hidden"
+          >
+            <option value="all">All Categories</option>
+            {availableCategories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+
           {/* Zone Selector */}
           {zones.length > 0 && (
             <select
@@ -402,6 +600,22 @@ export const SiteProgressPage = () => {
                         {act.source}
                       </span>
                     )}
+
+                    {act.category && (
+                      <span className="rounded-md bg-amber-500/10 text-amber-800 border border-amber-500/20 px-2 py-0.5 text-[10px] font-bold">
+                        {act.category}
+                      </span>
+                    )}
+
+                    {Array.isArray(act.additionalCategories) && act.additionalCategories.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1">
+                        {act.additionalCategories.map((c, i) => (
+                          <span key={i} className="rounded bg-slate-100 text-slate-600 px-1.5 py-0.2 text-[10px] font-semibold">
+                            +{c}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <h3 className="text-sm font-bold text-slate-900 leading-snug">
@@ -416,7 +630,35 @@ export const SiteProgressPage = () => {
                     </div>
                   )}
 
-
+                  {/* Photos attached to progress */}
+                  {Array.isArray(act.photos) && act.photos.length > 0 && (
+                    <div className="mt-3 pt-2.5 border-t border-slate-100">
+                      <div className="text-[11px] font-bold text-slate-500 mb-1.5 flex items-center gap-1.5">
+                        <Camera className="h-3.5 w-3.5 text-amber-500" />
+                        <span>Attached Photos ({act.photos.length})</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {act.photos.map((photo, pIdx) => (
+                          <button
+                            key={photo.id || pIdx}
+                            type="button"
+                            onClick={() => setViewingPhoto(photo)}
+                            className="relative h-14 w-14 rounded-xl overflow-hidden border border-slate-200 hover:border-amber-400 transition-all cursor-pointer group shadow-2xs"
+                            title="Click to view full photo"
+                          >
+                            <img
+                              src={photo.url}
+                              alt={photo.name || 'Site photo'}
+                              className="h-full w-full object-cover group-hover:scale-105 transition-transform"
+                            />
+                            <div className="absolute inset-0 bg-slate-950/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <Eye className="h-4 w-4 text-white" />
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Progress Metric */}
@@ -446,8 +688,8 @@ export const SiteProgressPage = () => {
       {/* Modal: Log New Site Progress */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
-            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+          <div className="w-full max-w-xl max-h-[90vh] flex flex-col rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 shrink-0">
               <div className="flex items-center gap-2">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500">
                   <TrendingUp className="h-5 w-5" />
@@ -459,23 +701,103 @@ export const SiteProgressPage = () => {
               </div>
               <button
                 onClick={() => setIsAddModalOpen(false)}
-                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveActivity} className="p-6 space-y-4">
+            <form onSubmit={handleSaveActivity} className="p-6 space-y-4 overflow-y-auto max-h-[calc(90vh-80px)]">
+              {/* Category Dropdown */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-700">
+                    Progress Category <span className="text-rose-500">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowNewCategoryField(!showNewCategoryField)}
+                    className="text-[11px] font-bold text-amber-600 hover:text-amber-700 inline-flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="h-3 w-3" />
+                    <span>New Category</span>
+                  </button>
+                </div>
+
+                <select
+                  required
+                  value={newActivity.category}
+                  onChange={(e) => {
+                    if (e.target.value === '__add_new__') {
+                      setShowNewCategoryField(true);
+                    } else {
+                      setNewActivity({ ...newActivity, category: e.target.value });
+                    }
+                  }}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                >
+                  <option value="">-- Select a Category --</option>
+                  {availableCategories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                  <option value="__add_new__">+ Add Custom Category...</option>
+                </select>
+              </div>
+
+              {/* Inline Add New Category Box */}
+              {showNewCategoryField && (
+                <div className="p-3 rounded-2xl bg-amber-50/80 border border-amber-200/80 space-y-2">
+                  <label className="block text-[11px] font-bold text-amber-900">
+                    Create New Category
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder="e.g. Carpentry, Glazing, Waterproofing..."
+                      value={newCategoryInput}
+                      onChange={(e) => setNewCategoryInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddCustomCategory();
+                        }
+                      }}
+                      className="flex-1 rounded-xl border border-amber-300 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleAddCustomCategory()}
+                      className="rounded-xl bg-amber-500 hover:bg-amber-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs cursor-pointer"
+                    >
+                      Add
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowNewCategoryField(false);
+                        setNewCategoryInput('');
+                      }}
+                      className="rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-600 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Optional Description / Sub-task Details */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Progress Title / Description <span className="text-rose-500">*</span>
+                  Progress Title / Specific Details <span className="text-slate-400 font-normal">(Optional)</span>
                 </label>
                 <input
                   type="text"
-                  required
                   placeholder="e.g. Assembling formwork props for 1st floor slab"
-                  value={newActivity.description}
-                  onChange={(e) => setNewActivity({ ...newActivity, description: e.target.value })}
+                  value={newActivity.descriptionDetails}
+                  onChange={(e) => setNewActivity({ ...newActivity, descriptionDetails: e.target.value })}
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
                 />
               </div>
@@ -522,7 +844,7 @@ export const SiteProgressPage = () => {
                   step="5"
                   value={newActivity.progress}
                   onChange={(e) => setNewActivity({ ...newActivity, progress: e.target.value })}
-                  className="w-full accent-amber-500"
+                  className="w-full accent-amber-500 cursor-pointer"
                 />
               </div>
 
@@ -539,22 +861,236 @@ export const SiteProgressPage = () => {
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              {/* Photo Capture & Gallery Feature */}
+              <div className="space-y-2 rounded-2xl bg-slate-50/80 p-3.5 border border-slate-100">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <Camera className="h-4 w-4 text-amber-500" />
+                    <span>Progress Photos & Evidence</span>
+                  </label>
+                  <span className="text-[11px] font-semibold text-slate-500">
+                    {newActivity.photos?.length || 0} photo{(newActivity.photos?.length || 0) === 1 ? '' : 's'}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => cameraInputRef.current?.click()}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 px-3.5 py-2 text-xs font-bold text-white cursor-pointer shadow-xs transition-colors"
+                  >
+                    <Camera className="h-3.5 w-3.5" />
+                    <span>Take Photo</span>
+                  </button>
+                  <input
+                    ref={cameraInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={handlePhotoUpload}
+                    className="hidden"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => galleryInputRef.current?.click()}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-700 cursor-pointer shadow-2xs transition-colors"
+                  >
+                    <ImageIcon className="h-3.5 w-3.5 text-slate-500" />
+                    <span>Choose from Gallery</span>
+                  </button>
+                  <input
+                    ref={galleryInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handlePhotoUpload}
+                    className="hidden"
+                  />
+                </div>
+
+                {/* Photos Grid */}
+                {newActivity.photos && newActivity.photos.length > 0 && (
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 pt-1">
+                    {newActivity.photos.map((photo, pIdx) => (
+                      <div
+                        key={photo.id || pIdx}
+                        className="relative group rounded-xl overflow-hidden border border-slate-200 aspect-square bg-slate-100 shadow-2xs"
+                      >
+                        <img src={photo.url} alt={photo.name || 'Site Photo'} className="h-full w-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => handleRemovePhoto(pIdx)}
+                          className="absolute top-1 right-1 rounded-full bg-slate-900/80 p-1 text-white hover:bg-rose-600 transition-colors cursor-pointer"
+                          title="Remove photo"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/80 to-transparent p-1">
+                          <p className="truncate text-[9px] font-medium text-white">{photo.name || `Photo ${pIdx + 1}`}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Down at the bottom: Plus button to select and add other categories */}
+              <div className="pt-2 border-t border-slate-100 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                    <Tag className="h-3.5 w-3.5 text-amber-500" />
+                    <span>Additional Categories / Associated Trades</span>
+                  </label>
+                  <span className="text-[10px] text-slate-400">Optional</span>
+                </div>
+
+                {/* Selected Additional Categories badges */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {newActivity.additionalCategories && newActivity.additionalCategories.length > 0 && (
+                    newActivity.additionalCategories.map((cat, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1 rounded-lg bg-amber-50 border border-amber-200 px-2.5 py-1 text-xs font-semibold text-amber-900"
+                      >
+                        <span>{cat}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeAdditionalCategory(cat)}
+                          className="rounded-full p-0.5 hover:bg-amber-200 text-amber-700 cursor-pointer"
+                          title="Remove"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))
+                  )}
+
+                  {/* The Plus Button */}
+                  <button
+                    type="button"
+                    onClick={() => setShowOtherCategoriesPicker(!showOtherCategoriesPicker)}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-amber-400 bg-amber-50/70 hover:bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 transition-colors cursor-pointer shadow-2xs"
+                  >
+                    <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
+                    <span>Select / Add Other Categories</span>
+                  </button>
+                </div>
+
+                {/* Dropdown / Picker panel when Plus button is clicked */}
+                {showOtherCategoriesPicker && (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-md space-y-3 mt-2 animate-in fade-in duration-150">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                      <span className="text-xs font-bold text-slate-800">Select categories to associate:</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowOtherCategoriesPicker(false)}
+                        className="text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
+                      {availableCategories
+                        .filter((c) => c !== newActivity.category)
+                        .map((cat) => {
+                          const isSelected = newActivity.additionalCategories?.includes(cat);
+                          return (
+                            <button
+                              key={cat}
+                              type="button"
+                              onClick={() => toggleAdditionalCategory(cat)}
+                              className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-amber-500 text-white shadow-2xs'
+                                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                              }`}
+                            >
+                              {isSelected && <CheckCircle2 className="h-3 w-3" />}
+                              <span>{cat}</span>
+                            </button>
+                          );
+                        })}
+                    </div>
+
+                    {/* Option to type and add a brand new category */}
+                    <div className="pt-2 border-t border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          placeholder="Or type a new category..."
+                          value={newCategoryInput}
+                          onChange={(e) => setNewCategoryInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddCustomCategory();
+                            }
+                          }}
+                          className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs text-slate-900 focus:bg-white focus:border-amber-500 focus:outline-hidden"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleAddCustomCategory()}
+                          className="inline-flex items-center gap-1 rounded-xl bg-amber-500 hover:bg-amber-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs cursor-pointer"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          <span>Add</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                  className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2 text-xs font-bold text-slate-950 shadow-xs"
+                  className="rounded-xl bg-amber-500 hover:bg-amber-400 px-5 py-2 text-xs font-bold text-slate-950 shadow-xs cursor-pointer transition-colors"
                 >
                   Save Progress
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox / View Photo Modal */}
+      {viewingPhoto && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-xs animate-in fade-in"
+          onClick={() => setViewingPhoto(null)}
+        >
+          <div
+            className="relative max-w-3xl max-h-[90vh] bg-slate-900 rounded-3xl overflow-hidden p-3 shadow-2xl border border-slate-800"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setViewingPhoto(null)}
+              className="absolute top-5 right-5 z-10 rounded-full bg-slate-800/90 hover:bg-rose-600 p-2 text-white transition-colors cursor-pointer"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <img
+              src={viewingPhoto.url}
+              alt={viewingPhoto.name || 'Site Progress Photo'}
+              className="max-h-[75vh] w-auto max-w-full rounded-2xl object-contain mx-auto"
+            />
+            <div className="mt-3 flex items-center justify-between px-2 text-slate-300 text-xs">
+              <span className="font-semibold truncate max-w-xs">{viewingPhoto.name || 'Site Photo'}</span>
+              {viewingPhoto.date && (
+                <span className="text-[11px] text-slate-400 font-mono">{viewingPhoto.date}</span>
+              )}
+            </div>
           </div>
         </div>
       )}
