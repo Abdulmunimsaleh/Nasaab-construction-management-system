@@ -740,7 +740,20 @@ export const generateMaterialRequestPDF = ({
 
   // SECTION 2: MATERIALS NEEDED TOMORROW
   if (request.materials_needed_tomorrow || request.notes) {
-    const tomorrowText = request.materials_needed_tomorrow || request.notes;
+    let tomorrowText = request.materials_needed_tomorrow || request.notes || '';
+    if (typeof tomorrowText === 'string' && (tomorrowText.trim().startsWith('[') || tomorrowText.trim().startsWith('{'))) {
+      try {
+        const parsed = JSON.parse(tomorrowText);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          tomorrowText = parsed.map((c) => {
+            const header = [c.category ? `Category: ${c.category}` : '', c.floor ? `Floor: ${c.floor}` : ''].filter(Boolean).join(' | ');
+            return `${header ? `[${header}]\n` : ''}${c.description || ''}`;
+          }).join('\n\n');
+        }
+      } catch (e) {
+        // Fallback to raw text
+      }
+    }
     doc.setFillColor(239, 246, 255); // light blue bg
     doc.setDrawColor(191, 219, 254);
 

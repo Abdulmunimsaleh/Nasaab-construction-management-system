@@ -19,7 +19,8 @@ import {
   Check,
   Edit,
   ExternalLink,
-  Lock
+  Lock,
+  Layers
 } from 'lucide-react';
 
 export const ViewMaterialRequestModal = ({ requestId, isOpen, onClose, onEdit }) => {
@@ -38,6 +39,29 @@ export const ViewMaterialRequestModal = ({ requestId, isOpen, onClose, onEdit })
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
+
+  // Parse structured tomorrow categories or fallback to legacy text
+  const tomorrowCategories = (() => {
+    if (!requestData) return [];
+    const raw = requestData.materials_needed_tomorrow || requestData.notes;
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw === 'object') return [raw];
+    if (typeof raw === 'string') {
+      const trimmed = raw.trim();
+      if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+          if (typeof parsed === 'object') return [parsed];
+        } catch (e) {
+          // Fallback below
+        }
+      }
+      return [{ category: '', floor: '', description: trimmed }];
+    }
+    return [];
+  })();
 
   const isOlderThan24Hours = (createdAt) => {
     if (!createdAt) return false;
@@ -124,15 +148,14 @@ export const ViewMaterialRequestModal = ({ requestId, isOpen, onClose, onEdit })
                 <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-mono font-bold text-amber-800">
                   {requestData?.project_code || 'SITE'}
                 </span>
-                <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                  requestData?.status === 'approved'
-                    ? 'bg-emerald-100 text-emerald-800'
-                    : requestData?.status === 'rejected'
+                <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${requestData?.status === 'approved'
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : requestData?.status === 'rejected'
                     ? 'bg-rose-100 text-rose-800'
                     : requestData?.status === 'fulfilled'
-                    ? 'bg-purple-100 text-purple-800'
-                    : 'bg-amber-100 text-amber-800'
-                }`}>
+                      ? 'bg-purple-100 text-purple-800'
+                      : 'bg-amber-100 text-amber-800'
+                  }`}>
                   {requestData?.status || 'Pending'}
                 </span>
               </div>
@@ -207,141 +230,74 @@ export const ViewMaterialRequestModal = ({ requestId, isOpen, onClose, onEdit })
                 </div>
               </div>
 
-              {/* Site Progress (if recorded) */}
-              {requestData.site_progress && (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-4">
-                  <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase text-emerald-800 tracking-wider mb-1">
-                    <TrendingUp className="h-4 w-4 text-emerald-600" />
-                    <span>Site Progress Observation</span>
-                  </div>
-                  <p className="text-xs text-slate-800 leading-relaxed font-medium">
-                    {requestData.site_progress}
-                  </p>
-                </div>
-              )}
 
-              {/* Site Photos & Evidence (if recorded) */}
-              {sitePhotos.length > 0 && (
-                <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 sm:p-5 space-y-3">
+              {/* Section: Materials Needed Tomorrow */}
+              {tomorrowCategories.length > 0 && (
+                <div className="rounded-2xl border-2 border-blue-200 bg-blue-50/20 p-4 sm:p-5 space-y-3.5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-100 text-purple-700">
-                        <ImageIcon className="h-4 w-4" />
+                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-blue-700">
+                        <ArrowRightLeft className="h-4 w-4" />
                       </div>
                       <h3 className="text-xs font-extrabold uppercase tracking-wide text-slate-900">
-                        Site Photos & Evidence ({sitePhotos.length})
+                        Materials Needed Tomorrow
                       </h3>
                     </div>
+                    <span className="text-[11px] font-bold text-blue-700 bg-blue-100/70 border border-blue-200 px-2.5 py-0.5 rounded-lg">
+                      {tomorrowCategories.length} {tomorrowCategories.length === 1 ? 'Category' : 'Categories'}
+                    </span>
                   </div>
 
-                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2.5">
-                    {sitePhotos.map((photo, pIdx) => (
-                      <button
-                        key={pIdx}
-                        type="button"
-                        onClick={() => setPreviewImage(photo.url)}
-                        className="group relative rounded-xl overflow-hidden border border-slate-200 aspect-square bg-slate-100 hover:opacity-90 cursor-pointer"
-                      >
-                        <img src={photo.url} alt={photo.name || 'Site Photo'} className="h-full w-full object-cover" />
-                        <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
-                          <ExternalLink className="h-4 w-4" />
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Section 1: Materials Received Today */}
-              <div className="rounded-2xl border-2 border-amber-400/80 bg-amber-50/15 p-4 sm:p-5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
-                      <Boxes className="h-4 w-4" />
-                    </div>
-                    <h3 className="text-xs font-extrabold uppercase tracking-wide text-slate-900">
-                      Materials Received Today ({requestData.items?.length || 0})
-                    </h3>
-                  </div>
-                </div>
-
-                {requestData.items && requestData.items.length > 0 ? (
                   <div className="space-y-3">
-                    {requestData.items.map((item, idx) => {
-                      const receipts = Array.isArray(item.receipt_photos)
-                        ? item.receipt_photos
-                        : (typeof item.receipt_photos === 'string' ? JSON.parse(item.receipt_photos || '[]') : []);
+                    {tomorrowCategories.map((cat, idx) => {
+                      const hasStructuredInfo = (cat.category && cat.category.trim()) || (cat.floor && cat.floor.trim());
+
+                      if (!hasStructuredInfo) {
+                        return (
+                          <div
+                            key={idx}
+                            className="bg-white p-3.5 rounded-xl border border-blue-100 text-xs text-slate-800 leading-relaxed font-medium whitespace-pre-wrap shadow-2xs"
+                          >
+                            {cat.description || cat.notes || ''}
+                          </div>
+                        );
+                      }
 
                       return (
-                        <div key={idx} className="rounded-xl border border-slate-200 bg-white p-3.5 space-y-2 shadow-2xs">
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <span className="text-[10px] font-extrabold text-amber-700 uppercase tracking-wider block mb-0.5">
-                                ITEM #{idx + 1}
+                        <div
+                          key={idx}
+                          className="rounded-xl border border-slate-200 bg-white p-3.5 space-y-2.5 shadow-2xs"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-2 border-b border-slate-100 pb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-extrabold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md uppercase tracking-wider flex items-center gap-1">
+                                <Layers className="h-3 w-3" />
+                                <span>CATEGORY #{idx + 1}</span>
                               </span>
-                              <h4 className="text-xs font-bold text-slate-900">{item.item_name}</h4>
+                              {cat.category && (
+                                <h4 className="text-xs font-bold text-slate-900">
+                                  {cat.category}
+                                </h4>
+                              )}
                             </div>
-                            {item.supplier_vendor && (
-                              <div className="text-right">
-                                <span className="text-[10px] text-slate-400 uppercase font-semibold block">Supplier</span>
-                                <span className="text-xs font-semibold text-slate-700">{item.supplier_vendor}</span>
+
+                            {cat.floor && (
+                              <div className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-800">
+                                <Building2 className="h-3 w-3 text-amber-600" />
+                                <span>{cat.floor}</span>
                               </div>
                             )}
                           </div>
 
-                          {(item.delivery_notes || item.notes) && (
-                            <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-xs text-slate-600">
-                              <span className="font-semibold text-slate-700">Delivery Notes: </span>
-                              {item.delivery_notes || item.notes}
-                            </div>
-                          )}
-
-                          {receipts && receipts.length > 0 && (
-                            <div className="pt-1.5 border-t border-slate-100">
-                              <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 mb-2">
-                                <Check className="h-3 w-3 stroke-[3]" />
-                                <span>{receipts.length} receipt photo{receipts.length > 1 ? 's' : ''} attached</span>
-                              </div>
-                              <div className="flex flex-wrap gap-2">
-                                {receipts.map((rec, rIdx) => (
-                                   <button
-                                    key={rIdx}
-                                    type="button"
-                                    onClick={() => setPreviewImage(rec.url)}
-                                    className="group relative rounded-lg overflow-hidden border border-slate-200 h-14 w-14 bg-slate-100 hover:opacity-90 cursor-pointer"
-                                  >
-                                    <img src={rec.url} alt={rec.name || 'Receipt'} className="h-full w-full object-cover" />
-                                    <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
-                                      <ExternalLink className="h-3.5 w-3.5" />
-                                    </div>
-                                  </button>
-                                ))}
-                              </div>
+                          {cat.description && (
+                            <div className="bg-slate-50/70 p-3 rounded-lg border border-slate-100 text-xs text-slate-700 leading-relaxed font-medium whitespace-pre-wrap">
+                              {cat.description}
                             </div>
                           )}
                         </div>
                       );
                     })}
                   </div>
-                ) : (
-                  <p className="text-xs text-slate-500 italic py-2">No material items logged for today.</p>
-                )}
-              </div>
-
-              {/* Section 2: Materials Needed Tomorrow */}
-              {(requestData.materials_needed_tomorrow || requestData.notes) && (
-                <div className="rounded-2xl border-2 border-blue-200 bg-blue-50/20 p-4 sm:p-5 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-blue-700">
-                      <ArrowRightLeft className="h-4 w-4" />
-                    </div>
-                    <h3 className="text-xs font-extrabold uppercase tracking-wide text-slate-900">
-                      Materials Needed Tomorrow
-                    </h3>
-                  </div>
-                  <p className="text-xs text-slate-800 leading-relaxed font-medium bg-white p-3 rounded-xl border border-blue-100 whitespace-pre-wrap">
-                    {requestData.materials_needed_tomorrow || requestData.notes}
-                  </p>
                 </div>
               )}
             </>

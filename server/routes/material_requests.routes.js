@@ -209,7 +209,9 @@ router.post('/', requireProjectAccess, async (req, res) => {
       createdBy,
       requestedByName,
       siteProgress || null,
-      materialsNeededTomorrow || null,
+      materialsNeededTomorrow && typeof materialsNeededTomorrow === 'object'
+        ? JSON.stringify(materialsNeededTomorrow)
+        : (materialsNeededTomorrow || null),
       sitePhotos && sitePhotos.length > 0 ? JSON.stringify(sitePhotos) : null,
       notes || null
     ]);
@@ -365,7 +367,9 @@ router.put('/:id', async (req, res) => {
       targetDate || currentReq.date_needed,
       urgency || currentReq.urgency,
       siteProgress !== undefined ? siteProgress : currentReq.site_progress,
-      materialsNeededTomorrow !== undefined ? materialsNeededTomorrow : currentReq.materials_needed_tomorrow,
+      materialsNeededTomorrow !== undefined
+        ? (typeof materialsNeededTomorrow === 'object' ? JSON.stringify(materialsNeededTomorrow) : materialsNeededTomorrow)
+        : currentReq.materials_needed_tomorrow,
       sitePhotos && sitePhotos.length > 0 ? JSON.stringify(sitePhotos) : (Array.isArray(sitePhotos) ? null : currentReq.site_photos),
       notes !== undefined ? notes : currentReq.notes,
       requestId

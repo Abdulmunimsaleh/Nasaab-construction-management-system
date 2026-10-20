@@ -14,7 +14,8 @@ import {
   Image as ImageIcon,
   Upload,
   Check,
-  Building2
+  Building2,
+  Layers
 } from 'lucide-react';
 
 export const NewMaterialRequestModal = ({
@@ -37,8 +38,30 @@ export const NewMaterialRequestModal = ({
   const [formProjectId, setFormProjectId] = useState('');
   const [logDate, setLogDate] = useState(getLocalToday);
   const [siteProgress, setSiteProgress] = useState('');
-  const [materialsNeededTomorrow, setMaterialsNeededTomorrow] = useState('');
+  const [categories, setCategories] = useState([
+    { category: '', floor: '', description: '' }
+  ]);
   const [sitePhotos, setSitePhotos] = useState([]);
+
+  // Helper to parse tomorrow categories from JSON or legacy text
+  const parseCategoriesFromTomorrow = (val) => {
+    if (!val) return [{ category: '', floor: '', description: '' }];
+    if (Array.isArray(val)) return val.length ? val : [{ category: '', floor: '', description: '' }];
+    if (typeof val === 'string') {
+      const trimmed = val.trim();
+      if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed) && parsed.length) return parsed;
+          if (typeof parsed === 'object') return [parsed];
+        } catch (e) {
+          // Fallback below
+        }
+      }
+      return [{ category: '', floor: '', description: trimmed }];
+    }
+    return [{ category: '', floor: '', description: '' }];
+  };
 
   // Materials received today items
   const [items, setItems] = useState([
@@ -66,7 +89,7 @@ export const NewMaterialRequestModal = ({
       const rawDate = editData.date_needed || editData.date || '';
       setLogDate(rawDate ? String(rawDate).split('T')[0] : getLocalToday());
       setSiteProgress(editData.site_progress || '');
-      setMaterialsNeededTomorrow(editData.materials_needed_tomorrow || '');
+      setCategories(parseCategoriesFromTomorrow(editData.materials_needed_tomorrow || editData.notes || ''));
 
       const parsedSitePhotos = Array.isArray(editData.site_photos)
         ? editData.site_photos
@@ -101,7 +124,7 @@ export const NewMaterialRequestModal = ({
       setFormProjectId(defaultProjectId || currentProject?.id || projects[0]?.id || '');
       setLogDate(getLocalToday());
       setSiteProgress('');
-      setMaterialsNeededTomorrow('');
+      setCategories([{ category: '', floor: '', description: '' }]);
       setSitePhotos([]);
       setItems([{
         itemName: '',
@@ -118,6 +141,29 @@ export const NewMaterialRequestModal = ({
   if (!isOpen) return null;
 
   const targetProject = projects.find((p) => p.id === formProjectId) || currentProject || projects[0];
+
+  const handleAddCategory = () => {
+    setCategories((prev) => [
+      ...prev,
+      { category: '', floor: '', description: '' }
+    ]);
+  };
+
+  const handleRemoveCategory = (index) => {
+    if (categories.length === 1) {
+      setCategories([{ category: '', floor: '', description: '' }]);
+      return;
+    }
+    setCategories((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateCategory = (index, field, value) => {
+    setCategories((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
 
   const handleAddItem = () => {
     setItems([
@@ -239,8 +285,24 @@ export const NewMaterialRequestModal = ({
       return;
     }
 
-    // Filter valid received items (if any specified)
-    const validItems = items.filter(i => (i.itemName && i.itemName.trim()));
+    // Filter out categories that are completely empty
+    const validCategories = categories.filter(
+      (c) => (c.category && c.category.trim()) || (c.floor && c.floor.trim()) || (c.description && c.description.trim())
+    );
+
+    if (validCategories.length === 0) {
+      addToast('Please enter at least one material category needed for tomorrow.', 'error');
+      return;
+    }
+
+    const serializedTomorrow = JSON.stringify(validCategories);
+    const humanSummary = validCategories
+      .map((c) => {
+        const header = [c.category?.trim(), c.floor?.trim() ? `Floor: ${c.floor.trim()}` : ''].filter(Boolean).join(' | ');
+        return header ? `${header}\n${c.description?.trim() || ''}` : (c.description?.trim() || '');
+      })
+      .filter(Boolean)
+      .join('\n\n');
 
     setIsSubmitting(true);
     try {
@@ -249,9 +311,9 @@ export const NewMaterialRequestModal = ({
         dateNeeded: logDate,
         logDate,
         siteProgress,
-        materialsNeededTomorrow,
+        materialsNeededTomorrow: serializedTomorrow,
         sitePhotos,
-        notes: materialsNeededTomorrow || siteProgress || null,
+        notes: humanSummary || serializedTomorrow,
         items: validItems
       };
 
@@ -356,29 +418,105 @@ export const NewMaterialRequestModal = ({
             </div>
           </div>
 
-          {/* SECTION 2: MATERIALS NEEDED TOMORROW */}
-          <div className="rounded-2xl border-2 border-blue-200 bg-blue-50/15 p-4 sm:p-5 space-y-3">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
-                <ArrowRightLeft className="h-4 w-4" />
+          {/* SECTION: MATERIALS NEEDED TOMORROW */}
+          <div className="rounded-2xl border-2 border-blue-200 bg-blue-50/15 p-4 sm:p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
+                  <ArrowRightLeft className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-extrabold uppercase tracking-wide text-slate-900">
+                    MATERIALS NEEDED TOMORROW
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Materials required on site for tomorrow's planned activities by category & floor
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-xs font-extrabold uppercase tracking-wide text-slate-900">
-                  MATERIALS NEEDED TOMORROW
-                </h3>
-                <p className="text-[11px] text-slate-500">
-                  Materials required on site for tomorrow's planned activities
-                </p>
-              </div>
+              <span className="text-[11px] font-bold text-blue-700 bg-blue-100/70 border border-blue-200 px-2.5 py-0.5 rounded-lg">
+                {categories.length} {categories.length === 1 ? 'Category' : 'Categories'}
+              </span>
             </div>
 
-            <textarea
-              rows={3}
-              placeholder="e.g. 24 m³ Ready-Mix Concrete C30 for Level 4 slab pour at 08:30 AM, 50 lengths timber formwork props"
-              value={materialsNeededTomorrow}
-              onChange={(e) => setMaterialsNeededTomorrow(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-800 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none transition-colors"
-            />
+            {/* List of Material Category Form Cards */}
+            <div className="space-y-3.5">
+              {categories.map((cat, idx) => (
+                <div
+                  key={idx}
+                  className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 shadow-xs"
+                >
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-blue-700 flex items-center gap-1.5">
+                      <Layers className="h-3.5 w-3.5" />
+                      <span>CATEGORY #{idx + 1}</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveCategory(idx)}
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                      title="Remove category"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span>Delete</span>
+                    </button>
+                  </div>
+
+                  {/* Title input box (material category) & Floor input box */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                        Material Category (Title) <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Concrete, Rebar / Steel, Timber, Masonry, Plumbing..."
+                        value={cat.category}
+                        onChange={(e) => handleUpdateCategory(idx, 'category', e.target.value)}
+                        className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none transition-colors"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                        Floor / Location
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Ground Floor, 1st Floor, Basement 2, Roof Level..."
+                        value={cat.floor}
+                        onChange={(e) => handleUpdateCategory(idx, 'floor', e.target.value)}
+                        className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none transition-colors"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Paragraph input box (material description) */}
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                      Material Description (Paragraph) <span className="text-rose-500">*</span>
+                    </label>
+                    <textarea
+                      rows={3}
+                      placeholder="e.g. 24 m³ Ready-Mix Concrete C30 for Level 1 slab casting at 08:30 AM with boom pump, 50 bags OPC cement..."
+                      value={cat.description}
+                      onChange={(e) => handleUpdateCategory(idx, 'description', e.target.value)}
+                      className="w-full rounded-lg border border-slate-200 bg-slate-50/50 p-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none transition-colors resize-y"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Plus button to add other forms for other material categories */}
+            <button
+              type="button"
+              onClick={handleAddCategory}
+              className="w-full py-2.5 rounded-xl border-2 border-dashed border-blue-400 bg-blue-50/60 hover:bg-blue-100/70 text-blue-700 text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2"
+            >
+              <Plus className="h-4 w-4 stroke-[2.5]" />
+              <span>+ Add Another Material Category</span>
+            </button>
           </div>
 
           {/* Form Actions Footer */}
