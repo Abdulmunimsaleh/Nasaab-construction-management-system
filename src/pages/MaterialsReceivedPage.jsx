@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import {
   PackageCheck,
@@ -17,6 +17,8 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { formatKES, getDayOfWeek, formatDate } from '../utils/formatters';
+
+const MASTER_STORAGE_KEY = 'nasaab_materials_received_master';
 
 export const MaterialsReceivedPage = () => {
   const {
@@ -47,7 +49,9 @@ export const MaterialsReceivedPage = () => {
 
   // Form State
   const [formProjectId, setFormProjectId] = useState(
-    selectedProjectId && selectedProjectId !== 'all' ? selectedProjectId : (currentProject?.id || (projects && projects[0]?.id) || '')
+    selectedProjectId && selectedProjectId !== 'all'
+      ? selectedProjectId
+      : (currentProject?.id || (projects && projects[0]?.id) || '')
   );
   const [deliveryDate, setDeliveryDate] = useState(getLocalToday);
   const [items, setItems] = useState([
@@ -61,19 +65,69 @@ export const MaterialsReceivedPage = () => {
     }
   ]);
 
-  const storageKey = `nasaab_materials_received_${selectedProjectId || 'default'}`;
+  // Keep formProjectId synchronized with active selected project
+  useEffect(() => {
+    if (selectedProjectId && selectedProjectId !== 'all') {
+      setFormProjectId(selectedProjectId);
+    } else if (currentProject?.id) {
+      setFormProjectId(currentProject.id);
+    } else if (projects && projects.length > 0) {
+      setFormProjectId(projects[0].id);
+    }
+  }, [selectedProjectId, currentProject, projects]);
+
+  // Initialize custom deliveries with project tagging
   const [customDeliveries, setCustomDeliveries] = useState(() => {
     try {
-      const saved = localStorage.getItem(storageKey);
-      if (saved) return JSON.parse(saved);
+      const savedMaster = localStorage.getItem(MASTER_STORAGE_KEY);
+      if (savedMaster) {
+        const parsed = JSON.parse(savedMaster);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+
+      // Check legacy per-project keys and merge
+      const merged = [];
+      const seenIds = new Set();
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('nasaab_materials_received_')) {
+          try {
+            const raw = localStorage.getItem(k);
+            if (raw) {
+              const arr = JSON.parse(raw);
+              if (Array.isArray(arr)) {
+                arr.forEach((it) => {
+                  if (it && it.id && !seenIds.has(it.id)) {
+                    seenIds.add(it.id);
+                    merged.push(it);
+                  }
+                });
+              }
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
+      }
+
+      if (merged.length > 0) {
+        localStorage.setItem(MASTER_STORAGE_KEY, JSON.stringify(merged));
+        return merged;
+      }
     } catch (e) {
       console.error(e);
     }
+
+    const defaultProjId = (projects && projects[0]?.id) || 'proj-1';
+    const defaultProjName = (projects && projects[0]?.name) || 'Nasaab Residence';
+    const secondProjId = (projects && projects[1]?.id) || 'proj-2';
+    const secondProjName = (projects && projects[1]?.name) || 'Al-Noor Tower';
+
     return [
       {
         id: 'deliv-1',
-        projectId: 'proj-1',
-        projectName: 'Nasaab Residence',
+        projectId: defaultProjId,
+        projectName: defaultProjName,
         itemName: 'Bamburi Portland Cement 42.5N',
         supplier: 'Bamburi Cement Limited',
         quantity: '250 Bags',
@@ -88,8 +142,8 @@ export const MaterialsReceivedPage = () => {
       },
       {
         id: 'deliv-2',
-        projectId: 'proj-1',
-        projectName: 'Nasaab Residence',
+        projectId: defaultProjId,
+        projectName: defaultProjName,
         itemName: 'High-Yield Ribbed Reinforcement Bars D16 (12m)',
         supplier: 'Apex Steel Mills Kenya',
         quantity: '120 Bars (5.5 Tonnes)',
@@ -104,8 +158,8 @@ export const MaterialsReceivedPage = () => {
       },
       {
         id: 'deliv-3',
-        projectId: 'proj-1',
-        projectName: 'Nasaab Residence',
+        projectId: secondProjId,
+        projectName: secondProjName,
         itemName: 'Clean River Sand (Coarse Graded)',
         supplier: 'Mombasa River Aggregates Ltd',
         quantity: '4 Trips (15-Ton Lorries)',
@@ -120,8 +174,8 @@ export const MaterialsReceivedPage = () => {
       },
       {
         id: 'deliv-4',
-        projectId: 'proj-1',
-        projectName: 'Nasaab Residence',
+        projectId: secondProjId,
+        projectName: secondProjName,
         itemName: 'Marine Film Faced Plywood 18mm (8x4)',
         supplier: 'Coast Timber & Hardware',
         quantity: '80 Sheets',
@@ -136,6 +190,20 @@ export const MaterialsReceivedPage = () => {
       }
     ];
   });
+
+  // Save deliveries to both master and legacy keys
+  const saveCustomDeliveries = (updated) => {
+    setCustomDeliveries(updated);
+    try {
+      localStorage.setItem(MASTER_STORAGE_KEY, JSON.stringify(updated));
+      if (selectedProjectId && selectedProjectId !== 'all') {
+        const perProject = updated.filter((d) => d.projectId === selectedProjectId);
+        localStorage.setItem(`nasaab_materials_received_${selectedProjectId}`, JSON.stringify(perProject));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   // Convert uploaded image file to base64 data URL
   const fileToBase64 = (file) => {
@@ -241,7 +309,8 @@ export const MaterialsReceivedPage = () => {
       return;
     }
 
-    const selectedProj = (projects || []).find((p) => p.id === formProjectId) || currentProject;
+    const targetProjId = formProjectId || selectedProjectId || currentProject?.id || (projects && projects[0]?.id) || '';
+    const selectedProj = (projects || []).find((p) => p.id === targetProjId) || currentProject;
     const projName = selectedProj?.name || currentProject?.name || 'Site Project';
     const shipmentBatchId = `shipment-${Date.now()}`;
 
@@ -250,7 +319,7 @@ export const MaterialsReceivedPage = () => {
       return {
         id: `deliv-${Date.now()}-${idx}`,
         shipmentBatchId,
-        projectId: formProjectId || currentProject?.id || '',
+        projectId: targetProjId,
         projectName: projName,
         date: deliveryDate,
         day: getDayOfWeek(deliveryDate),
@@ -267,14 +336,9 @@ export const MaterialsReceivedPage = () => {
     });
 
     const updated = [...newEntries, ...customDeliveries];
-    setCustomDeliveries(updated);
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(updated));
-    } catch (err) {
-      console.error(err);
-    }
+    saveCustomDeliveries(updated);
 
-    addToast && addToast(`${newEntries.length} material item${newEntries.length > 1 ? 's' : ''} verified & recorded!`);
+    addToast && addToast(`${newEntries.length} material item${newEntries.length > 1 ? 's' : ''} recorded for ${projName}!`);
     setIsAddModalOpen(false);
 
     // Reset modal form state
@@ -294,26 +358,42 @@ export const MaterialsReceivedPage = () => {
   const handleDeleteCustomDelivery = (id) => {
     if (!window.confirm('Are you sure you want to delete this delivery record?')) return;
     const updated = customDeliveries.filter((d) => d.id !== id);
-    setCustomDeliveries(updated);
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(updated));
-    } catch (err) {
-      console.error(err);
-    }
+    saveCustomDeliveries(updated);
     addToast && addToast('Delivery record removed', 'success');
   };
 
-  // Compile all deliveries from Material Requests + custom entries
-  const allDeliveries = useMemo(() => {
-    const list = [...customDeliveries];
+  // Active project name for header
+  const activeProjectName = useMemo(() => {
+    if (!selectedProjectId || selectedProjectId === 'all') return 'All Sites';
+    const found = (projects || []).find((p) => p.id === selectedProjectId);
+    return found?.name || currentProject?.name || 'Selected Site';
+  }, [selectedProjectId, currentProject, projects]);
 
+  // Helper to look up project name
+  const getProjectName = (projId, defaultName) => {
+    if (projId) {
+      const p = (projects || []).find((proj) => proj.id === projId);
+      if (p?.name) return p.name;
+    }
+    return defaultName || currentProject?.name || 'Site';
+  };
+
+  // Compile deliveries filtered strictly by active site selection
+  const allDeliveries = useMemo(() => {
+    const isAll = !selectedProjectId || selectedProjectId === 'all';
+    const activePId = selectedProjectId || currentProject?.id;
+
+    // 1. Filter custom deliveries by active project
+    const filteredCustom = customDeliveries.filter((d) => {
+      if (isAll) return true;
+      return d.projectId === activePId || d.projectId === selectedProjectId || d.projectId === currentProject?.id;
+    });
+
+    const list = [...filteredCustom];
+
+    // 2. Filter Material Requests line items by active project
     (materialRequests || []).forEach((req) => {
-      if (
-        selectedProjectId !== 'all' &&
-        req.project_id &&
-        req.project_id !== selectedProjectId &&
-        req.project_id !== currentProject?.id
-      ) {
+      if (!isAll && req.project_id && req.project_id !== activePId && req.project_id !== selectedProjectId) {
         return;
       }
 
@@ -360,7 +440,7 @@ export const MaterialsReceivedPage = () => {
     return list;
   }, [materialRequests, customDeliveries, selectedProjectId, currentProject]);
 
-  // Unique suppliers
+  // Unique suppliers from currently filtered deliveries
   const suppliers = useMemo(() => {
     const set = new Set();
     allDeliveries.forEach((d) => {
@@ -369,7 +449,7 @@ export const MaterialsReceivedPage = () => {
     return Array.from(set);
   }, [allDeliveries]);
 
-  // Filtered deliveries
+  // Filtered deliveries for search & supplier filter
   const filteredDeliveries = useMemo(() => {
     return allDeliveries.filter((d) => {
       const matchesSearch =
@@ -411,7 +491,7 @@ export const MaterialsReceivedPage = () => {
           </h1>
           <p className="mt-1 text-xs text-slate-500">
             Log of incoming construction supplies, quantities, receipts, and warehouse intake for{' '}
-            <strong className="text-slate-800">{currentProject?.name || 'All Sites'}</strong>
+            <strong className="text-slate-800 font-semibold">{activeProjectName}</strong>
           </p>
         </div>
 
@@ -443,7 +523,7 @@ export const MaterialsReceivedPage = () => {
           <div className="mt-2 text-2xl font-extrabold text-slate-900 font-mono">
             {summary.count} Deliveries
           </div>
-          <p className="mt-1 text-[11px] text-slate-400">Total verified site deliveries</p>
+          <p className="mt-1 text-[11px] text-slate-400">Total verified site deliveries for {activeProjectName}</p>
         </div>
 
         {/* Card 2: Active Suppliers */}
@@ -455,7 +535,7 @@ export const MaterialsReceivedPage = () => {
           <div className="mt-2 text-2xl font-extrabold text-slate-900 font-mono">
             {summary.activeSuppliers} Approved
           </div>
-          <p className="mt-1 text-[11px] text-slate-400">Cement, steel, aggregates & timber</p>
+          <p className="mt-1 text-[11px] text-slate-400">Supplying to {activeProjectName}</p>
         </div>
 
         {/* Card 3: Verified Stock Value */}
@@ -467,7 +547,7 @@ export const MaterialsReceivedPage = () => {
           <div className="mt-2 text-2xl font-extrabold text-indigo-600 font-mono">
             {formatKES(summary.totalValue)}
           </div>
-          <p className="mt-1 text-[11px] text-slate-400">Delivered materials inventory value</p>
+          <p className="mt-1 text-[11px] text-slate-400">Delivered inventory value for {activeProjectName}</p>
         </div>
       </div>
 
@@ -509,14 +589,22 @@ export const MaterialsReceivedPage = () => {
             <PackageCheck className="h-12 w-12 text-slate-300 mx-auto mb-3" />
             <h3 className="text-sm font-bold text-slate-900 mb-1">No Material Deliveries Found</h3>
             <p className="text-xs text-slate-500 max-w-md mx-auto mb-4">
-              There are no received shipments matching your query. Record one below.
+              There are no received shipments logged for <strong className="text-slate-700">{activeProjectName}</strong>.
             </p>
             <button
-              onClick={() => setIsAddModalOpen(true)}
+              onClick={() => {
+                setFormProjectId(
+                  selectedProjectId && selectedProjectId !== 'all'
+                    ? selectedProjectId
+                    : (currentProject?.id || (projects && projects[0]?.id) || '')
+                );
+                setDeliveryDate(getLocalToday());
+                setIsAddModalOpen(true);
+              }}
               className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-amber-400 cursor-pointer shadow-xs"
             >
               <Plus className="h-4 w-4" />
-              <span>Record First Delivery</span>
+              <span>Record First Delivery for {activeProjectName}</span>
             </button>
           </div>
         ) : (
@@ -562,7 +650,9 @@ export const MaterialsReceivedPage = () => {
                     <td className="py-3.5 px-4 text-slate-700 font-medium">
                       <div className="flex items-center gap-1.5 text-xs">
                         <Building2 className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                        <span className="truncate max-w-[130px]">{deliv.projectName || currentProject?.name || 'Site'}</span>
+                        <span className="truncate max-w-[130px]" title={getProjectName(deliv.projectId, deliv.projectName)}>
+                          {getProjectName(deliv.projectId, deliv.projectName)}
+                        </span>
                       </div>
                     </td>
 
