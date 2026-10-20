@@ -67,7 +67,7 @@ export const NewMaterialRequestModal = ({
       setLogDate(rawDate ? String(rawDate).split('T')[0] : getLocalToday());
       setSiteProgress(editData.site_progress || '');
       setMaterialsNeededTomorrow(editData.materials_needed_tomorrow || '');
-      
+
       const parsedSitePhotos = Array.isArray(editData.site_photos)
         ? editData.site_photos
         : (typeof editData.site_photos === 'string' ? JSON.parse(editData.site_photos || '[]') : []);
