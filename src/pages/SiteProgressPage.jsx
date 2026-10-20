@@ -17,7 +17,8 @@ import {
   Camera,
   Image as ImageIcon,
   Tag,
-  Eye
+  Eye,
+  Trash2
 } from 'lucide-react';
 import { getDayOfWeek } from '../utils/formatters';
 
@@ -88,20 +89,19 @@ export const SiteProgressPage = () => {
 
   // Category addition UI state
   const [newCategoryInput, setNewCategoryInput] = useState('');
-  const [showNewCategoryField, setShowNewCategoryField] = useState(false);
-  const [showOtherCategoriesPicker, setShowOtherCategoriesPicker] = useState(false);
+  const [showNewCategoryFormIndex, setShowNewCategoryFormIndex] = useState(null);
   const [viewingPhoto, setViewingPhoto] = useState(null);
 
   // Refs for camera capture and gallery file selection
   const cameraInputRef = useRef(null);
   const galleryInputRef = useRef(null);
+  const [activePhotoFormIndex, setActivePhotoFormIndex] = useState(0);
 
-  // New activity/progress form state
-  const [newActivity, setNewActivity] = useState({
+  // Helper to generate a new category progress form item
+  const createNewProgressForm = () => ({
+    id: `entry-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
     category: '',
-    additionalCategories: [],
     descriptionDetails: '',
-    description: '',
     zone: 'Ground Floor',
     status: 'in_progress',
     progress: 50,
@@ -109,6 +109,9 @@ export const SiteProgressPage = () => {
     remarks: '',
     photos: []
   });
+
+  // Multiple category progress forms inside the modal
+  const [progressForms, setProgressForms] = useState([createNewProgressForm()]);
 
   // Local storage key for custom logged progress
   const storageKey = `nasaab_activities_${selectedProjectId || 'default'}`;
@@ -162,7 +165,40 @@ export const SiteProgressPage = () => {
     ];
   });
 
-  // Photo handlers: take photo / choose from gallery
+  // Handlers for adding/removing/updating progress forms
+  const handleAddProgressForm = () => {
+    setProgressForms((prev) => [...prev, createNewProgressForm()]);
+  };
+
+  const handleRemoveProgressForm = (indexToRemove) => {
+    if (progressForms.length <= 1) {
+      setProgressForms([createNewProgressForm()]);
+      return;
+    }
+    setProgressForms((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+  };
+
+  const handleUpdateProgressForm = (formIndex, field, value) => {
+    setProgressForms((prev) => {
+      const updated = [...prev];
+      if (updated[formIndex]) {
+        updated[formIndex] = { ...updated[formIndex], [field]: value };
+      }
+      return updated;
+    });
+  };
+
+  // Photo handlers: take photo / choose from gallery for specific form
+  const triggerCameraForForm = (index) => {
+    setActivePhotoFormIndex(index);
+    cameraInputRef.current?.click();
+  };
+
+  const triggerGalleryForForm = (index) => {
+    setActivePhotoFormIndex(index);
+    galleryInputRef.current?.click();
+  };
+
   const handlePhotoUpload = async (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
@@ -178,10 +214,12 @@ export const SiteProgressPage = () => {
           };
         })
       );
-      setNewActivity((prev) => ({
-        ...prev,
-        photos: [...(prev.photos || []), ...newPhotos]
-      }));
+      setProgressForms((prev) => {
+        const copy = [...prev];
+        const target = copy[activePhotoFormIndex] || copy[0];
+        target.photos = [...(target.photos || []), ...newPhotos];
+        return copy;
+      });
       e.target.value = '';
     } catch (err) {
       console.error(err);
@@ -189,15 +227,18 @@ export const SiteProgressPage = () => {
     }
   };
 
-  const handleRemovePhoto = (photoIdx) => {
-    setNewActivity((prev) => ({
-      ...prev,
-      photos: (prev.photos || []).filter((_, idx) => idx !== photoIdx)
-    }));
+  const handleRemovePhoto = (formIndex, photoIdx) => {
+    setProgressForms((prev) => {
+      const copy = [...prev];
+      if (copy[formIndex]) {
+        copy[formIndex].photos = (copy[formIndex].photos || []).filter((_, idx) => idx !== photoIdx);
+      }
+      return copy;
+    });
   };
 
   // Add custom category to list and persist
-  const handleAddCustomCategory = (nameToAdd) => {
+  const handleAddCustomCategory = (nameToAdd, targetFormIndex) => {
     const name = (nameToAdd || newCategoryInput).trim();
     if (!name) return;
 
@@ -212,70 +253,48 @@ export const SiteProgressPage = () => {
       }
     }
 
-    if (!newActivity.category) {
-      setNewActivity((prev) => ({ ...prev, category: name }));
-    } else if (!newActivity.additionalCategories.includes(name) && newActivity.category !== name) {
-      setNewActivity((prev) => ({
-        ...prev,
-        additionalCategories: [...(prev.additionalCategories || []), name]
-      }));
+    if (typeof targetFormIndex === 'number') {
+      handleUpdateProgressForm(targetFormIndex, 'category', name);
     }
 
     setNewCategoryInput('');
-    setShowNewCategoryField(false);
+    setShowNewCategoryFormIndex(null);
     addToast && addToast(`Category "${name}" added!`);
   };
 
-  const toggleAdditionalCategory = (cat) => {
-    setNewActivity((prev) => {
-      const current = prev.additionalCategories || [];
-      if (current.includes(cat)) {
-        return { ...prev, additionalCategories: current.filter((c) => c !== cat) };
-      } else {
-        return { ...prev, additionalCategories: [...current, cat] };
-      }
-    });
-  };
-
-  const removeAdditionalCategory = (catToRemove) => {
-    setNewActivity((prev) => ({
-      ...prev,
-      additionalCategories: (prev.additionalCategories || []).filter((c) => c !== catToRemove)
-    }));
-  };
-
-  // Save custom progress entry
+  // Save all custom progress form entries together
   const handleSaveActivity = (e) => {
     e.preventDefault();
-    const primaryCat = newActivity.category?.trim();
-    const details = newActivity.descriptionDetails?.trim();
-    const rawDesc = newActivity.description?.trim();
 
-    if (!primaryCat && !rawDesc) {
-      addToast && addToast('Please select a category for this progress entry', 'error');
+    // Check if any form is missing category
+    const unselectedIdx = progressForms.findIndex((f) => !f.category?.trim());
+    if (unselectedIdx !== -1) {
+      addToast && addToast(`Please select a category for Form #${unselectedIdx + 1}`, 'error');
       return;
     }
 
-    const finalDescription = details
-      ? `${primaryCat || rawDesc} - ${details}`
-      : (primaryCat || rawDesc);
+    const today = new Date().toISOString().split('T')[0];
+    const newItems = progressForms.map((item, idx) => {
+      const primaryCat = item.category.trim();
+      const details = item.descriptionDetails?.trim();
+      const finalDesc = details ? `${primaryCat} - ${details}` : primaryCat;
 
-    const created = {
-      id: `act-${Date.now()}`,
-      category: primaryCat || 'General',
-      additionalCategories: newActivity.additionalCategories || [],
-      description: finalDescription,
-      zone: newActivity.zone,
-      status: newActivity.status,
-      progress: Number(newActivity.progress) || 0,
-      workDoneToday: newActivity.workDoneToday,
-      remarks: newActivity.remarks,
-      photos: newActivity.photos || [],
-      date: new Date().toISOString().split('T')[0],
-      source: 'Direct Entry'
-    };
+      return {
+        id: `act-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 5)}`,
+        category: primaryCat,
+        description: finalDesc,
+        zone: item.zone || 'Ground Floor',
+        status: item.status || 'in_progress',
+        progress: Number(item.progress) || 0,
+        workDoneToday: item.workDoneToday || '',
+        remarks: item.remarks || '',
+        photos: item.photos || [],
+        date: today,
+        source: 'Direct Entry'
+      };
+    });
 
-    const updated = [created, ...customActivities];
+    const updated = [...newItems, ...customActivities];
     setCustomActivities(updated);
     try {
       localStorage.setItem(storageKey, JSON.stringify(updated));
@@ -283,22 +302,11 @@ export const SiteProgressPage = () => {
       console.error(err);
     }
 
-    addToast && addToast('Site progress logged successfully!');
+    const count = newItems.length;
+    addToast && addToast(`${count} site progress ${count === 1 ? 'entry' : 'entries'} logged successfully!`);
     setIsAddModalOpen(false);
-    setNewActivity({
-      category: '',
-      additionalCategories: [],
-      descriptionDetails: '',
-      description: '',
-      zone: 'Ground Floor',
-      status: 'in_progress',
-      progress: 50,
-      workDoneToday: '',
-      remarks: '',
-      photos: []
-    });
-    setShowNewCategoryField(false);
-    setShowOtherCategoriesPicker(false);
+    setProgressForms([createNewProgressForm()]);
+    setShowNewCategoryFormIndex(null);
   };
 
   // Compile all activities/progress from both LAE forms and custom entries
@@ -707,356 +715,302 @@ export const SiteProgressPage = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSaveActivity} className="p-6 space-y-4 overflow-y-auto max-h-[calc(90vh-80px)]">
-              {/* Category Dropdown */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-bold text-slate-700">
-                    Progress Category <span className="text-rose-500">*</span>
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowNewCategoryField(!showNewCategoryField)}
-                    className="text-[11px] font-bold text-amber-600 hover:text-amber-700 inline-flex items-center gap-1 cursor-pointer"
-                  >
-                    <Plus className="h-3 w-3" />
-                    <span>New Category</span>
-                  </button>
-                </div>
-
-                <select
-                  required
-                  value={newActivity.category}
-                  onChange={(e) => {
-                    if (e.target.value === '__add_new__') {
-                      setShowNewCategoryField(true);
-                    } else {
-                      setNewActivity({ ...newActivity, category: e.target.value });
-                    }
-                  }}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-900 focus:border-amber-500 focus:outline-hidden"
+            <form onSubmit={handleSaveActivity} className="p-6 space-y-5 overflow-y-auto max-h-[calc(90vh-80px)] bg-slate-50/60">
+              {/* Category Progress Form Blocks */}
+              {progressForms.map((formItem, formIndex) => (
+                <div
+                  key={formItem.id}
+                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-4"
                 >
-                  <option value="">-- Select a Category --</option>
-                  {availableCategories.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                  <option value="__add_new__">+ Add Custom Category...</option>
-                </select>
-              </div>
-
-              {/* Inline Add New Category Box */}
-              {showNewCategoryField && (
-                <div className="p-3 rounded-2xl bg-amber-50/80 border border-amber-200/80 space-y-2">
-                  <label className="block text-[11px] font-bold text-amber-900">
-                    Create New Category
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      placeholder="e.g. Carpentry, Glazing, Waterproofing..."
-                      value={newCategoryInput}
-                      onChange={(e) => setNewCategoryInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddCustomCategory();
-                        }
-                      }}
-                      className="flex-1 rounded-xl border border-amber-300 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
-                      autoFocus
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleAddCustomCategory()}
-                      className="rounded-xl bg-amber-500 hover:bg-amber-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs cursor-pointer"
-                    >
-                      Add
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowNewCategoryField(false);
-                        setNewCategoryInput('');
-                      }}
-                      className="rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-600 cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Optional Description / Sub-task Details */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Progress Title / Specific Details <span className="text-slate-400 font-normal">(Optional)</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Assembling formwork props for 1st floor slab"
-                  value={newActivity.descriptionDetails}
-                  onChange={(e) => setNewActivity({ ...newActivity, descriptionDetails: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Zone / Location
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. First Floor Slab"
-                    value={newActivity.zone}
-                    onChange={(e) => setNewActivity({ ...newActivity, zone: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Status
-                  </label>
-                  <select
-                    value={newActivity.status}
-                    onChange={(e) => setNewActivity({ ...newActivity, status: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
-                  >
-                    <option value="in_progress">In Progress</option>
-                    <option value="completed">Completed</option>
-                    <option value="delayed">Delayed</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="text-xs font-bold text-slate-700">Estimated Progress</label>
-                  <span className="text-xs font-mono font-bold text-amber-600">{newActivity.progress}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="5"
-                  value={newActivity.progress}
-                  onChange={(e) => setNewActivity({ ...newActivity, progress: e.target.value })}
-                  className="w-full accent-amber-500 cursor-pointer"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Work Accomplished Today
-                </label>
-                <textarea
-                  rows="2"
-                  placeholder="Detail exact milestones reached during today's shift..."
-                  value={newActivity.workDoneToday}
-                  onChange={(e) => setNewActivity({ ...newActivity, workDoneToday: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
-                />
-              </div>
-
-              {/* Photo Capture & Gallery Feature */}
-              <div className="space-y-2 rounded-2xl bg-slate-50/80 p-3.5 border border-slate-100">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                    <Camera className="h-4 w-4 text-amber-500" />
-                    <span>Progress Photos & Evidence</span>
-                  </label>
-                  <span className="text-[11px] font-semibold text-slate-500">
-                    {newActivity.photos?.length || 0} photo{(newActivity.photos?.length || 0) === 1 ? '' : 's'}
-                  </span>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => cameraInputRef.current?.click()}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 px-3.5 py-2 text-xs font-bold text-white cursor-pointer shadow-xs transition-colors"
-                  >
-                    <Camera className="h-3.5 w-3.5" />
-                    <span>Take Photo</span>
-                  </button>
-                  <input
-                    ref={cameraInputRef}
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={handlePhotoUpload}
-                    className="hidden"
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() => galleryInputRef.current?.click()}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-700 cursor-pointer shadow-2xs transition-colors"
-                  >
-                    <ImageIcon className="h-3.5 w-3.5 text-slate-500" />
-                    <span>Choose from Gallery</span>
-                  </button>
-                  <input
-                    ref={galleryInputRef}
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={handlePhotoUpload}
-                    className="hidden"
-                  />
-                </div>
-
-                {/* Photos Grid */}
-                {newActivity.photos && newActivity.photos.length > 0 && (
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 pt-1">
-                    {newActivity.photos.map((photo, pIdx) => (
-                      <div
-                        key={photo.id || pIdx}
-                        className="relative group rounded-xl overflow-hidden border border-slate-200 aspect-square bg-slate-100 shadow-2xs"
-                      >
-                        <img src={photo.url} alt={photo.name || 'Site Photo'} className="h-full w-full object-cover" />
-                        <button
-                          type="button"
-                          onClick={() => handleRemovePhoto(pIdx)}
-                          className="absolute top-1 right-1 rounded-full bg-slate-900/80 p-1 text-white hover:bg-rose-600 transition-colors cursor-pointer"
-                          title="Remove photo"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/80 to-transparent p-1">
-                          <p className="truncate text-[9px] font-medium text-white">{photo.name || `Photo ${pIdx + 1}`}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Down at the bottom: Plus button to select and add other categories */}
-              <div className="pt-2 border-t border-slate-100 space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                    <Tag className="h-3.5 w-3.5 text-amber-500" />
-                    <span>Additional Categories / Associated Trades</span>
-                  </label>
-                  <span className="text-[10px] text-slate-400">Optional</span>
-                </div>
-
-                {/* Selected Additional Categories badges */}
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {newActivity.additionalCategories && newActivity.additionalCategories.length > 0 && (
-                    newActivity.additionalCategories.map((cat, idx) => (
-                      <span
-                        key={idx}
-                        className="inline-flex items-center gap-1 rounded-lg bg-amber-50 border border-amber-200 px-2.5 py-1 text-xs font-semibold text-amber-900"
-                      >
-                        <span>{cat}</span>
-                        <button
-                          type="button"
-                          onClick={() => removeAdditionalCategory(cat)}
-                          className="rounded-full p-0.5 hover:bg-amber-200 text-amber-700 cursor-pointer"
-                          title="Remove"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
+                  {/* Form Header */}
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 text-xs font-bold">
+                        {formIndex + 1}
                       </span>
-                    ))
-                  )}
+                      <span className="text-xs font-bold text-slate-900">
+                        {formItem.category ? `Category: ${formItem.category}` : `Category Form #${formIndex + 1}`}
+                      </span>
+                    </div>
 
-                  {/* The Plus Button */}
-                  <button
-                    type="button"
-                    onClick={() => setShowOtherCategoriesPicker(!showOtherCategoriesPicker)}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-amber-400 bg-amber-50/70 hover:bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 transition-colors cursor-pointer shadow-2xs"
-                  >
-                    <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
-                    <span>Select / Add Other Categories</span>
-                  </button>
-                </div>
-
-                {/* Dropdown / Picker panel when Plus button is clicked */}
-                {showOtherCategoriesPicker && (
-                  <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-md space-y-3 mt-2 animate-in fade-in duration-150">
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                      <span className="text-xs font-bold text-slate-800">Select categories to associate:</span>
+                    {progressForms.length > 1 && (
                       <button
                         type="button"
-                        onClick={() => setShowOtherCategoriesPicker(false)}
-                        className="text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                        onClick={() => handleRemoveProgressForm(formIndex)}
+                        className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-semibold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                        title="Remove this category form"
                       >
-                        <X className="h-3.5 w-3.5" />
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span>Remove Form</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Category Dropdown */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-bold text-slate-700">
+                        Progress Category <span className="text-rose-500">*</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowNewCategoryFormIndex(
+                            showNewCategoryFormIndex === formIndex ? null : formIndex
+                          )
+                        }
+                        className="text-[11px] font-bold text-amber-600 hover:text-amber-700 inline-flex items-center gap-1 cursor-pointer"
+                      >
+                        <Plus className="h-3 w-3" />
+                        <span>New Category</span>
                       </button>
                     </div>
 
-                    <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
-                      {availableCategories
-                        .filter((c) => c !== newActivity.category)
-                        .map((cat) => {
-                          const isSelected = newActivity.additionalCategories?.includes(cat);
-                          return (
-                            <button
-                              key={cat}
-                              type="button"
-                              onClick={() => toggleAdditionalCategory(cat)}
-                              className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer ${isSelected
-                                  ? 'bg-amber-500 text-white shadow-2xs'
-                                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                                }`}
-                            >
-                              {isSelected && <CheckCircle2 className="h-3 w-3" />}
-                              <span>{cat}</span>
-                            </button>
-                          );
-                        })}
-                    </div>
+                    <select
+                      required
+                      value={formItem.category}
+                      onChange={(e) => {
+                        if (e.target.value === '__add_new__') {
+                          setShowNewCategoryFormIndex(formIndex);
+                        } else {
+                          handleUpdateProgressForm(formIndex, 'category', e.target.value);
+                        }
+                      }}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                    >
+                      <option value="">-- Select a Category --</option>
+                      {availableCategories.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                      <option value="__add_new__">+ Add Custom Category...</option>
+                    </select>
+                  </div>
 
-                    {/* Option to type and add a brand new category */}
-                    <div className="pt-2 border-t border-slate-100">
+                  {/* Inline Add New Category Box for this form */}
+                  {showNewCategoryFormIndex === formIndex && (
+                    <div className="p-3 rounded-2xl bg-amber-50/80 border border-amber-200/80 space-y-2">
+                      <label className="block text-[11px] font-bold text-amber-900">
+                        Create New Category
+                      </label>
                       <div className="flex items-center gap-2">
                         <input
                           type="text"
-                          placeholder="Or type a new category..."
+                          placeholder="e.g. Carpentry, Glazing, Waterproofing..."
                           value={newCategoryInput}
                           onChange={(e) => setNewCategoryInput(e.target.value)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
                               e.preventDefault();
-                              handleAddCustomCategory();
+                              handleAddCustomCategory(newCategoryInput, formIndex);
                             }
                           }}
-                          className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs text-slate-900 focus:bg-white focus:border-amber-500 focus:outline-hidden"
+                          className="flex-1 rounded-xl border border-amber-300 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                          autoFocus
                         />
                         <button
                           type="button"
-                          onClick={() => handleAddCustomCategory()}
-                          className="inline-flex items-center gap-1 rounded-xl bg-amber-500 hover:bg-amber-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs cursor-pointer"
+                          onClick={() => handleAddCustomCategory(newCategoryInput, formIndex)}
+                          className="rounded-xl bg-amber-500 hover:bg-amber-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs cursor-pointer"
                         >
-                          <Plus className="h-3.5 w-3.5" />
-                          <span>Add</span>
+                          Add
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowNewCategoryFormIndex(null);
+                            setNewCategoryInput('');
+                          }}
+                          className="rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-600 cursor-pointer"
+                        >
+                          Cancel
                         </button>
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+
+                  {/* Zone and Status Grid */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Zone / Location
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. First Floor Slab"
+                        value={formItem.zone}
+                        onChange={(e) => handleUpdateProgressForm(formIndex, 'zone', e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Status
+                      </label>
+                      <select
+                        value={formItem.status}
+                        onChange={(e) => handleUpdateProgressForm(formIndex, 'status', e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                      >
+                        <option value="in_progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                        <option value="delayed">Delayed</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Progress Slider */}
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="text-xs font-bold text-slate-700">Estimated Progress</label>
+                      <span className="text-xs font-mono font-bold text-amber-600">{formItem.progress}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={formItem.progress}
+                      onChange={(e) => handleUpdateProgressForm(formIndex, 'progress', e.target.value)}
+                      className="w-full accent-amber-500 cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Work Accomplished Today */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Work Accomplished Today
+                    </label>
+                    <textarea
+                      rows="2"
+                      placeholder="Detail exact milestones reached during today's shift..."
+                      value={formItem.workDoneToday}
+                      onChange={(e) =>
+                        handleUpdateProgressForm(formIndex, 'workDoneToday', e.target.value)
+                      }
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                    />
+                  </div>
+
+                  {/* Photo Capture & Gallery Feature */}
+                  <div className="space-y-2 rounded-2xl bg-slate-50/80 p-3.5 border border-slate-100">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <Camera className="h-4 w-4 text-amber-500" />
+                        <span>Progress Photos & Evidence</span>
+                      </label>
+                      <span className="text-[11px] font-semibold text-slate-500">
+                        {formItem.photos?.length || 0} photo{(formItem.photos?.length || 0) === 1 ? '' : 's'}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => triggerCameraForForm(formIndex)}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 px-3.5 py-2 text-xs font-bold text-white cursor-pointer shadow-xs transition-colors"
+                      >
+                        <Camera className="h-3.5 w-3.5" />
+                        <span>Take Photo</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => triggerGalleryForForm(formIndex)}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-700 cursor-pointer shadow-2xs transition-colors"
+                      >
+                        <ImageIcon className="h-3.5 w-3.5 text-slate-500" />
+                        <span>Choose from Gallery</span>
+                      </button>
+                    </div>
+
+                    {/* Photos Grid */}
+                    {formItem.photos && formItem.photos.length > 0 && (
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 pt-1">
+                        {formItem.photos.map((photo, pIdx) => (
+                          <div
+                            key={photo.id || pIdx}
+                            className="relative group rounded-xl overflow-hidden border border-slate-200 aspect-square bg-slate-100 shadow-2xs"
+                          >
+                            <img
+                              src={photo.url}
+                              alt={photo.name || 'Site Photo'}
+                              className="h-full w-full object-cover"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleRemovePhoto(formIndex, pIdx)}
+                              className="absolute top-1 right-1 rounded-full bg-slate-900/80 p-1 text-white hover:bg-rose-600 transition-colors cursor-pointer"
+                              title="Remove photo"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/80 to-transparent p-1">
+                              <p className="truncate text-[9px] font-medium text-white">
+                                {photo.name || `Photo ${pIdx + 1}`}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {/* Hidden file inputs for photo capture and gallery */}
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handlePhotoUpload}
+                className="hidden"
+              />
+              <input
+                ref={galleryInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handlePhotoUpload}
+                className="hidden"
+              />
+
+              {/* Down at the bottom: The Plus Button to Add Another Category Form */}
+              <div className="pt-1">
                 <button
                   type="button"
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                  onClick={handleAddProgressForm}
+                  className="w-full flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-amber-400 bg-amber-50/70 hover:bg-amber-100/90 py-3 text-xs font-bold text-amber-900 transition-all cursor-pointer shadow-xs"
                 >
-                  Cancel
+                  <Plus className="h-4 w-4 stroke-[2.5] text-amber-700" />
+                  <span>+ Add Another Category Form</span>
                 </button>
-                <button
-                  type="submit"
-                  className="rounded-xl bg-amber-500 hover:bg-amber-400 px-5 py-2 text-xs font-bold text-slate-950 shadow-xs cursor-pointer transition-colors"
-                >
-                  Save Progress
-                </button>
+              </div>
+
+              {/* Sticky Footer */}
+              <div className="flex items-center justify-between pt-3 border-t border-slate-200 bg-white">
+                <span className="text-xs font-semibold text-slate-500">
+                  {progressForms.length} category {progressForms.length === 1 ? 'form' : 'forms'}
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddModalOpen(false)}
+                    className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="rounded-xl bg-amber-500 hover:bg-amber-400 px-5 py-2 text-xs font-bold text-slate-950 shadow-xs cursor-pointer transition-colors"
+                  >
+                    Save Progress ({progressForms.length})
+                  </button>
+                </div>
               </div>
             </form>
           </div>
