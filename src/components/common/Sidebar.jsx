@@ -14,7 +14,7 @@ import {
   ExternalLink,
   Briefcase,
   CalendarCheck,
-  Activity,
+  TrendingUp,
   Truck,
   ShieldAlert,
   PackageCheck,
@@ -53,7 +53,7 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
         { label: 'Daily', path: '/labour/daily', icon: CalendarCheck }
       ]
     },
-    { type: 'link', label: 'Site Progress', path: '/activities', icon: Activity },
+    { type: 'link', label: 'Site Progress', path: '/activities', icon: TrendingUp },
     { type: 'link', label: 'Equipment Report', path: '/equipment-report', icon: Truck },
     { type: 'link', label: 'Safety & Delays', path: '/safety-delays', icon: ShieldAlert },
     { type: 'link', label: 'Materials Received', path: '/materials-received', icon: PackageCheck },
@@ -78,7 +78,7 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
         { label: 'Daily', path: '/labour/daily', icon: CalendarCheck }
       ]
     },
-    { type: 'link', label: 'Site Progress', path: '/activities', icon: Activity },
+    { type: 'link', label: 'Site Progress', path: '/activities', icon: TrendingUp },
     { type: 'link', label: 'Equipment Report', path: '/equipment-report', icon: Truck },
     { type: 'link', label: 'Safety & Delays', path: '/safety-delays', icon: ShieldAlert },
     { type: 'link', label: 'Materials Received', path: '/materials-received', icon: PackageCheck },
@@ -102,7 +102,7 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
         { label: 'Daily', path: '/labour/daily', icon: CalendarCheck }
       ]
     },
-    { type: 'link', label: 'Site Progress', path: '/activities', icon: Activity },
+    { type: 'link', label: 'Site Progress', path: '/activities', icon: TrendingUp },
     { type: 'link', label: 'Equipment Report', path: '/equipment-report', icon: Truck },
     { type: 'link', label: 'Safety & Delays', path: '/safety-delays', icon: ShieldAlert },
     { type: 'link', label: 'PDF Reports', path: '/reports', icon: FileText },

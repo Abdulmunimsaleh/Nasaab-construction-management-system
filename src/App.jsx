@@ -11,7 +11,6 @@ import { Dashboard } from './pages/Dashboard';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { ProjectDetailPage } from './pages/ProjectDetailPage';
 import { LabourPage } from './pages/LabourPage';
-import { ActivitiesPage } from './pages/ActivitiesPage';
 import { EquipmentReportPage } from './pages/EquipmentReportPage';
 import { SafetyDelaysPage } from './pages/SafetyDelaysPage';
 import { MaterialsReceivedPage } from './pages/MaterialsReceivedPage';
@@ -49,7 +48,7 @@ function App() {
               <Route path="/labour/subcontract" element={<LabourPage />} />
               
               {/* Site Operations & Intelligence */}
-              <Route path="/activities" element={<ActivitiesPage />} />
+              <Route path="/activities" element={<SiteProgressPage />} />
               <Route path="/equipment-report" element={<EquipmentReportPage />} />
               <Route path="/safety-delays" element={<SafetyDelaysPage />} />
               <Route path="/materials-received" element={<MaterialsReceivedPage />} />

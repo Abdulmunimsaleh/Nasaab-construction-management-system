@@ -2,511 +2,559 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import {
   TrendingUp,
-  Camera,
-  Calendar,
   CheckCircle2,
   Clock,
+  AlertCircle,
+  Plus,
+  Search,
+  Filter,
+  Calendar,
   MapPin,
   ChevronRight,
-  Eye,
-  X,
-  Building,
   HardHat,
-  Sparkles,
-  Layers,
-  ArrowRight
+  X,
+  FileText
 } from 'lucide-react';
+import { getDayOfWeek } from '../utils/formatters';
 
 export const SiteProgressPage = () => {
   const {
     laeForms,
-    materialRequests,
     currentProject,
     selectedProjectId,
-    projects
+    isForeman,
+    isAdmin,
+    isDirector,
+    isPartner,
+    addToast
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState('milestones'); // 'milestones' | 'photos' | 'timeline'
-  const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedZone, setSelectedZone] = useState('all');
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  // Calculate overall site progress % from current project and latest LAE forms
-  const overallProgress = useMemo(() => {
-    // Check latest LAE form estimated_site_progress
-    const forms = (laeForms || []).filter((f) =>
-      selectedProjectId === 'all' || f.project_id === selectedProjectId || f.project_id === currentProject?.id
-    );
+  // New activity/progress form state
+  const [newActivity, setNewActivity] = useState({
+    description: '',
+    zone: 'Ground Floor',
+    status: 'in_progress',
+    progress: 50,
+    workDoneToday: '',
+    remarks: ''
+  });
 
-    if (forms.length > 0) {
-      const latest = forms[0];
-      if (latest.estimated_site_progress) {
-        return Number(latest.estimated_site_progress);
+  // Local storage key for custom logged progress
+  const storageKey = `nasaab_activities_${selectedProjectId || 'default'}`;
+  const [customActivities, setCustomActivities] = useState(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
+    }
+    return [
+      {
+        id: 'act-demo-1',
+        description: 'Shuttering and formwork reinforcement for first floor suspended slab',
+        zone: 'First Floor Slab',
+        status: 'in_progress',
+        progress: 65,
+        workDoneToday: 'Completed positioning 85% of props and marine plywood decking across Grid A-D.',
+        date: new Date().toISOString().split('T')[0],
+        source: 'Site Log'
+      },
+      {
+        id: 'act-demo-2',
+        description: 'Plumbing rough-in and drainage sleeper pipe sleeves cast into ground beam',
+        zone: 'Ground Floor / Substructure',
+        status: 'completed',
+        progress: 100,
+        workDoneToday: 'All 110mm PVC waste lines pressure tested and sleeved through foundation footing.',
+        date: new Date().toISOString().split('T')[0],
+        source: 'Subcontract Inspection'
+      },
+      {
+        id: 'act-demo-3',
+        description: 'Casting reinforced concrete columns C1 to C12 with vibrator compaction',
+        zone: 'Columns Level 1',
+        status: 'in_progress',
+        progress: 40,
+        workDoneToday: 'Columns C1-C6 poured with class 25 concrete and cube test samples taken.',
+        date: new Date().toISOString().split('T')[0],
+        source: 'Daily Shift Log'
       }
+    ];
+  });
+
+  // Save custom progress entry
+  const handleSaveActivity = (e) => {
+    e.preventDefault();
+    if (!newActivity.description.trim()) {
+      addToast && addToast('Please enter a progress description', 'error');
+      return;
     }
 
-    return 62; // Standard default progress for active NASAAB sites
-  }, [laeForms, selectedProjectId, currentProject]);
+    const created = {
+      id: `act-${Date.now()}`,
+      description: newActivity.description,
+      zone: newActivity.zone,
+      status: newActivity.status,
+      progress: Number(newActivity.progress) || 0,
+      workDoneToday: newActivity.workDoneToday,
+      remarks: newActivity.remarks,
+      date: new Date().toISOString().split('T')[0],
+      source: 'Direct Entry'
+    };
 
-  // Milestone Stages
-  const milestones = [
-    {
-      id: 'm1',
-      name: 'Substructure & Foundation Footings',
-      description: 'Site clearance, mass excavation, blinding, isolated footings & ground beam casting',
-      progress: 100,
-      status: 'completed',
-      targetDate: 'Completed',
-      leadTrade: 'Foundation Masonry & Steel Fixing'
-    },
-    {
-      id: 'm2',
-      name: 'Ground Floor Columns & Stub Retaining Walls',
-      description: 'Reinforced concrete columns C1-C18 poured with 25MPa vibrated concrete mix',
-      progress: 100,
-      status: 'completed',
-      targetDate: 'Completed',
-      leadTrade: 'Formwork Carpentry & Concreting'
-    },
-    {
-      id: 'm3',
-      name: 'First Floor Suspended Slab & Transfer Beams',
-      description: 'Heavy duty propping, marine plywood shuttering, bottom/top rebar mats, and electrical conduits',
-      progress: 75,
-      status: 'in_progress',
-      targetDate: 'In Progress (Target: End of Month)',
-      leadTrade: 'Structural Steel Fixing & MEP Sleeves'
-    },
-    {
-      id: 'm4',
-      name: 'External Machine-Cut Coral Stone Walling',
-      description: 'Damp proof course (DPC) installation, 9x9 coral block masonry with hoop iron bonding',
-      progress: 45,
-      status: 'in_progress',
-      targetDate: 'Active',
-      leadTrade: 'Master Stone Masons'
-    },
-    {
-      id: 'm5',
-      name: 'MEP Rough-in (Conduits & Drainage Sleeves)',
-      description: 'Chasing conduits into walls, soil waste pipe penetrations, distribution board sleeves',
-      progress: 35,
-      status: 'in_progress',
-      targetDate: 'Next Phase',
-      leadTrade: 'Electrical & Plumbing Subcontract'
-    },
-    {
-      id: 'm6',
-      name: 'Internal Wall Plastering & Ceiling Screeds',
-      description: 'Render coat, 12mm gypsum finishing plaster, float screed to level floors',
-      progress: 15,
-      status: 'pending',
-      targetDate: 'Upcoming',
-      leadTrade: 'Plastering & Skimming Subcontract'
-    },
-    {
-      id: 'm7',
-      name: 'Architectural Finishes, Doors & Glazing',
-      description: 'Aluminium casement windows, flush doors, floor tiles, sanitary ware & exterior paintwork',
-      progress: 0,
-      status: 'pending',
-      targetDate: 'Phase 3',
-      leadTrade: 'Finishing Contractors'
+    const updated = [created, ...customActivities];
+    setCustomActivities(updated);
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+    } catch (err) {
+      console.error(err);
     }
-  ];
 
-  // Compile all photos uploaded across LAE daily forms and Material deliveries
-  const allPhotos = useMemo(() => {
-    const photosList = [];
+    addToast && addToast('Site progress logged successfully!');
+    setIsAddModalOpen(false);
+    setNewActivity({
+      description: '',
+      zone: 'Ground Floor',
+      status: 'in_progress',
+      progress: 50,
+      workDoneToday: '',
+      remarks: ''
+    });
+  };
 
+  // Compile all activities/progress from both LAE forms and custom entries
+  const allActivities = useMemo(() => {
+    const list = [...customActivities];
+
+    // Extract activities from LAE forms
     (laeForms || []).forEach((form) => {
       if (selectedProjectId !== 'all' && form.project_id && form.project_id !== selectedProjectId && form.project_id !== currentProject?.id) {
         return;
       }
 
-      let parsed = [];
-      if (form.site_photos) {
-        try {
-          parsed = typeof form.site_photos === 'string' ? JSON.parse(form.site_photos) : form.site_photos;
-        } catch (e) {
-          parsed = [];
-        }
-      }
-
-      if (Array.isArray(parsed)) {
-        parsed.forEach((p, pIdx) => {
-          photosList.push({
-            id: `photo-lae-${form.id}-${pIdx}`,
-            url: p.url || p,
-            caption: p.caption || `Site Work Photo — ${form.form_number}`,
+      if (Array.isArray(form.activityItems)) {
+        form.activityItems.forEach((act, idx) => {
+          list.push({
+            id: `lae-act-${form.id}-${idx}`,
+            description: act.activity_description || act.description || 'Site construction activity',
+            zone: act.location_or_zone || act.zone || 'Main Site Zone',
+            status: act.status || 'in_progress',
+            progress: Number(act.progress_percentage || act.progress || 50),
+            workDoneToday: act.remarks || form.delays_issues_incidents || '',
             date: form.date,
+            formNumber: form.form_number,
             preparedBy: form.prepared_by_name,
-            source: `LAE Form (${form.form_number})`,
-            progressTag: `${form.estimated_site_progress || overallProgress}% Milestone`
+            source: `LAE Form (${form.form_number || 'Daily'})`
           });
         });
       }
-    });
 
-    (materialRequests || []).forEach((req) => {
-      if (selectedProjectId !== 'all' && req.project_id && req.project_id !== selectedProjectId && req.project_id !== currentProject?.id) {
-        return;
-      }
-
-      if (Array.isArray(req.items)) {
-        req.items.forEach((item, idx) => {
-          let recPhotos = [];
-          if (item.receipt_photos) {
-            try {
-              recPhotos = typeof item.receipt_photos === 'string' ? JSON.parse(item.receipt_photos) : item.receipt_photos;
-            } catch (e) {
-              recPhotos = [];
-            }
-          }
-
-          if (Array.isArray(recPhotos)) {
-            recPhotos.forEach((rp, rpIdx) => {
-              photosList.push({
-                id: `photo-mat-${req.id}-${idx}-${rpIdx}`,
-                url: rp.url || rp,
-                caption: `Material Delivery: ${item.item_name} (${item.supplier_vendor || 'Site Intake'})`,
-                date: req.date_needed || req.created_at?.split('T')[0],
-                preparedBy: req.requested_by_name,
-                source: `Delivery Note (${req.request_number || 'DEL'})`,
-                progressTag: 'Goods Inward'
-              });
+      // Also check labour item work done
+      if (Array.isArray(form.labourItems)) {
+        form.labourItems.forEach((item, lIdx) => {
+          if (item.work_done_today) {
+            list.push({
+              id: `lae-trade-${form.id}-${lIdx}`,
+              description: `${item.trade}: ${item.work_done_today}`,
+              zone: 'Trade Workspace',
+              status: 'in_progress',
+              progress: 60,
+              workDoneToday: item.work_done_today,
+              date: form.date,
+              formNumber: form.form_number,
+              preparedBy: form.prepared_by_name,
+              source: `LAE Trade Log`
             });
           }
         });
       }
     });
 
-    return photosList;
-  }, [laeForms, materialRequests, selectedProjectId, currentProject, overallProgress]);
+    return list;
+  }, [laeForms, customActivities, selectedProjectId, currentProject]);
 
-  // Timeline entries
-  const timelineEntries = useMemo(() => {
-    return (laeForms || [])
-      .filter((f) => selectedProjectId === 'all' || f.project_id === selectedProjectId || f.project_id === currentProject?.id)
-      .map((f) => ({
-        id: f.id,
-        date: f.date,
-        formNumber: f.form_number,
-        progress: f.estimated_site_progress || overallProgress,
-        preparedBy: f.prepared_by_name,
-        notes: f.general_notes || f.delays_issues_incidents || 'Daily operations executed according to schedule.',
-        labourCount: Array.isArray(f.labourItems)
-          ? f.labourItems.reduce((acc, l) => acc + ((l.foreman_count || 0) + (l.skilled_count || 0) + (l.unskilled_count || 0)), 0)
-          : 0
-      }));
-  }, [laeForms, selectedProjectId, currentProject, overallProgress]);
+  // Unique zones
+  const zones = useMemo(() => {
+    const set = new Set();
+    allActivities.forEach((a) => {
+      if (a.zone) set.add(a.zone);
+    });
+    return Array.from(set);
+  }, [allActivities]);
+
+  // Filtered list
+  const filteredActivities = useMemo(() => {
+    return allActivities.filter((act) => {
+      const matchesSearch =
+        act.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (act.zone && act.zone.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (act.workDoneToday && act.workDoneToday.toLowerCase().includes(searchTerm.toLowerCase()));
+
+      const matchesStatus =
+        statusFilter === 'all' ||
+        act.status.toLowerCase() === statusFilter.toLowerCase();
+
+      const matchesZone =
+        selectedZone === 'all' || act.zone === selectedZone;
+
+      return matchesSearch && matchesStatus && matchesZone;
+    });
+  }, [allActivities, searchTerm, statusFilter, selectedZone]);
+
+  // Statistics
+  const stats = useMemo(() => {
+    const total = allActivities.length;
+    const inProgress = allActivities.filter((a) => a.status === 'in_progress').length;
+    const completed = allActivities.filter((a) => a.status === 'completed').length;
+    const delayed = allActivities.filter((a) => a.status === 'delayed').length;
+    const avgProgress = total > 0
+      ? Math.round(allActivities.reduce((acc, a) => acc + (a.progress || 0), 0) / total)
+      : 0;
+    return { total, inProgress, completed, delayed, avgProgress };
+  }, [allActivities]);
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <span className="rounded-md bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-500 uppercase tracking-wider">
-              Project Execution
+              Site Operations
             </span>
-            <span className="text-xs text-slate-400">• Visual Timeline</span>
+            <span className="text-xs text-slate-400">• Live Tracking</span>
           </div>
           <h1 className="mt-1 text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
             <TrendingUp className="h-7 w-7 text-amber-500" />
-            <span>Site Construction Progress</span>
+            <span>Site Progress & Task Tracking</span>
           </h1>
           <p className="mt-1 text-xs text-slate-500">
-            Overall site completion percentage, structural milestones, photo verification gallery, and timeline records for{' '}
+            Real-time tracking of operational construction activities, executed work items, and scheduled tasks for{' '}
             <strong className="text-slate-800">{currentProject?.name || 'All Sites'}</strong>
           </p>
         </div>
 
-        {/* Big Circular / Radial Badge */}
-        <div className="flex items-center gap-3 bg-white p-3 px-4 rounded-2xl border border-slate-200 shadow-xs">
-          <div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Overall Site Completion</div>
-            <div className="text-2xl font-extrabold text-amber-600 font-mono">{overallProgress}% Done</div>
-          </div>
-          <div className="h-10 w-10 shrink-0 rounded-full border-4 border-amber-500 border-t-amber-200 flex items-center justify-center font-bold text-xs text-slate-900 font-mono">
-            {overallProgress}%
-          </div>
-        </div>
+        <button
+          onClick={() => setIsAddModalOpen(true)}
+          className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-amber-500/20 transition-all cursor-pointer self-start sm:self-auto"
+        >
+          <Plus className="h-4 w-4 stroke-[2.5]" />
+          <span>+ Log Site Progress</span>
+        </button>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active Stage</span>
-            <Building className="h-4 w-4 text-amber-500" />
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Progress Items</span>
+            <TrendingUp className="h-4 w-4 text-amber-500" />
           </div>
-          <div className="mt-2 text-base font-extrabold text-slate-900 truncate">
-            First Floor Suspended Slab
+          <div className="mt-2 text-2xl font-extrabold text-slate-900 font-mono">
+            {stats.total}
           </div>
-          <p className="mt-1 text-[11px] text-slate-400">Phase 2 Structural Framing</p>
+          <p className="mt-1 text-[11px] text-slate-400">Total logged construction items</p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Completed Stages</span>
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">In Progress</span>
+            <Clock className="h-4 w-4 text-amber-500" />
+          </div>
+          <div className="mt-2 text-2xl font-extrabold text-amber-600 font-mono">
+            {stats.inProgress}
+          </div>
+          <p className="mt-1 text-[11px] text-slate-400">Active tasks currently ongoing</p>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Completed</span>
             <CheckCircle2 className="h-4 w-4 text-emerald-500" />
           </div>
           <div className="mt-2 text-2xl font-extrabold text-emerald-600 font-mono">
-            2 of 7 Milestones
+            {stats.completed}
           </div>
-          <p className="mt-1 text-[11px] text-slate-400">Substructure & columns complete</p>
+          <p className="mt-1 text-[11px] text-slate-400">Verified & finished tasks</p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Photos Logged</span>
-            <Camera className="h-4 w-4 text-indigo-500" />
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Average Progress</span>
+            <TrendingUp className="h-4 w-4 text-indigo-500" />
           </div>
           <div className="mt-2 text-2xl font-extrabold text-slate-900 font-mono">
-            {allPhotos.length > 0 ? `${allPhotos.length} Photos` : 'Active Feed'}
+            {stats.avgProgress}%
           </div>
-          <p className="mt-1 text-[11px] text-slate-400">Photographic site documentation</p>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Target Handover</span>
-            <Calendar className="h-4 w-4 text-purple-500" />
-          </div>
-          <div className="mt-2 text-base font-extrabold text-slate-900">
-            Q4 2026
-          </div>
-          <p className="mt-1 text-[11px] text-slate-400">On-track contractual schedule</p>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
-        <button
-          onClick={() => setActiveTab('milestones')}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'milestones'
-              ? 'bg-amber-500 text-slate-950 shadow-xs'
-              : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-          }`}
-        >
-          <Layers className="h-4 w-4" />
-          <span>Structural Milestones ({milestones.length})</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('photos')}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'photos'
-              ? 'bg-amber-500 text-slate-950 shadow-xs'
-              : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-          }`}
-        >
-          <Camera className="h-4 w-4" />
-          <span>Photo Evidence ({allPhotos.length})</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('timeline')}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'timeline'
-              ? 'bg-amber-500 text-slate-950 shadow-xs'
-              : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-          }`}
-        >
-          <Clock className="h-4 w-4" />
-          <span>Daily Progress Feed ({timelineEntries.length})</span>
-        </button>
-      </div>
-
-      {/* Tab 1: Structural Milestones */}
-      {activeTab === 'milestones' && (
-        <div className="space-y-3">
-          {milestones.map((m, idx) => (
+          <div className="mt-2 h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
             <div
-              key={m.id}
-              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs hover:border-slate-300 transition-all space-y-3"
+              className="h-full bg-indigo-500 rounded-full transition-all duration-500"
+              style={{ width: `${stats.avgProgress}%` }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Filter / Search Bar */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search progress by description, zone, keywords..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-4 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-amber-500 focus:bg-white focus:outline-hidden"
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Status Pills */}
+          <div className="flex items-center rounded-xl bg-slate-100 p-1 text-xs">
+            {['all', 'in_progress', 'completed', 'delayed'].map((s) => (
+              <button
+                key={s}
+                onClick={() => setStatusFilter(s)}
+                className={`rounded-lg px-2.5 py-1 text-xs font-semibold capitalize transition-all cursor-pointer ${statusFilter === s
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-900'
+                  }`}
+              >
+                {s === 'in_progress' ? 'In Progress' : s}
+              </button>
+            ))}
+          </div>
+
+          {/* Zone Selector */}
+          {zones.length > 0 && (
+            <select
+              value={selectedZone}
+              onChange={(e) => setSelectedZone(e.target.value)}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 focus:border-amber-500 focus:outline-hidden"
             >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl font-bold font-mono text-xs ${
-                      m.status === 'completed'
+              <option value="all">All Zones</option>
+              {zones.map((z) => (
+                <option key={z} value={z}>
+                  {z}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      </div>
+
+      {/* Progress Feed / Cards */}
+      <div className="space-y-3">
+        {filteredActivities.length === 0 ? (
+          <div className="rounded-2xl border border-slate-200 bg-white py-16 text-center shadow-xs">
+            <TrendingUp className="h-12 w-12 text-slate-300 mx-auto mb-3" />
+            <h3 className="text-sm font-bold text-slate-900 mb-1">No Site Progress Found</h3>
+            <p className="text-xs text-slate-500 max-w-md mx-auto mb-4">
+              There are no progress items matching your current filters. Click below to log new site progress.
+            </p>
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-amber-400 cursor-pointer shadow-xs"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Log Site Progress</span>
+            </button>
+          </div>
+        ) : (
+          filteredActivities.map((act) => (
+            <div
+              key={act.id}
+              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs hover:border-slate-300 transition-all"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                <div className="space-y-1.5 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${act.status === 'completed'
                         ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                        : m.status === 'in_progress'
-                        ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                        : 'bg-slate-100 text-slate-500'
-                    }`}
-                  >
-                    0{idx + 1}
+                        : act.status === 'delayed'
+                          ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                          : 'bg-amber-100 text-amber-800 border border-amber-200'
+                        }`}
+                    >
+                      {act.status.replace('_', ' ')}
+                    </span>
+
+                    <span className="flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                      <MapPin className="h-3 w-3 text-slate-400" />
+                      <span>{act.zone}</span>
+                    </span>
+
+                    {act.date && (
+                      <span className="flex items-center gap-1 text-[11px] text-slate-400 font-mono">
+                        <Calendar className="h-3 w-3 text-slate-400" />
+                        <span>{act.date}</span>
+                      </span>
+                    )}
+
+                    {act.source && (
+                      <span className="rounded bg-slate-100 px-1.5 py-0.2 text-[10px] font-medium text-slate-500">
+                        {act.source}
+                      </span>
+                    )}
                   </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900">{m.name}</h3>
-                    <p className="text-xs text-slate-500">{m.description}</p>
-                  </div>
+
+                  <h3 className="text-sm font-bold text-slate-900 leading-snug">
+                    {act.description}
+                  </h3>
+
+                  {/* Work Done Today */}
+                  {act.workDoneToday && (
+                    <div className="text-xs text-slate-600 mt-2 bg-slate-50 rounded-xl p-3 border border-slate-100">
+                      <span className="font-bold text-slate-800">Accomplished: </span>
+                      {act.workDoneToday}
+                    </div>
+                  )}
+
+
                 </div>
 
-                <div className="flex items-center gap-3 self-end sm:self-auto shrink-0">
-                  <span
-                    className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                      m.status === 'completed'
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : m.status === 'in_progress'
-                        ? 'bg-amber-100 text-amber-800'
-                        : 'bg-slate-100 text-slate-600'
-                    }`}
-                  >
-                    {m.status.replace('_', ' ')}
-                  </span>
-                  <div className="text-base font-extrabold text-slate-900 font-mono w-14 text-right">
-                    {m.progress}%
+                {/* Progress Metric */}
+                <div className="sm:text-right shrink-0 min-w-32">
+                  <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Progress</div>
+                  <div className="text-lg font-extrabold text-slate-900 font-mono mt-0.5">
+                    {act.progress}%
+                  </div>
+                  <div className="mt-1 h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${act.progress === 100
+                        ? 'bg-emerald-500'
+                        : act.progress >= 50
+                          ? 'bg-amber-500'
+                          : 'bg-amber-400'
+                        }`}
+                      style={{ width: `${act.progress}%` }}
+                    />
                   </div>
                 </div>
               </div>
+            </div>
+          ))
+        )}
+      </div>
 
-              {/* Progress Bar */}
-              <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    m.progress === 100
-                      ? 'bg-emerald-500'
-                      : m.progress >= 50
-                      ? 'bg-amber-500'
-                      : 'bg-amber-400'
-                  }`}
-                  style={{ width: `${m.progress}%` }}
+      {/* Modal: Log New Site Progress */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-lg rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+              <div className="flex items-center gap-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500">
+                  <TrendingUp className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Log Site Progress</h3>
+                  <p className="text-[11px] text-slate-500">Record a new progress entry for {currentProject?.name}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsAddModalOpen(false)}
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveActivity} className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Progress Title / Description <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Assembling formwork props for 1st floor slab"
+                  value={newActivity.description}
+                  onChange={(e) => setNewActivity({ ...newActivity, description: e.target.value })}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
                 />
               </div>
 
-              <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-400 pt-1">
-                <div className="flex items-center gap-1.5 font-medium text-slate-600">
-                  <HardHat className="h-3.5 w-3.5 text-amber-500" />
-                  <span>Trade: {m.leadTrade}</span>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Zone / Location
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. First Floor Slab"
+                    value={newActivity.zone}
+                    onChange={(e) => setNewActivity({ ...newActivity, zone: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                  />
                 </div>
-                <div className="font-mono text-slate-500">{m.targetDate}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
 
-      {/* Tab 2: Photos Gallery */}
-      {activeTab === 'photos' && (
-        <div>
-          {allPhotos.length === 0 ? (
-            <div className="rounded-2xl border border-slate-200 bg-white py-16 text-center shadow-xs">
-              <Camera className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-              <h3 className="text-sm font-bold text-slate-900 mb-1">No Site Photos Attached Yet</h3>
-              <p className="text-xs text-slate-500 max-w-md mx-auto mb-4">
-                Foremen and storekeepers upload site photos when submitting Daily Labour, Activity & Equipment forms or verifying material receipts.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {allPhotos.map((photo) => (
-                <div
-                  key={photo.id}
-                  onClick={() => setSelectedPhoto(photo)}
-                  className="group rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col"
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Status
+                  </label>
+                  <select
+                    value={newActivity.status}
+                    onChange={(e) => setNewActivity({ ...newActivity, status: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                  >
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                    <option value="delayed">Delayed</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-xs font-bold text-slate-700">Estimated Progress</label>
+                  <span className="text-xs font-mono font-bold text-amber-600">{newActivity.progress}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value={newActivity.progress}
+                  onChange={(e) => setNewActivity({ ...newActivity, progress: e.target.value })}
+                  className="w-full accent-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Work Accomplished Today
+                </label>
+                <textarea
+                  rows="2"
+                  placeholder="Detail exact milestones reached during today's shift..."
+                  value={newActivity.workDoneToday}
+                  onChange={(e) => setNewActivity({ ...newActivity, workDoneToday: e.target.value })}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
                 >
-                  <div className="relative aspect-video bg-slate-100 overflow-hidden">
-                    <img
-                      src={photo.url}
-                      alt={photo.caption}
-                      className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                    <div className="absolute top-2 right-2 rounded-md bg-slate-900/80 px-2 py-0.5 text-[10px] font-bold text-white uppercase backdrop-blur-xs">
-                      {photo.progressTag}
-                    </div>
-                  </div>
-                  <div className="p-4 flex-1 flex flex-col justify-between">
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900 line-clamp-1">{photo.caption}</h4>
-                      <p className="text-[11px] text-slate-500 mt-0.5">{photo.source}</p>
-                    </div>
-                    <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono mt-3 pt-2 border-t border-slate-100">
-                      <span>{photo.date}</span>
-                      <span>By: {photo.preparedBy}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Tab 3: Daily Progress Feed */}
-      {activeTab === 'timeline' && (
-        <div className="space-y-4">
-          {timelineEntries.length === 0 ? (
-            <div className="rounded-2xl border border-slate-200 bg-white py-16 text-center shadow-xs">
-              <Clock className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-              <h3 className="text-sm font-bold text-slate-900 mb-1">No Historical Forms Logged</h3>
-              <p className="text-xs text-slate-500 max-w-md mx-auto">
-                Daily timeline events are automatically populated when daily construction forms are submitted.
-              </p>
-            </div>
-          ) : (
-            timelineEntries.map((entry) => (
-              <div
-                key={entry.id}
-                className="relative pl-6 sm:pl-8 before:absolute before:left-2 sm:before:left-3 before:top-3 before:bottom-0 before:w-0.5 before:bg-slate-200"
-              >
-                <div className="absolute left-0 sm:left-1 top-2 h-4 w-4 rounded-full border-2 border-amber-500 bg-white" />
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-bold text-slate-900">{entry.formNumber}</span>
-                      <span className="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
-                        {entry.progress}% Progress Milestone
-                      </span>
-                    </div>
-                    <div className="text-xs text-slate-400 font-mono">{entry.date}</div>
-                  </div>
-
-                  <p className="text-xs text-slate-700 leading-relaxed">{entry.notes}</p>
-
-                  <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400 font-medium">
-                    <span>Supervisor: {entry.preparedBy}</span>
-                    {entry.labourCount > 0 && <span>Workforce on site: {entry.labourCount} operatives</span>}
-                  </div>
-                </div>
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2 text-xs font-bold text-slate-950 shadow-xs"
+                >
+                  Save Progress
+                </button>
               </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* Lightbox Modal */}
-      {selectedPhoto && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-md"
-          onClick={() => setSelectedPhoto(null)}
-        >
-          <div
-            className="relative max-w-3xl w-full bg-slate-900 rounded-3xl overflow-hidden border border-slate-800 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              onClick={() => setSelectedPhoto(null)}
-              className="absolute top-4 right-4 z-10 rounded-full bg-slate-950/70 p-2 text-white hover:bg-slate-900"
-            >
-              <X className="h-5 w-5" />
-            </button>
-            <div className="max-h-[70vh] bg-black flex items-center justify-center">
-              <img
-                src={selectedPhoto.url}
-                alt={selectedPhoto.caption}
-                className="max-h-[70vh] w-auto object-contain"
-              />
-            </div>
-            <div className="p-5 text-white">
-              <h3 className="text-sm font-bold">{selectedPhoto.caption}</h3>
-              <div className="flex items-center justify-between text-xs text-slate-400 mt-2">
-                <span>{selectedPhoto.source} • By {selectedPhoto.preparedBy}</span>
-                <span className="font-mono">{selectedPhoto.date}</span>
-              </div>
-            </div>
+            </form>
           </div>
         </div>
       )}
@@ -514,4 +562,5 @@ export const SiteProgressPage = () => {
   );
 };
 
+export const ActivitiesPage = SiteProgressPage;
 export default SiteProgressPage;
