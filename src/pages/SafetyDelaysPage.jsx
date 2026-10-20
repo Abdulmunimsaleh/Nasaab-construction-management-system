@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import {
   ShieldAlert,
@@ -13,7 +13,9 @@ import {
   Calendar,
   X,
   FileWarning,
-  Eye
+  Eye,
+  Camera,
+  Image as ImageIcon
 } from 'lucide-react';
 
 export const SafetyDelaysPage = () => {
@@ -31,6 +33,11 @@ export const SafetyDelaysPage = () => {
   const [activeTab, setActiveTab] = useState('delays'); // 'delays' | 'safety' | 'visitors'
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [viewingPhoto, setViewingPhoto] = useState(null);
+
+  // File input refs for photo capture and gallery
+  const cameraInputRef = useRef(null);
+  const galleryInputRef = useRef(null);
 
   // New item modal form state
   const [newItem, setNewItem] = useState({
@@ -43,7 +50,8 @@ export const SafetyDelaysPage = () => {
     actionTaken: '',
     visitorName: '',
     visitorOrg: '',
-    purpose: ''
+    purpose: '',
+    photos: []
   });
 
   const storageKey = `nasaab_safety_delays_${selectedProjectId || 'default'}`;
@@ -64,6 +72,7 @@ export const SafetyDelaysPage = () => {
         durationHours: 3.0,
         description: 'Morning downpour flooded access trench and caused concrete truck delay.',
         actionTaken: 'Deployed 2 submersible dewatering pumps. Concreting rescheduled to 11:30 AM.',
+        photos: [],
         date: new Date().toISOString().split('T')[0]
       },
       {
@@ -73,6 +82,7 @@ export const SafetyDelaysPage = () => {
         severity: 'Low',
         description: 'Conducted mandatory 20-minute safety induction on safety harnesses and fall prevention.',
         actionTaken: 'All 34 site workers signed attendance and were issued replacement high-vis vests.',
+        photos: [],
         date: new Date().toISOString().split('T')[0]
       },
       {
@@ -83,10 +93,76 @@ export const SafetyDelaysPage = () => {
         visitorOrg: 'Mwangi Consulting Engineers',
         purpose: 'Inspection and sign-off of first floor transfer beam reinforcement prior to casting.',
         actionTaken: 'Passed inspection. Approved casting proceed conditional on extra stirrups at Grid B.',
+        photos: [],
         date: new Date().toISOString().split('T')[0]
       }
     ];
   });
+
+  // Convert uploaded image file to base64
+  const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
+  // Photo handlers: take photo / choose from gallery for modal
+  const handlePhotoUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    try {
+      const newPhotos = await Promise.all(
+        files.map(async (file) => {
+          const dataUrl = await fileToBase64(file);
+          return {
+            id: `photo-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+            name: file.name,
+            url: dataUrl,
+            date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          };
+        })
+      );
+      setNewItem((prev) => ({
+        ...prev,
+        photos: [...(prev.photos || []), ...newPhotos]
+      }));
+    } catch (err) {
+      addToast && addToast('Failed to process image attachment', 'error');
+    } finally {
+      e.target.value = '';
+    }
+  };
+
+  const handleRemovePhoto = (photoIndex) => {
+    setNewItem((prev) => ({
+      ...prev,
+      photos: (prev.photos || []).filter((_, idx) => idx !== photoIndex)
+    }));
+  };
+
+  const handleOpenAddModal = (catOverride) => {
+    const defaultCat =
+      catOverride ||
+      (activeTab === 'safety' ? 'safety' : activeTab === 'visitors' ? 'visitor' : 'delay');
+    setNewItem({
+      category: defaultCat,
+      title: '',
+      severity: 'Medium',
+      cause: 'Weather / Heavy Rain',
+      durationHours: 2.5,
+      description: '',
+      actionTaken: '',
+      visitorName: '',
+      visitorOrg: '',
+      purpose: '',
+      photos: []
+    });
+    setIsAddModalOpen(true);
+  };
 
   const handleSaveItem = (e) => {
     e.preventDefault();
@@ -107,6 +183,7 @@ export const SafetyDelaysPage = () => {
       visitorName: newItem.visitorName,
       visitorOrg: newItem.visitorOrg,
       purpose: newItem.purpose,
+      photos: newItem.photos || [],
       date: new Date().toISOString().split('T')[0]
     };
 
@@ -120,6 +197,19 @@ export const SafetyDelaysPage = () => {
 
     addToast && addToast('Record added successfully!');
     setIsAddModalOpen(false);
+    setNewItem({
+      category: activeTab === 'safety' ? 'safety' : activeTab === 'visitors' ? 'visitor' : 'delay',
+      title: '',
+      severity: 'Medium',
+      cause: 'Weather / Heavy Rain',
+      durationHours: 2.5,
+      description: '',
+      actionTaken: '',
+      visitorName: '',
+      visitorOrg: '',
+      purpose: '',
+      photos: []
+    });
   };
 
   // Compile all entries including delays_issues_incidents and site_visitors from LAE forms
@@ -216,7 +306,7 @@ export const SafetyDelaysPage = () => {
         </div>
 
         <button
-          onClick={() => setIsAddModalOpen(true)}
+          onClick={() => handleOpenAddModal()}
           className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-amber-500/20 transition-all cursor-pointer self-start sm:self-auto"
         >
           <Plus className="h-4 w-4 stroke-[2.5]" />
@@ -226,17 +316,6 @@ export const SafetyDelaysPage = () => {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-emerald-800 uppercase tracking-wider">Safe Site Days</span>
-            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-          </div>
-          <div className="mt-2 text-2xl font-extrabold text-emerald-900 font-mono">
-            142 Days
-          </div>
-          <p className="mt-1 text-[11px] text-emerald-700">Zero Lost-Time Incidents (LTI)</p>
-        </div>
-
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Logged Delays</span>
@@ -250,7 +329,7 @@ export const SafetyDelaysPage = () => {
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">HSE Audits & Talks</span>
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Safety Audits & Talks</span>
             <ShieldAlert className="h-4 w-4 text-indigo-500" />
           </div>
           <div className="mt-2 text-2xl font-extrabold text-slate-900 font-mono">
@@ -276,11 +355,10 @@ export const SafetyDelaysPage = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setActiveTab('delays')}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'delays'
-                ? 'bg-amber-500 text-slate-950 shadow-xs'
-                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-            }`}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all cursor-pointer ${activeTab === 'delays'
+              ? 'bg-amber-500 text-slate-950 shadow-xs'
+              : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
           >
             <Clock className="h-4 w-4" />
             <span>Site Delays & Issues ({stats.delaysCount})</span>
@@ -288,11 +366,10 @@ export const SafetyDelaysPage = () => {
 
           <button
             onClick={() => setActiveTab('safety')}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'safety'
-                ? 'bg-amber-500 text-slate-950 shadow-xs'
-                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-            }`}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all cursor-pointer ${activeTab === 'safety'
+              ? 'bg-amber-500 text-slate-950 shadow-xs'
+              : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
           >
             <ShieldAlert className="h-4 w-4" />
             <span>Safety & HSE ({stats.safetyCount})</span>
@@ -300,11 +377,10 @@ export const SafetyDelaysPage = () => {
 
           <button
             onClick={() => setActiveTab('visitors')}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'visitors'
-                ? 'bg-amber-500 text-slate-950 shadow-xs'
-                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-            }`}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all cursor-pointer ${activeTab === 'visitors'
+              ? 'bg-amber-500 text-slate-950 shadow-xs'
+              : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
           >
             <Users className="h-4 w-4" />
             <span>Site Visitors ({stats.visitorsCount})</span>
@@ -333,7 +409,7 @@ export const SafetyDelaysPage = () => {
               All operations are running smoothly with no outstanding issues logged.
             </p>
             <button
-              onClick={() => setIsAddModalOpen(true)}
+              onClick={() => handleOpenAddModal()}
               className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-amber-400 cursor-pointer shadow-xs"
             >
               <Plus className="h-4 w-4" />
@@ -349,13 +425,12 @@ export const SafetyDelaysPage = () => {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <span
-                    className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                      item.severity === 'High'
-                        ? 'bg-rose-100 text-rose-800 border border-rose-200'
-                        : item.severity === 'Medium'
+                    className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${item.severity === 'High'
+                      ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                      : item.severity === 'Medium'
                         ? 'bg-amber-100 text-amber-800 border border-amber-200'
                         : 'bg-slate-100 text-slate-700'
-                    }`}
+                      }`}
                   >
                     {item.severity ? `${item.severity} Severity` : item.category.toUpperCase()}
                   </span>
@@ -403,6 +478,35 @@ export const SafetyDelaysPage = () => {
                   <span className="text-slate-600">{item.actionTaken}</span>
                 </div>
               )}
+
+              {/* Attached Photos */}
+              {item.photos && item.photos.length > 0 && (
+                <div className="pt-1 border-t border-slate-100/80">
+                  <div className="text-[11px] font-bold text-slate-700 mb-2 flex items-center gap-1.5">
+                    <Camera className="h-3.5 w-3.5 text-amber-500" />
+                    <span>Attached Photos & Evidence ({item.photos.length})</span>
+                  </div>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                    {item.photos.map((photo, pIdx) => (
+                      <button
+                        key={photo.id || pIdx}
+                        type="button"
+                        onClick={() => setViewingPhoto(photo)}
+                        className="relative group rounded-xl overflow-hidden border border-slate-200 aspect-square bg-slate-100 shadow-2xs hover:border-amber-400 hover:ring-2 hover:ring-amber-400/20 transition-all text-left cursor-pointer"
+                      >
+                        <img
+                          src={photo.url}
+                          alt={photo.name || 'Site Photo'}
+                          className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-200"
+                        />
+                        <div className="absolute inset-0 bg-slate-950/0 group-hover:bg-slate-950/30 transition-colors flex items-center justify-center">
+                          <Eye className="h-4 w-4 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ))
         )}
@@ -411,8 +515,8 @@ export const SafetyDelaysPage = () => {
       {/* Modal: Log New Safety / Delay */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
-            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+          <div className="w-full max-w-lg rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden max-h-[92vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 shrink-0">
               <div className="flex items-center gap-2">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500">
                   <ShieldAlert className="h-5 w-5" />
@@ -430,7 +534,7 @@ export const SafetyDelaysPage = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSaveItem} className="p-6 space-y-4">
+            <form onSubmit={handleSaveItem} className="p-6 space-y-4 overflow-y-auto">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
                   Entry Category
@@ -445,11 +549,10 @@ export const SafetyDelaysPage = () => {
                       key={cat.id}
                       type="button"
                       onClick={() => setNewItem({ ...newItem, category: cat.id })}
-                      className={`rounded-xl py-2 text-xs font-bold transition-all cursor-pointer ${
-                        newItem.category === cat.id
-                          ? 'bg-amber-500 text-slate-950 shadow-xs'
-                          : 'border border-slate-200 text-slate-600 hover:bg-slate-50'
-                      }`}
+                      className={`rounded-xl py-2 text-xs font-bold transition-all cursor-pointer ${newItem.category === cat.id
+                        ? 'bg-amber-500 text-slate-950 shadow-xs'
+                        : 'border border-slate-200 text-slate-600 hover:bg-slate-50'
+                        }`}
                     >
                       {cat.label}
                     </button>
@@ -467,7 +570,9 @@ export const SafetyDelaysPage = () => {
                   placeholder={
                     newItem.category === 'visitor'
                       ? 'e.g. Structural inspection by Engineer David'
-                      : 'e.g. Rain stoppage during excavation'
+                      : newItem.category === 'safety'
+                        ? 'e.g. Weekly Scaffold & PPE Safety Briefing'
+                        : 'e.g. Rain stoppage during excavation'
                   }
                   value={newItem.title}
                   onChange={(e) => setNewItem({ ...newItem, title: e.target.value })}
@@ -510,6 +615,38 @@ export const SafetyDelaysPage = () => {
                 </div>
               )}
 
+              {newItem.category === 'safety' && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Severity Level
+                    </label>
+                    <select
+                      value={newItem.severity}
+                      onChange={(e) => setNewItem({ ...newItem, severity: e.target.value })}
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                    >
+                      <option value="Low">Low (Toolbox / Routine)</option>
+                      <option value="Medium">Medium (Near Miss / Minor)</option>
+                      <option value="High">High (Immediate Hazard / Stoppage)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Remedial Action / Follow-up
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Issued PPE, cordoned off area"
+                      value={newItem.actionTaken}
+                      onChange={(e) => setNewItem({ ...newItem, actionTaken: e.target.value })}
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                    />
+                  </div>
+                </div>
+              )}
+
               {newItem.category === 'visitor' && (
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -542,29 +679,118 @@ export const SafetyDelaysPage = () => {
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Detailed Description & Context
+                  {newItem.category === 'visitor'
+                    ? 'Purpose of Visit & Observations'
+                    : 'Detailed Description, Context and Resolution'}
                 </label>
                 <textarea
                   rows="2"
-                  placeholder="Detail observations, areas affected, or visitor remarks..."
+                  placeholder={
+                    newItem.category === 'visitor'
+                      ? 'Purpose of inspection, areas visited, and remarks...'
+                      : 'Detail observations, areas affected, or incident remarks...'
+                  }
                   value={newItem.description}
                   onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Remedial Action / Resolution
-                </label>
-                <input
-                  type="text"
-                  placeholder="What corrective action or preventive measures were enacted?"
-                  value={newItem.actionTaken}
-                  onChange={(e) => setNewItem({ ...newItem, actionTaken: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
-                />
+              {/* Photo Capture & Gallery Feature at bottom of form (Site Delay, Safety/HSE, and Site Visitor) */}
+              <div className="space-y-2.5 rounded-2xl bg-slate-50/90 p-3.5 border border-slate-200/80">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <Camera className="h-4 w-4 text-amber-500" />
+                    <span>
+                      {newItem.category === 'delay'
+                        ? 'Site Delay Photos & Evidence'
+                        : newItem.category === 'safety'
+                          ? 'Safety & HSE Photos'
+                          : 'Site Visitor Photos & Badges'}
+                    </span>
+                  </label>
+                  <span className="text-[11px] font-semibold text-slate-500">
+                    {newItem.photos?.length || 0} photo{(newItem.photos?.length || 0) === 1 ? '' : 's'}
+                  </span>
+                </div>
+
+                <p className="text-[11px] text-slate-500">
+                  {newItem.category === 'delay'
+                    ? 'Capture or upload photos of site delay conditions, rainfall, machinery, or blockages.'
+                    : newItem.category === 'safety'
+                      ? 'Capture or upload photos of safety inspections, toolbox talks, hazard areas, or PPE compliance.'
+                      : 'Capture or upload photos of visitor log sheets, visitor badges, or inspected work areas.'}
+                </p>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => cameraInputRef.current?.click()}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 px-3.5 py-2 text-xs font-bold text-slate-950 cursor-pointer shadow-xs transition-colors"
+                  >
+                    <Camera className="h-3.5 w-3.5" />
+                    <span>Take Photo</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => galleryInputRef.current?.click()}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-700 cursor-pointer shadow-2xs transition-colors"
+                  >
+                    <ImageIcon className="h-3.5 w-3.5 text-slate-500" />
+                    <span>Choose from Gallery</span>
+                  </button>
+                </div>
+
+                {/* Thumbnails preview in modal */}
+                {newItem.photos && newItem.photos.length > 0 && (
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 pt-1.5">
+                    {newItem.photos.map((photo, pIdx) => (
+                      <div
+                        key={photo.id || pIdx}
+                        className="relative group rounded-xl overflow-hidden border border-slate-200 aspect-square bg-slate-100 shadow-2xs"
+                      >
+                        <img
+                          src={photo.url}
+                          alt={photo.name || 'Site Photo'}
+                          className="h-full w-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemovePhoto(pIdx)}
+                          className="absolute top-1 right-1 rounded-full bg-slate-900/80 p-1 text-white hover:bg-rose-600 transition-colors cursor-pointer"
+                          title="Remove photo"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/80 to-transparent p-1">
+                          <p className="truncate text-[9px] font-medium text-white">
+                            {photo.name || `Photo ${pIdx + 1}`}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
+
+              {/* Hidden file inputs for photo capture and gallery */}
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handlePhotoUpload}
+                className="hidden"
+              />
+              <input
+                ref={galleryInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handlePhotoUpload}
+                className="hidden"
+              />
 
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
@@ -582,6 +808,37 @@ export const SafetyDelaysPage = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox / View Photo Modal */}
+      {viewingPhoto && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-xs animate-in fade-in"
+          onClick={() => setViewingPhoto(null)}
+        >
+          <div
+            className="relative max-w-3xl max-h-[90vh] bg-slate-900 rounded-3xl overflow-hidden p-3 shadow-2xl border border-slate-800"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setViewingPhoto(null)}
+              className="absolute top-5 right-5 z-10 rounded-full bg-slate-800/90 hover:bg-rose-600 p-2 text-white transition-colors cursor-pointer"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <img
+              src={viewingPhoto.url}
+              alt={viewingPhoto.name || 'Site Record Photo'}
+              className="max-h-[75vh] w-auto max-w-full rounded-2xl object-contain mx-auto"
+            />
+            <div className="mt-3 flex items-center justify-between px-2 text-slate-300 text-xs">
+              <span className="font-semibold truncate max-w-xs">{viewingPhoto.name || 'Site Photo'}</span>
+              {viewingPhoto.date && (
+                <span className="text-[11px] text-slate-400 font-mono">{viewingPhoto.date}</span>
+              )}
+            </div>
           </div>
         </div>
       )}
