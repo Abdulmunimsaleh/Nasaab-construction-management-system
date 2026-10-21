@@ -29,20 +29,12 @@ export const EquipmentReportPage = () => {
   } = useApp();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // Helper to generate empty equipment entry
   const createEmptyEquipmentEntry = () => ({
     id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
     equipmentName: '',
-    operatingStatus: 'Active',
-    hoursUsed: 8,
-    fuelCost: '',
-    operatorCost: '',
-    repairCost: '',
-    mechanicCost: '',
-    transportCost: '',
     machineNotes: ''
   });
 
@@ -86,61 +78,40 @@ export const EquipmentReportPage = () => {
       {
         id: 'eq-1',
         equipmentName: 'Concrete Mixer 400L (Hydraulic Hopper)',
-        operatingStatus: 'Active',
-        hoursUsed: 7.5,
-        fuelCost: 3500,
-        operatorCost: 1500,
-        repairCost: 0,
-        mechanicCost: 0,
-        transportCost: 0,
-        totalExpense: 5000,
-        machineNotes: 'Mixing concrete for column casting; engine oil level normal.',
+        machineNotes: 'Mixing concrete for column casting; operational on site.',
         date: new Date().toISOString().split('T')[0]
       },
       {
         id: 'eq-2',
         equipmentName: 'CAT 320 Hydraulic Excavator',
-        operatingStatus: 'Active',
-        hoursUsed: 6.0,
-        fuelCost: 14000,
-        operatorCost: 3500,
-        repairCost: 0,
-        mechanicCost: 0,
-        transportCost: 0,
-        totalExpense: 17500,
         machineNotes: 'Trench excavation for storm drainage and backfilling.',
         date: new Date().toISOString().split('T')[0]
       },
       {
         id: 'eq-3',
         equipmentName: 'Plate Compactor 90kg (Robin Engine)',
-        operatingStatus: 'Standby',
-        hoursUsed: 2.0,
-        fuelCost: 1200,
-        operatorCost: 1000,
-        repairCost: 0,
-        mechanicCost: 0,
-        transportCost: 0,
-        totalExpense: 2200,
         machineNotes: 'Used for hardcore leveling in corridor zone.',
         date: new Date().toISOString().split('T')[0]
       },
       {
         id: 'eq-4',
         equipmentName: 'Bar Bending & Cutting Machine',
-        operatingStatus: 'Active',
-        hoursUsed: 8.0,
-        fuelCost: 2800,
-        operatorCost: 1800,
-        repairCost: 500,
-        mechanicCost: 0,
-        transportCost: 0,
-        totalExpense: 5100,
-        machineNotes: 'Replaced cutting blade teeth; bending D16 rebar without hitch.',
+        machineNotes: 'Bending D16 rebar on ground floor.',
         date: new Date().toISOString().split('T')[0]
       }
     ];
   });
+
+  const handleDeleteEquipment = (id) => {
+    const updated = customEquipment.filter((e) => e.id !== id);
+    setCustomEquipment(updated);
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+    } catch (err) {
+      console.error(err);
+    }
+    addToast && addToast('Equipment record removed.', 'info');
+  };
 
   const handleSaveEquipment = (e) => {
     e.preventDefault();
@@ -151,29 +122,12 @@ export const EquipmentReportPage = () => {
     }
 
     const todayStr = new Date().toISOString().split('T')[0];
-    const newItems = validEntries.map((eq, i) => {
-      const fuel = Number(eq.fuelCost) || 0;
-      const operator = Number(eq.operatorCost) || 0;
-      const repair = Number(eq.repairCost) || 0;
-      const mechanic = Number(eq.mechanicCost) || 0;
-      const transport = Number(eq.transportCost) || 0;
-      const total = fuel + operator + repair + mechanic + transport;
-
-      return {
-        id: `eq-${Date.now()}-${i}`,
-        equipmentName: eq.equipmentName.trim(),
-        operatingStatus: eq.operatingStatus || 'Active',
-        hoursUsed: Number(eq.hoursUsed) || 0,
-        fuelCost: fuel,
-        operatorCost: operator,
-        repairCost: repair,
-        mechanicCost: mechanic,
-        transportCost: transport,
-        totalExpense: total,
-        machineNotes: (eq.machineNotes || '').trim(),
-        date: todayStr
-      };
-    });
+    const newItems = validEntries.map((eq, i) => ({
+      id: `eq-${Date.now()}-${i}`,
+      equipmentName: eq.equipmentName.trim(),
+      machineNotes: (eq.machineNotes || '').trim(),
+      date: todayStr
+    }));
 
     const updated = [...newItems, ...customEquipment];
     setCustomEquipment(updated);
@@ -198,24 +152,9 @@ export const EquipmentReportPage = () => {
 
       if (Array.isArray(form.equipmentItems)) {
         form.equipmentItems.forEach((eq, idx) => {
-          const fuel = Number(eq.fuel_cost || eq.fuelCost || 0);
-          const operator = Number(eq.operator_cost || eq.operatorCost || 0);
-          const repair = Number(eq.repair_cost || eq.repairCost || 0);
-          const mechanic = Number(eq.mechanic_cost || eq.mechanicCost || 0);
-          const transport = Number(eq.transport_cost || eq.transportCost || 0);
-          const total = Number(eq.total_expense || eq.totalExpense || (fuel + operator + repair + mechanic + transport));
-
           list.push({
             id: `lae-eq-${form.id}-${idx}`,
             equipmentName: eq.equipment_name || eq.equipmentName || 'Heavy Plant Machine',
-            operatingStatus: eq.operating_status || eq.operatingStatus || eq.status || 'Active',
-            hoursUsed: Number(eq.hours_used || eq.hoursUsed || 8),
-            fuelCost: fuel,
-            operatorCost: operator,
-            repairCost: repair,
-            mechanicCost: mechanic,
-            transportCost: transport,
-            totalExpense: total,
             machineNotes: eq.machine_notes || eq.machineNotes || eq.remarks || '',
             date: form.date,
             formNumber: form.form_number
@@ -233,42 +172,9 @@ export const EquipmentReportPage = () => {
       const matchesSearch =
         eq.equipmentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (eq.machineNotes && eq.machineNotes.toLowerCase().includes(searchTerm.toLowerCase()));
-
-      const matchesStatus =
-        statusFilter === 'all' ||
-        eq.operatingStatus.toLowerCase() === statusFilter.toLowerCase();
-
-      return matchesSearch && matchesStatus;
+      return matchesSearch;
     });
-  }, [allEquipment, searchTerm, statusFilter]);
-
-  // Aggregate totals
-  const summary = useMemo(() => {
-    const totalCount = allEquipment.length;
-    const activeCount = allEquipment.filter((e) => e.operatingStatus.toLowerCase() === 'active').length;
-    const standbyCount = allEquipment.filter((e) => e.operatingStatus.toLowerCase() === 'standby').length;
-    const maintenanceCount = allEquipment.filter(
-      (e) => e.operatingStatus.toLowerCase() === 'maintenance' || e.operatingStatus.toLowerCase() === 'breakdown'
-    ).length;
-
-    const totalExpense = allEquipment.reduce((acc, e) => acc + (e.totalExpense || 0), 0);
-    const totalFuel = allEquipment.reduce((acc, e) => acc + (e.fuelCost || 0), 0);
-    const totalOperator = allEquipment.reduce((acc, e) => acc + (e.operatorCost || 0), 0);
-    const totalRepairs = allEquipment.reduce((acc, e) => acc + ((e.repairCost || 0) + (e.mechanicCost || 0)), 0);
-    const totalHours = allEquipment.reduce((acc, e) => acc + (e.hoursUsed || 0), 0);
-
-    return {
-      totalCount,
-      activeCount,
-      standbyCount,
-      maintenanceCount,
-      totalExpense,
-      totalFuel,
-      totalOperator,
-      totalRepairs,
-      totalHours
-    };
-  }, [allEquipment]);
+  }, [allEquipment, searchTerm]);
 
   return (
     <div className="space-y-6">
@@ -286,7 +192,7 @@ export const EquipmentReportPage = () => {
             <span>Equipment & Machinery Report</span>
           </h1>
           <p className="mt-1 text-xs text-slate-500">
-            Plant deployments, operating status, fuel consumption, and maintenance expenditures for{' '}
+            Plant deployments, site machinery inventory, and equipment tracking for{' '}
             <strong className="text-slate-800">{currentProject?.name || 'All Sites'}</strong>
           </p>
         </div>
@@ -301,114 +207,52 @@ export const EquipmentReportPage = () => {
       </div>
 
       {/* Top Level KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Deployed Fleet</span>
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Deployed Fleet</span>
             <Truck className="h-4 w-4 text-amber-500" />
           </div>
           <div className="mt-2 text-2xl font-extrabold text-slate-900 font-mono">
-            {summary.totalCount} Machines
+            {allEquipment.length} Machines
           </div>
           <p className="mt-1 text-[11px] text-slate-400">Total plant items on site</p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Operational</span>
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Documented Machines</span>
             <CheckCircle2 className="h-4 w-4 text-emerald-500" />
           </div>
           <div className="mt-2 text-2xl font-extrabold text-emerald-600 font-mono">
-            {summary.activeCount} Active
+            {allEquipment.filter((e) => e.machineNotes && e.machineNotes.trim()).length} Documented
           </div>
-          <p className="mt-1 text-[11px] text-slate-400">{summary.standbyCount} standby • {summary.maintenanceCount} in maintenance</p>
+          <p className="mt-1 text-[11px] text-slate-400">With operational & maintenance notes</p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Operating Hours</span>
-            <Clock className="h-4 w-4 text-indigo-500" />
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active Site</span>
+            <FileText className="h-4 w-4 text-indigo-500" />
           </div>
-          <div className="mt-2 text-2xl font-extrabold text-slate-900 font-mono">
-            {summary.totalHours.toFixed(1)} hrs
+          <div className="mt-2 text-base font-extrabold text-slate-900 truncate">
+            {currentProject?.name || 'All Sites Combined'}
           </div>
-          <p className="mt-1 text-[11px] text-slate-400">Total engine hours logged</p>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Plant Expense</span>
-            <DollarSign className="h-4 w-4 text-amber-500" />
-          </div>
-          <div className="mt-2 text-2xl font-extrabold text-amber-600 font-mono">
-            {formatKES(summary.totalExpense)}
-          </div>
-          <p className="mt-1 text-[11px] text-slate-400">Fuel, operators & repairs combined</p>
+          <p className="mt-1 text-[11px] text-slate-400">Machinery tracking ledger</p>
         </div>
       </div>
 
-      {/* Expense Sub-Breakdown Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
-          <div className="flex items-center gap-2 text-amber-800 text-xs font-bold uppercase tracking-wider">
-            <Fuel className="h-4 w-4 text-amber-600" />
-            <span>Fuel & Diesel Spend</span>
-          </div>
-          <div className="mt-2 text-xl font-extrabold text-amber-950 font-mono">
-            {formatKES(summary.totalFuel)}
-          </div>
-          <p className="mt-0.5 text-[11px] text-amber-700">Diesel supply for mixers, plant & generators</p>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-          <div className="flex items-center gap-2 text-slate-700 text-xs font-bold uppercase tracking-wider">
-            <Clock className="h-4 w-4 text-slate-500" />
-            <span>Operator Wages</span>
-          </div>
-          <div className="mt-2 text-xl font-extrabold text-slate-900 font-mono">
-            {formatKES(summary.totalOperator)}
-          </div>
-          <p className="mt-0.5 text-[11px] text-slate-500">Certified plant operators & drivers</p>
-        </div>
-
-        <div className="rounded-2xl border border-rose-200 bg-rose-50/60 p-4">
-          <div className="flex items-center gap-2 text-rose-800 text-xs font-bold uppercase tracking-wider">
-            <Wrench className="h-4 w-4 text-rose-600" />
-            <span>Maintenance & Spares</span>
-          </div>
-          <div className="mt-2 text-xl font-extrabold text-rose-950 font-mono">
-            {formatKES(summary.totalRepairs)}
-          </div>
-          <p className="mt-0.5 text-[11px] text-rose-700">Routine servicing, mechanic & replacement parts</p>
-        </div>
-      </div>
-
-      {/* Filter / Search Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+      {/* Search Bar */}
+      <div className="flex items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+        <div className="relative flex-1">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Search equipment by name, notes..."
+            placeholder="Search equipment by name, remarks, or notes..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-4 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-amber-500 focus:bg-white focus:outline-hidden"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-amber-500 focus:bg-white focus:outline-hidden"
           />
-        </div>
-
-        <div className="flex items-center rounded-xl bg-slate-100 p-1 text-xs">
-          {['all', 'active', 'standby', 'maintenance'].map((s) => (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              className={`rounded-lg px-2.5 py-1 text-xs font-semibold capitalize transition-all cursor-pointer ${statusFilter === s
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-900'
-                }`}
-            >
-              {s}
-            </button>
-          ))}
         </div>
       </div>
 
@@ -434,55 +278,42 @@ export const EquipmentReportPage = () => {
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-50 text-slate-500 border-b border-slate-200 font-semibold uppercase tracking-wider text-[10px]">
                 <tr>
-                  <th className="py-3 px-4">Equipment Machine</th>
-                  <th className="py-3 px-4">Operating Status</th>
-                  <th className="py-3 px-4 text-center">Hours</th>
-                  <th className="py-3 px-4 text-right">Fuel Cost</th>
-                  <th className="py-3 px-4 text-right">Operator Cost</th>
-                  <th className="py-3 px-4 text-right">Maint. / Spares</th>
-                  <th className="py-3 px-4 text-right">Total Expense</th>
-                  <th className="py-3 px-4">Operating Notes</th>
+                  <th className="py-3 px-4 w-12 text-center">#</th>
+                  <th className="py-3 px-4">Equipment / Machinery</th>
+                  <th className="py-3 px-4 w-32">Date Logged</th>
+                  <th className="py-3 px-4">Operating Notes & Remarks</th>
+                  <th className="py-3 px-4 w-20 text-center">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredEquipment.map((eq) => (
+                {filteredEquipment.map((eq, idx) => (
                   <tr key={eq.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3.5 px-4 font-bold text-slate-900 flex items-center gap-2">
-                      <Truck className="h-4 w-4 text-amber-500 shrink-0" />
-                      <div>
-                        <div>{eq.equipmentName}</div>
-                        {eq.date && <div className="text-[10px] text-slate-400 font-mono mt-0.5">{eq.date}</div>}
+                    <td className="py-3.5 px-4 text-center text-slate-400 font-mono text-[11px]">
+                      {idx + 1}
+                    </td>
+                    <td className="py-3.5 px-4 font-bold text-slate-900">
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-amber-600 shrink-0">
+                          <Truck className="h-3.5 w-3.5" />
+                        </div>
+                        <span className="text-xs font-bold text-slate-900">{eq.equipmentName}</span>
                       </div>
                     </td>
-                    <td className="py-3.5 px-4">
-                      <span
-                        className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${eq.operatingStatus.toLowerCase() === 'active'
-                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                            : eq.operatingStatus.toLowerCase() === 'standby'
-                              ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                              : 'bg-rose-100 text-rose-800 border border-rose-200'
-                          }`}
+                    <td className="py-3.5 px-4 text-slate-500 font-mono text-[11px]">
+                      {eq.date || '—'}
+                    </td>
+                    <td className="py-3.5 px-4 text-slate-600 leading-relaxed">
+                      {eq.machineNotes || <span className="text-slate-400 italic">No notes recorded</span>}
+                    </td>
+                    <td className="py-3.5 px-4 text-center">
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteEquipment(eq.id)}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                        title="Remove Equipment Record"
                       >
-                        {eq.operatingStatus}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-center font-mono font-bold text-slate-800">
-                      {eq.hoursUsed}h
-                    </td>
-                    <td className="py-3.5 px-4 text-right font-mono text-slate-700">
-                      {formatKES(eq.fuelCost)}
-                    </td>
-                    <td className="py-3.5 px-4 text-right font-mono text-slate-700">
-                      {formatKES(eq.operatorCost)}
-                    </td>
-                    <td className="py-3.5 px-4 text-right font-mono text-slate-700">
-                      {formatKES((eq.repairCost || 0) + (eq.mechanicCost || 0))}
-                    </td>
-                    <td className="py-3.5 px-4 text-right font-mono font-extrabold text-amber-700">
-                      {formatKES(eq.totalExpense)}
-                    </td>
-                    <td className="py-3.5 px-4 text-slate-600 max-w-xs truncate">
-                      {eq.machineNotes || '—'}
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -558,110 +389,20 @@ export const EquipmentReportPage = () => {
                       placeholder="e.g. Concrete Mixer 400L, CAT 320 Excavator, Generator 50kVA"
                       value={entry.equipmentName}
                       onChange={(e) => handleUpdateEquipmentEntry(idx, 'equipmentName', e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
                     />
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Operating Status
-                      </label>
-                      <select
-                        value={entry.operatingStatus}
-                        onChange={(e) => handleUpdateEquipmentEntry(idx, 'operatingStatus', e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
-                      >
-                        <option value="Active">Active / Operational</option>
-                        <option value="Standby">Standby / Idle</option>
-                        <option value="Maintenance">Maintenance / Breakdown</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Hours Used Today
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.5"
-                        placeholder="e.g. 8"
-                        value={entry.hoursUsed}
-                        onChange={(e) => handleUpdateEquipmentEntry(idx, 'hoursUsed', e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono text-slate-900 focus:border-amber-500 focus:outline-hidden"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                        Fuel (KES)
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        placeholder="0"
-                        value={entry.fuelCost}
-                        onChange={(e) => handleUpdateEquipmentEntry(idx, 'fuelCost', e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-mono text-slate-900 focus:border-amber-500 focus:outline-hidden"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                        Operator (KES)
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        placeholder="0"
-                        value={entry.operatorCost}
-                        onChange={(e) => handleUpdateEquipmentEntry(idx, 'operatorCost', e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-mono text-slate-900 focus:border-amber-500 focus:outline-hidden"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                        Repairs / Spares
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        placeholder="0"
-                        value={entry.repairCost}
-                        onChange={(e) => handleUpdateEquipmentEntry(idx, 'repairCost', e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-mono text-slate-900 focus:border-amber-500 focus:outline-hidden"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                        Transport (KES)
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        placeholder="0"
-                        value={entry.transportCost}
-                        onChange={(e) => handleUpdateEquipmentEntry(idx, 'transportCost', e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-mono text-slate-900 focus:border-amber-500 focus:outline-hidden"
-                      />
-                    </div>
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Machine Notes & Observations
+                      Machine Notes & Remarks
                     </label>
                     <textarea
                       rows="2"
-                      placeholder="Note oil checks, hydraulic leaks, spares replaced, or work done..."
+                      placeholder="Add notes, operator details, work performed, or site deployment remarks..."
                       value={entry.machineNotes}
                       onChange={(e) => handleUpdateEquipmentEntry(idx, 'machineNotes', e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
                     />
                   </div>
                 </div>

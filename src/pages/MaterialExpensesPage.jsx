@@ -356,7 +356,7 @@ export const MaterialExpensesPage = () => {
         supplier: 'ReadyMix Kenya Ltd',
         quantity: '25 m³',
         amount: 320000,
-        category: 'Cement',
+        category: 'Casting Materials',
         invoiceRef: 'RM-221',
         status: 'Verified'
       },
@@ -384,7 +384,7 @@ export const MaterialExpensesPage = () => {
         supplier: 'Metro Hardware Mombasa',
         quantity: '1 Lot',
         amount: 95000,
-        category: 'Plumbing',
+        category: 'Plumbing Materials',
         invoiceRef: 'MTR-881',
         status: 'Verified'
       },
