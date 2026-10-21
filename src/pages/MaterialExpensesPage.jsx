@@ -47,7 +47,8 @@ export const MaterialExpensesPage = () => {
     projects,
     currentProject,
     selectedProjectId,
-    addToast
+    addToast,
+    isStoreKeeper
   } = useApp();
 
   // -------------------------------------------------------------
@@ -564,6 +565,7 @@ export const MaterialExpensesPage = () => {
   // 7. HANDLERS: FUNDS CRUD
   // -------------------------------------------------------------
   const handleOpenAddFunds = () => {
+    if (isStoreKeeper) return;
     const targetPId =
       selectedProjectId && selectedProjectId !== 'all'
         ? selectedProjectId
@@ -605,6 +607,7 @@ export const MaterialExpensesPage = () => {
   };
 
   const handleOpenEditFund = (fund) => {
+    if (isStoreKeeper) return;
     setEditingFund(fund);
     setFundForm({
       projectId: fund.projectId,
@@ -646,7 +649,7 @@ export const MaterialExpensesPage = () => {
   };
 
   const handleDeleteFund = () => {
-    if (!deletingFund) return;
+    if (isStoreKeeper || !deletingFund) return;
     setFundsList((prev) => prev.filter((f) => f.id !== deletingFund.id));
     addToast(`Removed fund record: ${deletingFund.reference}`, 'info');
     setDeletingFund(null);
@@ -887,13 +890,15 @@ export const MaterialExpensesPage = () => {
             <h2 className="text-base font-bold text-slate-900">Funds Received</h2>
           </div>
 
-          <button
-            onClick={handleOpenAddFunds}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Add Funds</span>
-          </button>
+          {!isStoreKeeper && (
+            <button
+              onClick={handleOpenAddFunds}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Add Funds</span>
+            </button>
+          )}
         </div>
 
         {/* Table Container */}
@@ -906,14 +911,16 @@ export const MaterialExpensesPage = () => {
                   <th className="py-3 px-4">Date Received</th>
                   <th className="py-3 px-4">Description</th>
                   <th className="py-3 px-4">Amount Received</th>
-                  <th className="py-3 px-4 text-center">Actions</th>
+                  {!isStoreKeeper && <th className="py-3 px-4 text-center">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {siteFunds.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-slate-400">
-                      No funds recorded for this site workspace. Click &ldquo;Add Funds&rdquo; to record deposit.
+                    <td colSpan={isStoreKeeper ? 4 : 5} className="py-8 text-center text-slate-400">
+                      {isStoreKeeper
+                        ? 'No funds recorded for this site workspace.'
+                        : 'No funds recorded for this site workspace. Click \u201cAdd Funds\u201d to record deposit.'}
                     </td>
                   </tr>
                 ) : (
@@ -938,24 +945,26 @@ export const MaterialExpensesPage = () => {
                       <td className="py-3.5 px-4 font-extrabold text-slate-900 font-mono">
                         {formatKSh(fund.amount)}
                       </td>
-                      <td className="py-3.5 px-4 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <button
-                            onClick={() => handleOpenEditFund(fund)}
-                            title="Edit Fund"
-                            className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition-colors cursor-pointer"
-                          >
-                            <Edit2 className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={() => setDeletingFund(fund)}
-                            title="Delete Fund"
-                            className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-colors cursor-pointer"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </td>
+                      {!isStoreKeeper && (
+                        <td className="py-3.5 px-4 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() => handleOpenEditFund(fund)}
+                              title="Edit Fund"
+                              className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition-colors cursor-pointer"
+                            >
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setDeletingFund(fund)}
+                              title="Delete Fund"
+                              className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-colors cursor-pointer"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))
                 )}
@@ -971,7 +980,7 @@ export const MaterialExpensesPage = () => {
                     <td className="py-3.5 px-4 font-mono font-extrabold text-slate-900 text-xs">
                       {formatKSh(metrics.totalFundsReceived)}
                     </td>
-                    <td className="py-3.5 px-4"></td>
+                    {!isStoreKeeper && <td className="py-3.5 px-4"></td>}
                   </tr>
                 )}
               </tbody>
@@ -1253,7 +1262,7 @@ export const MaterialExpensesPage = () => {
       {/* ------------------------------------------------------------- */}
       {/* MODAL 1: ADD FUNDS                                            */}
       {/* ------------------------------------------------------------- */}
-      {isAddFundsOpen && (
+      {isAddFundsOpen && !isStoreKeeper && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-150">
           <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
@@ -1409,7 +1418,7 @@ export const MaterialExpensesPage = () => {
       {/* ------------------------------------------------------------- */}
       {/* MODAL 2: EDIT FUNDS                                           */}
       {/* ------------------------------------------------------------- */}
-      {editingFund && (
+      {editingFund && !isStoreKeeper && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-150">
           <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
@@ -1556,7 +1565,7 @@ export const MaterialExpensesPage = () => {
       {/* ------------------------------------------------------------- */}
       {/* MODAL 3: DELETE FUNDS CONFIRMATION                            */}
       {/* ------------------------------------------------------------- */}
-      {deletingFund && (
+      {deletingFund && !isStoreKeeper && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-150">
           <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl border border-slate-200 p-6 text-center">
             <div className="mx-auto w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 mb-3">
