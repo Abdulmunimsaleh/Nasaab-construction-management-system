@@ -186,12 +186,14 @@ async function provision() {
       { projectId: 'prj-majestic-palms', userId: 'usr-brian-koome', role: 'Storekeeper' },
 
       // MMA
+      { projectId: 'prj-mma', userId: 'usr-mohamed-amoody', role: 'Partner' },
       { projectId: 'prj-mma', userId: 'usr-abdulfatah-sabir', role: 'Partner' },
       { projectId: 'prj-mma', userId: 'usr-fatma-jumaan', role: 'Partner' },
       { projectId: 'prj-mma', userId: 'usr-abdikadir-osman', role: 'Storekeeper' },
       { projectId: 'prj-mma', userId: 'usr-mohammad-hassan', role: 'Foreman' },
 
       // SeaCrest
+      { projectId: 'prj-seacrest', userId: 'usr-mohamed-amoody', role: 'Partner' },
       { projectId: 'prj-seacrest', userId: 'usr-abdulfatah-sabir', role: 'Partner' }, // Abdulfatah is assigned to Majestic Palms, MMA, and SeaCrest!
       { projectId: 'prj-seacrest', userId: 'usr-mohamed-hussein', role: 'Partner' },
       { projectId: 'prj-seacrest', userId: 'usr-abdi-mahad', role: 'Partner' },
