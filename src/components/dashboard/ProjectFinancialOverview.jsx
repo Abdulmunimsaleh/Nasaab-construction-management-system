@@ -47,7 +47,9 @@ export const ProjectFinancialOverview = () => {
     currentProject,
     laeForms,
     addToast,
-    triggerCelebration
+    triggerCelebration,
+    isForeman,
+    isStoreKeeper
   } = useApp();
 
   // Active workspace label
@@ -475,13 +477,15 @@ export const ProjectFinancialOverview = () => {
               <strong className="text-slate-800">KSh (Kenyan Shillings)</strong>
             </div>
 
-            <button
-              onClick={handleOpenAddFundsModal}
-              className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-amber-500/20 transition-all cursor-pointer"
-            >
-              <Plus className="h-4 w-4 stroke-[2.5]" />
-              <span>+ + Add Funds</span>
-            </button>
+            {!isForeman && !isStoreKeeper && (
+              <button
+                onClick={handleOpenAddFundsModal}
+                className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-amber-500/20 transition-all cursor-pointer"
+              >
+                <Plus className="h-4 w-4 stroke-[2.5]" />
+                <span>+ + Add Funds</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -609,13 +613,15 @@ export const ProjectFinancialOverview = () => {
             </p>
           </div>
 
-          <button
-            onClick={handleOpenAddFundsModal}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-800 transition-colors cursor-pointer shadow-2xs self-start sm:self-auto"
-          >
-            <Plus className="h-3.5 w-3.5 text-amber-600 stroke-[2.5]" />
-            <span>+ Record New Deposit</span>
-          </button>
+          {!isForeman && !isStoreKeeper && (
+            <button
+              onClick={handleOpenAddFundsModal}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-800 transition-colors cursor-pointer shadow-2xs self-start sm:self-auto"
+            >
+              <Plus className="h-3.5 w-3.5 text-amber-600 stroke-[2.5]" />
+              <span>+ Record New Deposit</span>
+            </button>
+          )}
         </div>
 
         {/* Deposits Table */}
