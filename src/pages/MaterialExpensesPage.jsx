@@ -169,7 +169,14 @@ export const MaterialExpensesPage = () => {
       const saved = localStorage.getItem(EXPENSES_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((e) => {
+            let cat = e.category;
+            if (cat === 'Cement') cat = 'Casting Materials';
+            if (cat === 'Sand & Aggregates') cat = 'Masoary & Plasta Materials';
+            return cat !== e.category ? { ...e, category: cat } : e;
+          });
+        }
       }
     } catch (e) {
       console.error('Error loading material expenses storage:', e);
@@ -189,7 +196,7 @@ export const MaterialExpensesPage = () => {
         supplier: 'Mombasa Cement Ltd',
         quantity: '200 Bags',
         amount: 110000,
-        category: 'Cement',
+        category: 'Casting Materials',
         invoiceRef: 'INV-MCL-8801',
         status: 'Verified'
       },
@@ -217,7 +224,7 @@ export const MaterialExpensesPage = () => {
         supplier: 'Mombasa Sand & Gravel',
         quantity: '50 Tons',
         amount: 150000,
-        category: 'Sand & Aggregates',
+        category: 'Masoary & Plasta Materials',
         invoiceRef: 'MSG-3391',
         status: 'Verified'
       },
@@ -231,7 +238,7 @@ export const MaterialExpensesPage = () => {
         supplier: 'KPA Supplies',
         quantity: '30 Tons',
         amount: 135000,
-        category: 'Sand & Aggregates',
+        category: 'Masoary & Plasta Materials',
         invoiceRef: 'KPA-8820',
         status: 'Verified'
       },
@@ -289,7 +296,7 @@ export const MaterialExpensesPage = () => {
         supplier: 'Bamburi Cement Limited',
         quantity: '150 Bags',
         amount: 132000,
-        category: 'Cement',
+        category: 'Casting Materials',
         invoiceRef: 'BAM-1049',
         status: 'Verified'
       },
@@ -331,7 +338,7 @@ export const MaterialExpensesPage = () => {
         supplier: 'Mombasa Sand & Gravel',
         quantity: '35 Tons',
         amount: 120000,
-        category: 'Sand & Aggregates',
+        category: 'Masoary & Plasta Materials',
         invoiceRef: 'MSG-3420',
         status: 'Verified'
       },
@@ -537,7 +544,7 @@ export const MaterialExpensesPage = () => {
     supplier: '',
     quantity: '',
     amount: '',
-    category: 'Cement',
+    category: 'Casting Materials',
     invoiceRef: ''
   });
 
@@ -664,7 +671,7 @@ export const MaterialExpensesPage = () => {
       supplier: '',
       quantity: '',
       amount: '',
-      category: 'Cement',
+      category: 'Casting Materials',
       invoiceRef: `INV-${Math.floor(1000 + Math.random() * 9000)}`
     });
     setIsAddExpenseOpen(true);
@@ -699,6 +706,10 @@ export const MaterialExpensesPage = () => {
   };
 
   const handleOpenEditExpense = (expense) => {
+    let cat = expense.category;
+    if (cat === 'Cement') cat = 'Casting Materials';
+    if (cat === 'Sand & Aggregates') cat = 'Masoary & Plasta Materials';
+
     setEditingExpense(expense);
     setExpenseForm({
       projectId: expense.projectId,
@@ -708,7 +719,7 @@ export const MaterialExpensesPage = () => {
       supplier: expense.supplier,
       quantity: expense.quantity,
       amount: expense.amount,
-      category: expense.category,
+      category: cat || 'Casting Materials',
       invoiceRef: expense.invoiceRef
     });
   };
@@ -1595,36 +1606,21 @@ export const MaterialExpensesPage = () => {
             </div>
 
             <form onSubmit={handleSaveAddExpense} className="p-6 space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Target Site
-                  </label>
-                  <select
-                    value={expenseForm.projectId}
-                    onChange={(e) => setExpenseForm({ ...expenseForm, projectId: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:border-amber-500 focus:outline-hidden"
-                  >
-                    {projects.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Expense ID
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={expenseForm.expenseId}
-                    onChange={(e) => setExpenseForm({ ...expenseForm, expenseId: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-mono font-bold text-slate-800 focus:border-amber-500 focus:outline-hidden"
-                  />
-                </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Target Site
+                </label>
+                <select
+                  value={expenseForm.projectId}
+                  onChange={(e) => setExpenseForm({ ...expenseForm, projectId: e.target.value })}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:border-amber-500 focus:outline-hidden"
+                >
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -1650,10 +1646,11 @@ export const MaterialExpensesPage = () => {
                     onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value })}
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:border-amber-500 focus:outline-hidden"
                   >
-                    <option value="Cement">Cement</option>
+                    <option value="Casting Materials">Casting Materials</option>
                     <option value="Reinforcement Steel">Reinforcement Steel</option>
-                    <option value="Sand & Aggregates">Sand & Aggregates</option>
+                    <option value="Masoary & Plasta Materials">Masoary & Plasta Materials</option>
                     <option value="Building Blocks">Building Blocks</option>
+                    <option value="Tiles Materials">Tiles Materials</option>
                     <option value="Plumbing">Plumbing</option>
                     <option value="Electrical">Electrical</option>
                     <option value="Formwork & Timber">Formwork & Timber</option>
@@ -1756,7 +1753,7 @@ export const MaterialExpensesPage = () => {
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-slate-900">Edit Expense Transaction</h3>
-                  <p className="text-[11px] text-slate-500">Update line item details ({editingExpense.expenseId})</p>
+                  <p className="text-[11px] text-slate-500">Update line item details</p>
                 </div>
               </div>
               <button
@@ -1768,36 +1765,21 @@ export const MaterialExpensesPage = () => {
             </div>
 
             <form onSubmit={handleSaveEditExpense} className="p-6 space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Target Site
-                  </label>
-                  <select
-                    value={expenseForm.projectId}
-                    onChange={(e) => setExpenseForm({ ...expenseForm, projectId: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:border-amber-500 focus:outline-hidden"
-                  >
-                    {projects.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Expense ID
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={expenseForm.expenseId}
-                    onChange={(e) => setExpenseForm({ ...expenseForm, expenseId: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-mono font-bold text-slate-800 focus:border-amber-500 focus:outline-hidden"
-                  />
-                </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Target Site
+                </label>
+                <select
+                  value={expenseForm.projectId}
+                  onChange={(e) => setExpenseForm({ ...expenseForm, projectId: e.target.value })}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:border-amber-500 focus:outline-hidden"
+                >
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -1823,10 +1805,11 @@ export const MaterialExpensesPage = () => {
                     onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value })}
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:border-amber-500 focus:outline-hidden"
                   >
-                    <option value="Cement">Cement</option>
+                    <option value="Casting Materials">Casting Materials</option>
                     <option value="Reinforcement Steel">Reinforcement Steel</option>
-                    <option value="Sand & Aggregates">Sand & Aggregates</option>
+                    <option value="Masoary & Plasta Materials">Masoary & Plasta Materials</option>
                     <option value="Building Blocks">Building Blocks</option>
+                    <option value="Tiles Materials">Tiles Materials</option>
                     <option value="Plumbing">Plumbing Materials</option>
                     <option value="Electrical">Electrical Materials</option>
                     <option value="Formwork & Timber">Formwork Materials & Timber</option>

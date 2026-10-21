@@ -18,6 +18,22 @@ import {
   ArrowRightLeft
 } from 'lucide-react';
 
+export const TRADE_CATEGORIES = [
+  'Blocks & Plasta',
+  'Casting',
+  'Deshuttering',
+  'Electrical',
+  'Helpers',
+  'Operator/Welder/Mechanic',
+  'Painting',
+  'Plumbing',
+  'Scalfolding',
+  'Steelwork',
+  'Shuttering',
+  'Supervisor',
+  'Tiles'
+];
+
 export const NewLaeFormModal = ({
   isOpen,
   onClose,
@@ -42,7 +58,7 @@ export const NewLaeFormModal = ({
   // Section 1: Labour Trades
   const [labourTrades, setLabourTrades] = useState([
     {
-      trade: 'Formwork Carpenters',
+      trade: 'Blocks & Plasta',
       foremanCount: 1,
       skilledCount: 4,
       unskilledCount: 2,
@@ -111,7 +127,7 @@ export const NewLaeFormModal = ({
         })));
       } else {
         setLabourTrades([{
-          trade: 'Formwork Carpenters',
+          trade: 'Blocks & Plasta',
           foremanCount: 1,
           skilledCount: 4,
           unskilledCount: 2,
@@ -155,7 +171,7 @@ export const NewLaeFormModal = ({
       setSiteVisitors('');
       setSitePhotos([]);
       setLabourTrades([{
-        trade: 'Formwork Carpenters',
+        trade: 'Blocks & Plasta',
         foremanCount: 1,
         skilledCount: 4,
         unskilledCount: 2,
@@ -539,13 +555,21 @@ export const NewLaeFormModal = ({
                   >
                     {/* Trade Category Header & Delete */}
                     <div className="flex items-center justify-between gap-3">
-                      <input
-                        type="text"
-                        placeholder="e.g. Formwork Carpenters, Masonry, Steel Fixing..."
-                        value={tradeItem.trade}
+                      <select
+                        value={tradeItem.trade || ''}
                         onChange={(e) => handleUpdateTrade(idx, 'trade', e.target.value)}
-                        className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3.5 py-1.5 text-xs font-bold text-slate-800 placeholder:text-slate-400 focus:border-amber-500 focus:bg-white focus:outline-none"
-                      />
+                        className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs font-bold text-slate-800 focus:border-amber-500 focus:bg-white focus:outline-none cursor-pointer"
+                      >
+                        <option value="" disabled>-- Select Trade Category --</option>
+                        {TRADE_CATEGORIES.map((cat) => (
+                          <option key={cat} value={cat}>
+                            {cat}
+                          </option>
+                        ))}
+                        {tradeItem.trade && !TRADE_CATEGORIES.includes(tradeItem.trade) && (
+                          <option value={tradeItem.trade}>{tradeItem.trade}</option>
+                        )}
+                      </select>
                       <button
                         type="button"
                         onClick={() => handleRemoveTrade(idx)}
