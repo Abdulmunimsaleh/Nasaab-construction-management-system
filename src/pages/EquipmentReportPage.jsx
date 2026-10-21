@@ -526,17 +526,6 @@ export const EquipmentReportPage = () => {
         </div>
 
         <div className="flex items-center gap-2.5 self-start sm:self-auto">
-          {selectedProjectId !== 'all' && scopedCustomEquipment.length > 0 && (
-            <button
-              onClick={handleClearSiteEquipment}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100/80 px-3 py-2 text-xs font-semibold text-rose-700 transition-colors cursor-pointer shadow-2xs"
-              title={`Clear custom equipment for ${currentProject?.name || 'this site'}`}
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-              <span>Reset Site Fleet</span>
-            </button>
-          )}
-
           <button
             onClick={handleOpenAddModal}
             className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-amber-500/20 transition-all cursor-pointer"
