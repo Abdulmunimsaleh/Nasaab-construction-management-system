@@ -409,25 +409,33 @@ export const SubcontractPieceWorkView = () => {
   // -------------------------------------------------------------
   const [isRecordPaymentOpen, setIsRecordPaymentOpen] = useState(false);
   const [newPayment, setNewPayment] = useState({
+    teamName: '',
     agreementId: '',
-    weekPeriod: '',
+    weekStart: getTodayStr(),
+    weekEnd: (() => { const d = new Date(); d.setDate(d.getDate() + 7); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })(),
     paidThisWeek: '',
-    paymentDate: getTodayStr(),
     notes: ''
   });
 
+  // Agreements filtered by selected team in the modal
+  const modalFilteredAgreements = useMemo(() => {
+    if (!newPayment.teamName) return siteAgreements;
+    return siteAgreements.filter((a) => a.teamName === newPayment.teamName);
+  }, [siteAgreements, newPayment.teamName]);
+
   const handleOpenRecordPayment = () => {
-    const firstActiveAgreement = siteAgreements.find((a) => a.agreedAmount > a.totalPaid) || siteAgreements[0];
-    const nextPayNum = payments.length + 1;
+    const firstTeam = siteAgreements.length > 0 ? siteAgreements[0].teamName : '';
+    const firstAgreement = siteAgreements.find((a) => a.teamName === firstTeam && a.agreedAmount > a.totalPaid) || siteAgreements[0];
     const now = new Date();
-    const periodStr = `${now.getDate()}th ${now.toLocaleString('default', { month: 'short' })} to ${now.getDate() + 7}th ${now.toLocaleString('default', { month: 'short' })} ${now.getFullYear()}`;
+    const weekEnd = new Date(now);
+    weekEnd.setDate(weekEnd.getDate() + 7);
 
     setNewPayment({
-      agreementId: firstActiveAgreement ? firstActiveAgreement.contractId : '',
-      paymentRef: `PAY-WK${Math.floor(10 + Math.random() * 40)}-${String(nextPayNum).padStart(2, '0')}`,
-      weekPeriod: periodStr,
+      teamName: firstTeam,
+      agreementId: firstAgreement ? firstAgreement.contractId : '',
+      weekStart: getTodayStr(),
+      weekEnd: `${weekEnd.getFullYear()}-${String(weekEnd.getMonth() + 1).padStart(2, '0')}-${String(weekEnd.getDate()).padStart(2, '0')}`,
       paidThisWeek: '',
-      paymentDate: getTodayStr(),
       notes: ''
     });
     setIsRecordPaymentOpen(true);
@@ -470,21 +478,34 @@ export const SubcontractPieceWorkView = () => {
       )
     );
 
-    // 2. Add Payment Record
+    // 2. Build week period string from date range
+    const formatPeriodDate = (dateStr) => {
+      if (!dateStr) return '';
+      const d = new Date(dateStr + 'T00:00:00');
+      return `${d.getDate()}${['th', 'st', 'nd', 'rd'][(d.getDate() % 100 > 10 && d.getDate() % 100 < 14) ? 0 : ([1, 2, 3].indexOf(d.getDate() % 10) >= 0 ? (d.getDate() % 10) : 0)] || 'th'} ${d.toLocaleString('default', { month: 'short' })} ${d.getFullYear()}`;
+    };
+    const weekPeriodLabel = (newPayment.weekStart && newPayment.weekEnd)
+      ? `${formatPeriodDate(newPayment.weekStart)} to ${formatPeriodDate(newPayment.weekEnd)}`
+      : 'Weekly Disbursement';
+
+    const nextPayNum = payments.length + 1;
+    const autoRef = `PAY-WK${Math.floor(10 + Math.random() * 40)}-${String(nextPayNum).padStart(2, '0')}`;
+
+    // 3. Add Payment Record
     const payItem = {
       id: `pay-${Date.now()}`,
-      paymentRef: newPayment.paymentRef || `PAY-${Date.now()}`,
+      paymentRef: autoRef,
       agreementId: targetAgreement.contractId,
       projectId: targetAgreement.projectId,
       projectName: targetAgreement.projectName,
       teamName: targetAgreement.teamName,
       floor: targetAgreement.floor,
-      weekPeriod: newPayment.weekPeriod || 'Weekly Disbursement',
+      weekPeriod: weekPeriodLabel,
       contractAmount: targetAgreement.agreedAmount,
       paidThisWeek: amt,
       cumulativePaid: newCumulative,
       remainingBalance: newRemaining,
-      date: newPayment.paymentDate || getTodayStr()
+      date: newPayment.weekEnd || getTodayStr()
     };
 
     setPayments((prev) => [payItem, ...prev]);
@@ -1010,18 +1031,18 @@ export const SubcontractPieceWorkView = () => {
                         <td className="py-3.5 px-4">
                           <span
                             className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${a.status === 'Fully Paid'
-                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                                : a.status === 'Partially Paid'
-                                  ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                                  : 'bg-blue-100 text-blue-800 border border-blue-200'
+                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                              : a.status === 'Partially Paid'
+                                ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                                : 'bg-blue-100 text-blue-800 border border-blue-200'
                               }`}
                           >
                             <span
                               className={`h-1.5 w-1.5 rounded-full ${a.status === 'Fully Paid'
-                                  ? 'bg-emerald-600'
-                                  : a.status === 'Partially Paid'
-                                    ? 'bg-amber-600'
-                                    : 'bg-blue-600'
+                                ? 'bg-emerald-600'
+                                : a.status === 'Partially Paid'
+                                  ? 'bg-amber-600'
+                                  : 'bg-blue-600'
                                 }`}
                             ></span>
                             <span>{a.status}</span>
@@ -1244,119 +1265,170 @@ export const SubcontractPieceWorkView = () => {
       </div>
 
       {/* ------------------------------------------------------------- */}
-      {/* MODAL: RECORD WEEKLY PAYMENT                                  */}
+      {/* MODAL: RECORD WEEKLY SUBCONTRACT PAYMENT                       */}
       {/* ------------------------------------------------------------- */}
       {isRecordPaymentOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600">
-                  <Banknote className="h-4 w-4" />
+          <div className="w-full max-w-xl rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 bg-slate-900">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                  <Banknote className="h-5 w-5 text-amber-400" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900">Record Weekly Disbursement</h3>
-                  <p className="text-[11px] text-slate-500">Apply progress payout to floor agreement</p>
+                  <h3 className="text-sm font-bold text-white">Record Weekly Subcontract Payment</h3>
+                  <p className="text-[11px] text-slate-400">Allocate payment to the specific team & floor contract</p>
                 </div>
               </div>
               <button
                 onClick={() => setIsRecordPaymentOpen(false)}
-                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors cursor-pointer"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveWeeklyPayment} className="p-6 space-y-4 text-xs">
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Select Agreement (Contract) <span className="text-rose-500">*</span>
-                </label>
-                <select
-                  required
-                  value={newPayment.agreementId}
-                  onChange={(e) => setNewPayment({ ...newPayment, agreementId: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:border-amber-500 focus:outline-hidden"
-                >
-                  <option value="">Select agreement...</option>
-                  {siteAgreements.map((a) => (
-                    <option key={a.id} value={a.contractId}>
-                      {a.contractId} — {a.teamName} ({a.floor}) • Remaining: {formatKSh(a.agreedAmount - a.totalPaid)}
-                    </option>
-                  ))}
-                </select>
+            <form onSubmit={handleSaveWeeklyPayment} className="p-6 space-y-5 text-xs">
+              {/* Info Banner */}
+              <div className="flex items-start gap-2.5 rounded-xl bg-amber-50 border border-amber-200/80 px-4 py-3">
+                <div className="w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center shrink-0 mt-0.5">
+                  <span className="text-white text-[10px] font-black">!</span>
+                </div>
+                <p className="text-[11px] text-amber-900 leading-relaxed">
+                  <strong>Strict Floor Allocation:</strong> Payments are bound to the specific contract ID. Balances and calculations are isolated per floor agreement.
+                </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* Row 1: Team + Floor/Contract */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Payment Reference
+                  <label className="block font-semibold text-slate-700 mb-1.5">
+                    Select Subcontract Team <span className="text-rose-500">*</span>
                   </label>
-                  <input
-                    type="text"
+                  <select
                     required
-                    value={newPayment.paymentRef}
-                    onChange={(e) => setNewPayment({ ...newPayment, paymentRef: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-mono font-bold text-slate-800 focus:border-amber-500 focus:outline-hidden"
-                  />
+                    value={newPayment.teamName}
+                    onChange={(e) => {
+                      const team = e.target.value;
+                      const firstMatch = siteAgreements.find((a) => a.teamName === team && a.agreedAmount > a.totalPaid)
+                        || siteAgreements.find((a) => a.teamName === team);
+                      setNewPayment({
+                        ...newPayment,
+                        teamName: team,
+                        agreementId: firstMatch ? firstMatch.contractId : ''
+                      });
+                    }}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-medium text-slate-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20 focus:outline-hidden cursor-pointer"
+                  >
+                    <option value="">Select team...</option>
+                    {SUBCONTRACT_TEAMS.map((team) => (
+                      <option key={team} value={team}>{team}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Payment Date <span className="text-rose-500">*</span>
+                  <label className="block font-semibold text-slate-700 mb-1.5">
+                    Select Floor / Contract <span className="text-rose-500">*</span>
                   </label>
-                  <input
-                    type="date"
+                  <select
                     required
-                    value={newPayment.paymentDate}
-                    onChange={(e) => setNewPayment({ ...newPayment, paymentDate: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-800 focus:border-amber-500 focus:outline-hidden"
-                  />
+                    value={newPayment.agreementId}
+                    onChange={(e) => setNewPayment({ ...newPayment, agreementId: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-medium text-slate-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20 focus:outline-hidden cursor-pointer"
+                  >
+                    <option value="">Select floor contract...</option>
+                    {modalFilteredAgreements.map((a) => (
+                      <option key={a.id} value={a.contractId}>
+                        {a.floor} ({a.contractId}) – Bal: {formatKSh(Math.max(0, a.agreedAmount - a.totalPaid))}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
+              {/* Row 2: Week Period (date range) + Amount */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1.5">
+                    Week Period <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <input
+                        type="date"
+                        required
+                        value={newPayment.weekStart}
+                        onChange={(e) => setNewPayment({ ...newPayment, weekStart: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20 focus:outline-hidden"
+                      />
+                      <div className="text-[10px] text-slate-400 mt-0.5 pl-1">From (Start)</div>
+                    </div>
+                    <div className="flex-1">
+                      <input
+                        type="date"
+                        required
+                        value={newPayment.weekEnd}
+                        onChange={(e) => setNewPayment({ ...newPayment, weekEnd: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20 focus:outline-hidden"
+                      />
+                      <div className="text-[10px] text-slate-400 mt-0.5 pl-1">To (End)</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1.5">
+                    Amount Paid (KSh) <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+                      KSh
+                    </span>
+                    <input
+                      type="number"
+                      min="1"
+                      step="any"
+                      required
+                      placeholder="50000"
+                      value={newPayment.paidThisWeek}
+                      onChange={(e) => setNewPayment({ ...newPayment, paidThisWeek: e.target.value })}
+                      className="w-full rounded-xl border border-slate-200 bg-white pl-11 pr-3 py-2.5 text-xs font-mono font-bold text-slate-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20 focus:outline-hidden"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 3: Payment Notes */}
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Week Period Label
+                <label className="block font-semibold text-slate-700 mb-1.5">
+                  Payment Notes <span className="text-slate-400 font-normal">Optional</span>
                 </label>
-                <input
-                  type="text"
-                  placeholder="e.g. 19th Apr 2026 to 26th Apr 2026"
-                  value={newPayment.weekPeriod}
-                  onChange={(e) => setNewPayment({ ...newPayment, weekPeriod: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-800 focus:border-amber-500 focus:outline-hidden"
+                <textarea
+                  rows={2}
+                  placeholder="Casting deck reinforcement approved by site clerk."
+                  value={newPayment.notes || ''}
+                  onChange={(e) => setNewPayment({ ...newPayment, notes: e.target.value })}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20 focus:outline-hidden resize-none"
                 />
               </div>
 
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Amount Paid This Week (KSh) <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  step="any"
-                  required
-                  placeholder="e.g. 70000"
-                  value={newPayment.paidThisWeek}
-                  onChange={(e) => setNewPayment({ ...newPayment, paidThisWeek: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-mono font-bold text-emerald-700 focus:border-amber-500 focus:outline-hidden"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setIsRecordPaymentOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer font-medium"
+                  className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer font-semibold transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold shadow-xs cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm cursor-pointer transition-colors"
                 >
-                  Confirm Disbursement
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  <span>Save Payment</span>
                 </button>
               </div>
             </form>
