@@ -367,11 +367,10 @@ export const EquipmentReportPage = () => {
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
-              className={`rounded-lg px-2.5 py-1 text-xs font-semibold capitalize transition-all cursor-pointer ${
-                statusFilter === s
+              className={`rounded-lg px-2.5 py-1 text-xs font-semibold capitalize transition-all cursor-pointer ${statusFilter === s
                   ? 'bg-white text-slate-900 shadow-xs'
                   : 'text-slate-500 hover:text-slate-900'
-              }`}
+                }`}
             >
               {s}
             </button>
@@ -423,13 +422,12 @@ export const EquipmentReportPage = () => {
                     </td>
                     <td className="py-3.5 px-4">
                       <span
-                        className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                          eq.operatingStatus.toLowerCase() === 'active'
+                        className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${eq.operatingStatus.toLowerCase() === 'active'
                             ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                             : eq.operatingStatus.toLowerCase() === 'standby'
-                            ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                            : 'bg-rose-100 text-rose-800 border border-rose-200'
-                        }`}
+                              ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                              : 'bg-rose-100 text-rose-800 border border-rose-200'
+                          }`}
                       >
                         {eq.operatingStatus}
                       </span>
@@ -508,80 +506,10 @@ export const EquipmentReportPage = () => {
                     className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
                   >
                     <option value="Active">Active / Operational</option>
-                    <option value="Standby">Standby</option>
                     <option value="Maintenance">Maintenance / Breakdown</option>
                   </select>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Operating Hours
-                  </label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    min="0"
-                    value={newEquipment.hoursUsed}
-                    onChange={(e) => setNewEquipment({ ...newEquipment, hoursUsed: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Fuel / Diesel (KES)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={newEquipment.fuelCost}
-                    onChange={(e) => setNewEquipment({ ...newEquipment, fuelCost: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Operator Wage (KES)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={newEquipment.operatorCost}
-                    onChange={(e) => setNewEquipment({ ...newEquipment, operatorCost: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden font-mono"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Repair / Spares (KES)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={newEquipment.repairCost}
-                    onChange={(e) => setNewEquipment({ ...newEquipment, repairCost: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Mobilization / Transport (KES)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={newEquipment.transportCost}
-                    onChange={(e) => setNewEquipment({ ...newEquipment, transportCost: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden font-mono"
-                  />
-                </div>
               </div>
 
               <div>
