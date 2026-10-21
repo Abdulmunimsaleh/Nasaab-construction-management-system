@@ -174,6 +174,8 @@ export const MaterialExpensesPage = () => {
             let cat = e.category;
             if (cat === 'Cement') cat = 'Casting Materials';
             if (cat === 'Sand & Aggregates') cat = 'Masoary & Plasta Materials';
+            if (cat === 'Plumbing') cat = 'Plumbing Materials';
+            if (cat === 'Electrical') cat = 'Electrical Materials';
             return cat !== e.category ? { ...e, category: cat } : e;
           });
         }
@@ -266,7 +268,7 @@ export const MaterialExpensesPage = () => {
         supplier: 'Best Plumbing Supplies',
         quantity: '1 Lot',
         amount: 120000,
-        category: 'Plumbing',
+        category: 'Plumbing Materials',
         invoiceRef: 'BPS-0092',
         status: 'Verified'
       },
@@ -280,7 +282,7 @@ export const MaterialExpensesPage = () => {
         supplier: 'PowerTech',
         quantity: '1 Lot',
         amount: 180000,
-        category: 'Electrical',
+        category: 'Electrical Materials',
         invoiceRef: 'PT-6641',
         status: 'Verified'
       },
@@ -709,6 +711,8 @@ export const MaterialExpensesPage = () => {
     let cat = expense.category;
     if (cat === 'Cement') cat = 'Casting Materials';
     if (cat === 'Sand & Aggregates') cat = 'Masoary & Plasta Materials';
+    if (cat === 'Plumbing') cat = 'Plumbing Materials';
+    if (cat === 'Electrical') cat = 'Electrical Materials';
 
     setEditingExpense(expense);
     setExpenseForm({
@@ -1651,8 +1655,8 @@ export const MaterialExpensesPage = () => {
                     <option value="Masoary & Plasta Materials">Masoary & Plasta Materials</option>
                     <option value="Building Blocks">Building Blocks</option>
                     <option value="Tiles Materials">Tiles Materials</option>
-                    <option value="Plumbing">Plumbing</option>
-                    <option value="Electrical">Electrical</option>
+                    <option value="Plumbing Materials">Plumbing Materials</option>
+                    <option value="Electrical Materials">Electrical Materials</option>
                     <option value="Formwork & Timber">Formwork & Timber</option>
                     <option value="General">General Site Supplies</option>
                   </select>
@@ -1810,8 +1814,8 @@ export const MaterialExpensesPage = () => {
                     <option value="Masoary & Plasta Materials">Masoary & Plasta Materials</option>
                     <option value="Building Blocks">Building Blocks</option>
                     <option value="Tiles Materials">Tiles Materials</option>
-                    <option value="Plumbing">Plumbing Materials</option>
-                    <option value="Electrical">Electrical Materials</option>
+                    <option value="Plumbing Materials">Plumbing Materials</option>
+                    <option value="Electrical Materials">Electrical Materials</option>
                     <option value="Formwork & Timber">Formwork Materials & Timber</option>
                     <option value="General">General Site Supplies</option>
                   </select>
