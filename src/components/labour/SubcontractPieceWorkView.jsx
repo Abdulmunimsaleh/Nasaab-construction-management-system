@@ -461,11 +461,11 @@ export const SubcontractPieceWorkView = () => {
       prev.map((a) =>
         a.contractId === targetAgreement.contractId
           ? {
-              ...a,
-              totalPaid: newCumulative,
-              paymentsCount: (a.paymentsCount || 0) + 1,
-              status: updatedStatus
-            }
+            ...a,
+            totalPaid: newCumulative,
+            paymentsCount: (a.paymentsCount || 0) + 1,
+            status: updatedStatus
+          }
           : a
       )
     );
@@ -511,14 +511,14 @@ export const SubcontractPieceWorkView = () => {
       prev.map((a) =>
         a.id === editingAgreement.id
           ? {
-              ...a,
-              teamName: editingAgreement.teamName,
-              floor: editingAgreement.floor,
-              contractDate: editingAgreement.contractDate,
-              agreedAmount: Number(editingAgreement.agreedAmount),
-              foremanName: editingAgreement.foremanName,
-              notes: editingAgreement.notes
-            }
+            ...a,
+            teamName: editingAgreement.teamName,
+            floor: editingAgreement.floor,
+            contractDate: editingAgreement.contractDate,
+            agreedAmount: Number(editingAgreement.agreedAmount),
+            foremanName: editingAgreement.foremanName,
+            notes: editingAgreement.notes
+          }
           : a
       )
     );
@@ -1009,22 +1009,20 @@ export const SubcontractPieceWorkView = () => {
                         </td>
                         <td className="py-3.5 px-4">
                           <span
-                            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
-                              a.status === 'Fully Paid'
+                            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${a.status === 'Fully Paid'
                                 ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                                 : a.status === 'Partially Paid'
-                                ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                                : 'bg-blue-100 text-blue-800 border border-blue-200'
-                            }`}
+                                  ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                                  : 'bg-blue-100 text-blue-800 border border-blue-200'
+                              }`}
                           >
                             <span
-                              className={`h-1.5 w-1.5 rounded-full ${
-                                a.status === 'Fully Paid'
+                              className={`h-1.5 w-1.5 rounded-full ${a.status === 'Fully Paid'
                                   ? 'bg-emerald-600'
                                   : a.status === 'Partially Paid'
-                                  ? 'bg-amber-600'
-                                  : 'bg-blue-600'
-                              }`}
+                                    ? 'bg-amber-600'
+                                    : 'bg-blue-600'
+                                }`}
                             ></span>
                             <span>{a.status}</span>
                           </span>
@@ -1075,7 +1073,7 @@ export const SubcontractPieceWorkView = () => {
                     {formatKSh(stats.outstandingBalance)}
                   </td>
                   <td className="py-3.5 px-4 text-[10px] text-slate-400 font-normal italic">
-                    Auto-calc
+                    Calculated automatically: Total Value - Total Paid = Outstanding
                   </td>
                   <td className="py-3.5 px-4"></td>
                 </tr>
