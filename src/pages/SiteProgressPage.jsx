@@ -78,6 +78,32 @@ export const SiteProgressPage = () => {
   const [availableCategories, setAvailableCategories] = useState(DEFAULT_PROGRESS_CATEGORIES);
   const [customActivities, setCustomActivities] = useState([]);
 
+  // Category addition UI state
+  const [newCategoryInput, setNewCategoryInput] = useState('');
+  const [showNewCategoryFormIndex, setShowNewCategoryFormIndex] = useState(null);
+  const [viewingPhoto, setViewingPhoto] = useState(null);
+
+  // Refs for camera capture and gallery file selection
+  const cameraInputRef = useRef(null);
+  const galleryInputRef = useRef(null);
+  const [activePhotoFormIndex, setActivePhotoFormIndex] = useState(0);
+
+  // Helper to generate a new category progress form item
+  const createNewProgressForm = () => ({
+    id: `entry-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+    category: '',
+    descriptionDetails: '',
+    zone: 'Ground Floor',
+    status: 'in_progress',
+    progress: 50,
+    workDoneToday: '',
+    remarks: '',
+    photos: []
+  });
+
+  // Multiple category progress forms inside the modal
+  const [progressForms, setProgressForms] = useState([createNewProgressForm()]);
+
   // Load live site progress activities and categories from PostgreSQL
   const loadDatabaseProgress = async () => {
     try {
