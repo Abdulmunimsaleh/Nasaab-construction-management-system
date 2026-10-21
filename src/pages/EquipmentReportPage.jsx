@@ -35,6 +35,7 @@ export const EquipmentReportPage = () => {
   const createEmptyEquipmentEntry = () => ({
     id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
     equipmentName: '',
+    status: 'Active',
     machineNotes: ''
   });
 
@@ -78,24 +79,28 @@ export const EquipmentReportPage = () => {
       {
         id: 'eq-1',
         equipmentName: 'Concrete Mixer 400L (Hydraulic Hopper)',
+        status: 'Active',
         machineNotes: 'Mixing concrete for column casting; operational on site.',
         date: new Date().toISOString().split('T')[0]
       },
       {
         id: 'eq-2',
         equipmentName: 'CAT 320 Hydraulic Excavator',
+        status: 'Active',
         machineNotes: 'Trench excavation for storm drainage and backfilling.',
         date: new Date().toISOString().split('T')[0]
       },
       {
         id: 'eq-3',
         equipmentName: 'Plate Compactor 90kg (Robin Engine)',
+        status: 'Maintenance / Breakdown',
         machineNotes: 'Used for hardcore leveling in corridor zone.',
         date: new Date().toISOString().split('T')[0]
       },
       {
         id: 'eq-4',
         equipmentName: 'Bar Bending & Cutting Machine',
+        status: 'Active',
         machineNotes: 'Bending D16 rebar on ground floor.',
         date: new Date().toISOString().split('T')[0]
       }
@@ -125,6 +130,7 @@ export const EquipmentReportPage = () => {
     const newItems = validEntries.map((eq, i) => ({
       id: `eq-${Date.now()}-${i}`,
       equipmentName: eq.equipmentName.trim(),
+      status: eq.status || 'Active',
       machineNotes: (eq.machineNotes || '').trim(),
       date: todayStr
     }));
@@ -155,6 +161,7 @@ export const EquipmentReportPage = () => {
           list.push({
             id: `lae-eq-${form.id}-${idx}`,
             equipmentName: eq.equipment_name || eq.equipmentName || 'Heavy Plant Machine',
+            status: eq.status || 'Active',
             machineNotes: eq.machine_notes || eq.machineNotes || eq.remarks || '',
             date: form.date,
             formNumber: form.form_number
@@ -166,11 +173,27 @@ export const EquipmentReportPage = () => {
     return list;
   }, [laeForms, customEquipment, selectedProjectId, currentProject]);
 
+  // Operational breakdown stats
+  const operationalStats = useMemo(() => {
+    let active = 0;
+    let maintenance = 0;
+    allEquipment.forEach((eq) => {
+      const s = (eq.status || 'Active').toLowerCase();
+      if (s.includes('breakdown') || s.includes('maint')) {
+        maintenance++;
+      } else {
+        active++;
+      }
+    });
+    return { active, maintenance };
+  }, [allEquipment]);
+
   // Filtered equipment
   const filteredEquipment = useMemo(() => {
     return allEquipment.filter((eq) => {
       const matchesSearch =
         eq.equipmentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (eq.status && eq.status.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (eq.machineNotes && eq.machineNotes.toLowerCase().includes(searchTerm.toLowerCase()));
       return matchesSearch;
     });
@@ -221,13 +244,19 @@ export const EquipmentReportPage = () => {
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Documented Machines</span>
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Operational Status</span>
             <CheckCircle2 className="h-4 w-4 text-emerald-500" />
           </div>
-          <div className="mt-2 text-2xl font-extrabold text-emerald-600 font-mono">
-            {allEquipment.filter((e) => e.machineNotes && e.machineNotes.trim()).length} Documented
+          <div className="mt-2 text-2xl font-extrabold text-emerald-600 font-mono flex items-baseline gap-2">
+            <span>{operationalStats.active} Active</span>
           </div>
-          <p className="mt-1 text-[11px] text-slate-400">With operational & maintenance notes</p>
+          <p className="mt-1 text-[11px] text-slate-400">
+            {operationalStats.maintenance > 0 ? (
+              <span className="text-rose-600 font-medium">⚠️ {operationalStats.maintenance} In Maintenance / Breakdown</span>
+            ) : (
+              '100% fleet active & operational'
+            )}
+          </p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
@@ -248,7 +277,7 @@ export const EquipmentReportPage = () => {
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Search equipment by name, remarks, or notes..."
+            placeholder="Search equipment by name, status, or notes..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-amber-500 focus:bg-white focus:outline-hidden"
@@ -280,43 +309,63 @@ export const EquipmentReportPage = () => {
                 <tr>
                   <th className="py-3 px-4 w-12 text-center">#</th>
                   <th className="py-3 px-4">Equipment / Machinery</th>
+                  <th className="py-3 px-4 w-44">Status</th>
                   <th className="py-3 px-4 w-32">Date Logged</th>
                   <th className="py-3 px-4">Operating Notes & Remarks</th>
                   <th className="py-3 px-4 w-20 text-center">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredEquipment.map((eq, idx) => (
-                  <tr key={eq.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3.5 px-4 text-center text-slate-400 font-mono text-[11px]">
-                      {idx + 1}
-                    </td>
-                    <td className="py-3.5 px-4 font-bold text-slate-900">
-                      <div className="flex items-center gap-2">
-                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-amber-600 shrink-0">
-                          <Truck className="h-3.5 w-3.5" />
+                {filteredEquipment.map((eq, idx) => {
+                  const isBreakdown =
+                    (eq.status || '').toLowerCase().includes('breakdown') ||
+                    (eq.status || '').toLowerCase().includes('maint');
+
+                  return (
+                    <tr key={eq.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-3.5 px-4 text-center text-slate-400 font-mono text-[11px]">
+                        {idx + 1}
+                      </td>
+                      <td className="py-3.5 px-4 font-bold text-slate-900">
+                        <div className="flex items-center gap-2">
+                          <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${isBreakdown ? 'bg-rose-100 text-rose-600' : 'bg-amber-100 text-amber-600'} shrink-0`}>
+                            {isBreakdown ? <Wrench className="h-3.5 w-3.5" /> : <Truck className="h-3.5 w-3.5" />}
+                          </div>
+                          <span className="text-xs font-bold text-slate-900">{eq.equipmentName}</span>
                         </div>
-                        <span className="text-xs font-bold text-slate-900">{eq.equipmentName}</span>
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4 text-slate-500 font-mono text-[11px]">
-                      {eq.date || '—'}
-                    </td>
-                    <td className="py-3.5 px-4 text-slate-600 leading-relaxed">
-                      {eq.machineNotes || <span className="text-slate-400 italic">No notes recorded</span>}
-                    </td>
-                    <td className="py-3.5 px-4 text-center">
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteEquipment(eq.id)}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                        title="Remove Equipment Record"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="py-3.5 px-4">
+                        {isBreakdown ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                            <AlertTriangle className="h-3 w-3 text-rose-500 shrink-0" />
+                            <span>Maintenance / Breakdown</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+                            <span>Active</span>
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4 text-slate-500 font-mono text-[11px]">
+                        {eq.date || '—'}
+                      </td>
+                      <td className="py-3.5 px-4 text-slate-600 leading-relaxed">
+                        {eq.machineNotes || <span className="text-slate-400 italic">No notes recorded</span>}
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteEquipment(eq.id)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          title="Remove Equipment Record"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -379,18 +428,34 @@ export const EquipmentReportPage = () => {
                     )}
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Equipment / Machinery Name <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Concrete Mixer 400L, CAT 320 Excavator, Generator 50kVA"
-                      value={entry.equipmentName}
-                      onChange={(e) => handleUpdateEquipmentEntry(idx, 'equipmentName', e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Equipment / Machinery Name <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Concrete Mixer 400L, CAT 320 Excavator, Generator 50kVA"
+                        value={entry.equipmentName}
+                        onChange={(e) => handleUpdateEquipmentEntry(idx, 'equipmentName', e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Status <span className="text-rose-500">*</span>
+                      </label>
+                      <select
+                        value={entry.status || 'Active'}
+                        onChange={(e) => handleUpdateEquipmentEntry(idx, 'status', e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-800 focus:border-amber-500 focus:outline-hidden cursor-pointer"
+                      >
+                        <option value="Active">Active</option>
+                        <option value="Maintenance / Breakdown">Maintenance / Breakdown</option>
+                      </select>
+                    </div>
                   </div>
 
                   <div>
