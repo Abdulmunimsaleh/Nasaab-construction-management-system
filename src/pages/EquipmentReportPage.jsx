@@ -17,16 +17,22 @@ import {
   DollarSign,
   X,
   Trash2,
-  Building,
+  Building2,
+  MapPin,
+  Check,
   RotateCcw
 } from 'lucide-react';
+
+const STORAGE_KEY = 'nasaab_equipment_ledger_v2';
 
 export const EquipmentReportPage = () => {
   const {
     laeForms,
     currentProject,
     selectedProjectId,
+    switchProject,
     projects,
+    isDataLoading,
     companySettings,
     addToast
   } = useApp();
@@ -46,11 +52,111 @@ export const EquipmentReportPage = () => {
   // Multiple equipment entries in Log Plant & Machinery modal
   const [equipmentEntries, setEquipmentEntries] = useState([createEmptyEquipmentEntry()]);
 
+  // Unified custom equipment state
+  const [customEquipment, setCustomEquipment] = useState([]);
+
+  // Initialize and migrate any legacy equipment into unified store
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          setCustomEquipment(parsed);
+          return;
+        }
+      }
+
+      // Migration: check per-project legacy keys if unified store doesn't exist
+      const migrated = [];
+      const seenIds = new Set();
+
+      (projects || []).forEach((proj, pIdx) => {
+        const legacyKey = `nasaab_equipment_${proj.id}`;
+        const raw = localStorage.getItem(legacyKey);
+        if (raw) {
+          try {
+            const list = JSON.parse(raw);
+            if (Array.isArray(list)) {
+              list.forEach((item, itemIdx) => {
+                // Ensure distinct IDs across projects so deleting in one site never affects another
+                const uniqueId = `migrated-${proj.id}-${item.id || itemIdx}`;
+                if (!seenIds.has(uniqueId)) {
+                  seenIds.add(uniqueId);
+                  migrated.push({
+                    ...item,
+                    id: uniqueId,
+                    projectId: proj.id,
+                    projectName: proj.name
+                  });
+                }
+              });
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      });
+
+      // If nothing was found anywhere, seed demo items STRICTLY for the first project only
+      if (migrated.length === 0 && projects && projects.length > 0) {
+        const firstProj = projects[0];
+        const initialSeed = [
+          {
+            id: `eq-seed-1-${firstProj.id}`,
+            equipmentName: 'Concrete Mixer 400L (Hydraulic Hopper)',
+            status: 'Active',
+            machineNotes: 'Mixing concrete for column casting; operational on site.',
+            date: new Date().toISOString().split('T')[0],
+            projectId: firstProj.id,
+            projectName: firstProj.name
+          },
+          {
+            id: `eq-seed-2-${firstProj.id}`,
+            equipmentName: 'CAT 320 Hydraulic Excavator',
+            status: 'Active',
+            machineNotes: 'Trench excavation for storm drainage and backfilling.',
+            date: new Date().toISOString().split('T')[0],
+            projectId: firstProj.id,
+            projectName: firstProj.name
+          },
+          {
+            id: `eq-seed-3-${firstProj.id}`,
+            equipmentName: 'Plate Compactor 90kg (Robin Engine)',
+            status: 'Maintenance / Breakdown',
+            machineNotes: 'Used for hardcore leveling in corridor zone.',
+            date: new Date().toISOString().split('T')[0],
+            projectId: firstProj.id,
+            projectName: firstProj.name
+          },
+          {
+            id: `eq-seed-4-${firstProj.id}`,
+            equipmentName: 'Bar Bending & Cutting Machine',
+            status: 'Active',
+            machineNotes: 'Bending D16 rebar on ground floor.',
+            date: new Date().toISOString().split('T')[0],
+            projectId: firstProj.id,
+            projectName: firstProj.name
+          }
+        ];
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(initialSeed));
+        setCustomEquipment(initialSeed);
+      } else {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+        setCustomEquipment(migrated);
+      }
+    } catch (err) {
+      console.error('Error initializing equipment ledger:', err);
+      setCustomEquipment([]);
+    }
+  }, [projects]);
+
+  // Open modal and pre-select project
   const handleOpenAddModal = () => {
     setEquipmentEntries([createEmptyEquipmentEntry()]);
-    // Pre-select project ID
-    const initialPId = selectedProjectId !== 'all' ? selectedProjectId : (projects?.[0]?.id || '');
-    setModalProjectId(initialPId);
+    // Pre-select active site if specific site chosen, otherwise default to first project
+    const defaultPId = selectedProjectId !== 'all' ? selectedProjectId : (projects?.[0]?.id || '');
+    setModalProjectId(defaultPId);
     setIsAddModalOpen(true);
   };
 
@@ -74,222 +180,7 @@ export const EquipmentReportPage = () => {
     });
   };
 
-  // Helper for localStorage key scoped per project
-  const getProjectStorageKey = (pId) => `nasaab_equipment_${pId || 'default'}`;
-
-  // Custom equipment state
-  const [customEquipment, setCustomEquipment] = useState([]);
-
-  // Load equipment dynamically whenever selectedProjectId or projects list changes
-  const loadEquipment = useCallback(() => {
-    try {
-      if (selectedProjectId === 'all') {
-        const combined = [];
-        const seenIds = new Set();
-
-        // 1. Gather equipment from every project's storage
-        (projects || []).forEach((proj) => {
-          const raw = localStorage.getItem(getProjectStorageKey(proj.id));
-          if (raw) {
-            try {
-              const list = JSON.parse(raw);
-              if (Array.isArray(list)) {
-                list.forEach((item) => {
-                  if (!seenIds.has(item.id)) {
-                    seenIds.add(item.id);
-                    combined.push({
-                      ...item,
-                      projectId: item.projectId || proj.id,
-                      projectName: item.projectName || proj.name
-                    });
-                  }
-                });
-              }
-            } catch (e) {
-              console.error(e);
-            }
-          }
-        });
-
-        // 2. Also check default key if any standalone equipment was saved
-        const rawDef = localStorage.getItem(getProjectStorageKey('default'));
-        if (rawDef) {
-          try {
-            const list = JSON.parse(rawDef);
-            if (Array.isArray(list)) {
-              list.forEach((item) => {
-                if (!seenIds.has(item.id)) {
-                  seenIds.add(item.id);
-                  combined.push({
-                    ...item,
-                    projectId: item.projectId || 'default',
-                    projectName: item.projectName || 'General / Unassigned'
-                  });
-                }
-              });
-            }
-          } catch (e) {
-            console.error(e);
-          }
-        }
-
-        setCustomEquipment(combined);
-      } else {
-        // Specific project active
-        const key = getProjectStorageKey(selectedProjectId);
-        const saved = localStorage.getItem(key);
-
-        if (saved !== null) {
-          try {
-            const list = JSON.parse(saved);
-            setCustomEquipment(Array.isArray(list) ? list : []);
-          } catch (e) {
-            setCustomEquipment([]);
-          }
-        } else {
-          // If this project has no saved data in localStorage yet:
-          // Check if this is the initial demo seed for the first workspace
-          const hasInit = localStorage.getItem('nasaab_equipment_initialized');
-          const isFirstProject = projects && projects.length > 0 && selectedProjectId === projects[0]?.id;
-
-          if (!hasInit && isFirstProject) {
-            const demoItems = [
-              {
-                id: 'eq-1',
-                equipmentName: 'Concrete Mixer 400L (Hydraulic Hopper)',
-                status: 'Active',
-                machineNotes: 'Mixing concrete for column casting; operational on site.',
-                date: new Date().toISOString().split('T')[0],
-                projectId: selectedProjectId,
-                projectName: currentProject?.name || projects[0]?.name || ''
-              },
-              {
-                id: 'eq-2',
-                equipmentName: 'CAT 320 Hydraulic Excavator',
-                status: 'Active',
-                machineNotes: 'Trench excavation for storm drainage and backfilling.',
-                date: new Date().toISOString().split('T')[0],
-                projectId: selectedProjectId,
-                projectName: currentProject?.name || projects[0]?.name || ''
-              },
-              {
-                id: 'eq-3',
-                equipmentName: 'Plate Compactor 90kg (Robin Engine)',
-                status: 'Maintenance / Breakdown',
-                machineNotes: 'Used for hardcore leveling in corridor zone.',
-                date: new Date().toISOString().split('T')[0],
-                projectId: selectedProjectId,
-                projectName: currentProject?.name || projects[0]?.name || ''
-              },
-              {
-                id: 'eq-4',
-                equipmentName: 'Bar Bending & Cutting Machine',
-                status: 'Active',
-                machineNotes: 'Bending D16 rebar on ground floor.',
-                date: new Date().toISOString().split('T')[0],
-                projectId: selectedProjectId,
-                projectName: currentProject?.name || projects[0]?.name || ''
-              }
-            ];
-            try {
-              localStorage.setItem(key, JSON.stringify(demoItems));
-              localStorage.setItem('nasaab_equipment_initialized', 'true');
-            } catch (e) { }
-            setCustomEquipment(demoItems);
-          } else {
-            // For any other site, start clean and empty
-            setCustomEquipment([]);
-          }
-        }
-      }
-    } catch (err) {
-      console.error('Failed to load equipment ledger:', err);
-      setCustomEquipment([]);
-    }
-  }, [selectedProjectId, projects, currentProject]);
-
-  // Re-run whenever selectedProjectId or projects list change
-  useEffect(() => {
-    loadEquipment();
-  }, [loadEquipment]);
-
-  // Remove equipment entry cleanly from its scoped storage
-  const handleDeleteEquipment = (eq) => {
-    if (eq.source === 'lae') {
-      addToast && addToast(
-        `This machine is part of official Daily Log #${eq.formNumber || ''}. To remove it, please edit that LAE log.`,
-        'warning'
-      );
-      return;
-    }
-
-    const targetPId = eq.projectId || (selectedProjectId !== 'all' ? selectedProjectId : null);
-
-    if (targetPId) {
-      const key = getProjectStorageKey(targetPId);
-      try {
-        const raw = localStorage.getItem(key);
-        if (raw) {
-          const list = JSON.parse(raw);
-          if (Array.isArray(list)) {
-            const updated = list.filter((e) => e.id !== eq.id);
-            localStorage.setItem(key, JSON.stringify(updated));
-          }
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    } else {
-      // If project ID is missing, scan across projects
-      (projects || []).forEach((proj) => {
-        const k = getProjectStorageKey(proj.id);
-        try {
-          const r = localStorage.getItem(k);
-          if (r) {
-            const l = JSON.parse(r);
-            if (Array.isArray(l) && l.some((e) => e.id === eq.id)) {
-              localStorage.setItem(k, JSON.stringify(l.filter((e) => e.id !== eq.id)));
-            }
-          }
-        } catch (e) { }
-      });
-      const defKey = getProjectStorageKey('default');
-      try {
-        const rDef = localStorage.getItem(defKey);
-        if (rDef) {
-          const lDef = JSON.parse(rDef);
-          if (Array.isArray(lDef) && lDef.some((e) => e.id === eq.id)) {
-            localStorage.setItem(defKey, JSON.stringify(lDef.filter((e) => e.id !== eq.id)));
-          }
-        }
-      } catch (e) { }
-    }
-
-    loadEquipment();
-    addToast && addToast('Equipment record removed.', 'info');
-  };
-
-  // Reset or clear custom equipment for the active site
-  const handleClearSiteEquipment = () => {
-    if (selectedProjectId === 'all') {
-      addToast && addToast('Please select a specific project site to clear its machinery list.', 'warning');
-      return;
-    }
-    const siteName = currentProject?.name || 'this site';
-    if (!window.confirm(`Are you sure you want to remove all custom equipment logged for ${siteName}? This cannot be undone.`)) {
-      return;
-    }
-    const key = getProjectStorageKey(selectedProjectId);
-    try {
-      localStorage.setItem(key, JSON.stringify([]));
-    } catch (err) {
-      console.error(err);
-    }
-    loadEquipment();
-    addToast && addToast(`All custom equipment cleared for ${siteName}.`, 'info');
-  };
-
-  // Save new equipment entries
+  // Save new equipment entries — strictly assigned to the chosen project site
   const handleSaveEquipment = (e) => {
     e.preventDefault();
     const validEntries = equipmentEntries.filter((eq) => eq.equipmentName && eq.equipmentName.trim());
@@ -298,16 +189,13 @@ export const EquipmentReportPage = () => {
       return;
     }
 
-    const assignedPId = (selectedProjectId !== 'all' && selectedProjectId)
-      ? selectedProjectId
-      : (modalProjectId || projects?.[0]?.id || 'default');
-
+    const assignedPId = modalProjectId || (selectedProjectId !== 'all' ? selectedProjectId : projects?.[0]?.id);
     const targetProjObj = (projects || []).find((p) => p.id === assignedPId);
     const assignedPName = targetProjObj?.name || currentProject?.name || 'Assigned Site';
 
     const todayStr = new Date().toISOString().split('T')[0];
     const newItems = validEntries.map((eq, i) => ({
-      id: `eq-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 4)}`,
+      id: `eq-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 6)}`,
       equipmentName: eq.equipmentName.trim(),
       status: eq.status || 'Active',
       machineNotes: (eq.machineNotes || '').trim(),
@@ -316,42 +204,81 @@ export const EquipmentReportPage = () => {
       projectName: assignedPName
     }));
 
-    const key = getProjectStorageKey(assignedPId);
-    let existing = [];
+    const updated = [...newItems, ...customEquipment];
+    setCustomEquipment(updated);
     try {
-      const saved = localStorage.getItem(key);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) existing = parsed;
-      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     } catch (err) {
       console.error(err);
     }
 
-    const updated = [...newItems, ...existing];
-    try {
-      localStorage.setItem(key, JSON.stringify(updated));
-    } catch (err) {
-      console.error(err);
-    }
-
-    loadEquipment();
     addToast && addToast(
       `Added ${newItems.length} equipment ${newItems.length === 1 ? 'record' : 'records'} to ${assignedPName} successfully!`
     );
     setIsAddModalOpen(false);
   };
 
-  // Compile all equipment from LAE forms + scoped custom list
+  // Delete equipment entry — strictly removes ONLY that specific item
+  const handleDeleteEquipment = (eq) => {
+    if (eq.source === 'lae') {
+      addToast && addToast(
+        `This machine is part of official Daily LAE Log #${eq.formNumber || ''}. To remove it, please edit that daily log directly.`,
+        'warning'
+      );
+      return;
+    }
+
+    const updated = customEquipment.filter((item) => item.id !== eq.id);
+    setCustomEquipment(updated);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    } catch (err) {
+      console.error(err);
+    }
+
+    addToast && addToast(`Removed ${eq.equipmentName} from ${eq.projectName || 'site'}.`, 'info');
+  };
+
+  // Reset or clear custom equipment for the active site
+  const handleClearSiteEquipment = () => {
+    if (selectedProjectId === 'all') {
+      addToast && addToast('Please select a specific project site to reset its machinery fleet.', 'warning');
+      return;
+    }
+    const siteName = currentProject?.name || 'this site';
+    if (!window.confirm(`Are you sure you want to clear all custom logged equipment for ${siteName}? This cannot be undone.`)) {
+      return;
+    }
+
+    const updated = customEquipment.filter((item) => item.projectId !== selectedProjectId);
+    setCustomEquipment(updated);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    } catch (err) {
+      console.error(err);
+    }
+
+    addToast && addToast(`All equipment records cleared for ${siteName}.`, 'info');
+  };
+
+  // Filter custom equipment strictly by selected project
+  const scopedCustomEquipment = useMemo(() => {
+    if (selectedProjectId === 'all') {
+      return customEquipment;
+    }
+    return customEquipment.filter((item) => item.projectId === selectedProjectId);
+  }, [customEquipment, selectedProjectId]);
+
+  // Combine with LAE forms equipment strictly scoped to selected project
   const allEquipment = useMemo(() => {
-    const list = [...customEquipment];
+    const list = [...scopedCustomEquipment];
 
     (laeForms || []).forEach((form) => {
+      // Exclude forms from other sites when a specific site is active
       if (
         selectedProjectId !== 'all' &&
         form.project_id &&
-        form.project_id !== selectedProjectId &&
-        form.project_id !== currentProject?.id
+        form.project_id !== selectedProjectId
       ) {
         return;
       }
@@ -374,7 +301,37 @@ export const EquipmentReportPage = () => {
     });
 
     return list;
-  }, [laeForms, customEquipment, selectedProjectId, currentProject]);
+  }, [scopedCustomEquipment, laeForms, selectedProjectId, currentProject]);
+
+  // Calculate equipment counts per project for site switcher badges
+  const siteEquipmentCounts = useMemo(() => {
+    const counts = { all: 0 };
+    (projects || []).forEach((p) => {
+      counts[p.id] = 0;
+    });
+
+    // Count custom equipment
+    customEquipment.forEach((eq) => {
+      counts.all = (counts.all || 0) + 1;
+      if (eq.projectId && counts[eq.projectId] !== undefined) {
+        counts[eq.projectId] = (counts[eq.projectId] || 0) + 1;
+      }
+    });
+
+    // Count LAE forms equipment
+    (laeForms || []).forEach((form) => {
+      if (Array.isArray(form.equipmentItems)) {
+        form.equipmentItems.forEach(() => {
+          counts.all = (counts.all || 0) + 1;
+          if (form.project_id && counts[form.project_id] !== undefined) {
+            counts[form.project_id] = (counts[form.project_id] || 0) + 1;
+          }
+        });
+      }
+    });
+
+    return counts;
+  }, [customEquipment, laeForms, projects]);
 
   // Operational breakdown stats
   const operationalStats = useMemo(() => {
@@ -391,7 +348,7 @@ export const EquipmentReportPage = () => {
     return { active, maintenance };
   }, [allEquipment]);
 
-  // Filtered equipment
+  // Filtered equipment by search query
   const filteredEquipment = useMemo(() => {
     return allEquipment.filter((eq) => {
       const q = searchTerm.toLowerCase();
@@ -426,11 +383,11 @@ export const EquipmentReportPage = () => {
         </div>
 
         <div className="flex items-center gap-2.5 self-start sm:self-auto">
-          {selectedProjectId !== 'all' && customEquipment.length > 0 && (
+          {selectedProjectId !== 'all' && scopedCustomEquipment.length > 0 && (
             <button
               onClick={handleClearSiteEquipment}
               className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100/80 px-3 py-2 text-xs font-semibold text-rose-700 transition-colors cursor-pointer shadow-2xs"
-              title={`Clear all custom equipment for ${currentProject?.name || 'this site'}`}
+              title={`Clear custom equipment for ${currentProject?.name || 'this site'}`}
             >
               <RotateCcw className="h-3.5 w-3.5" />
               <span>Reset Site Fleet</span>
@@ -444,6 +401,70 @@ export const EquipmentReportPage = () => {
             <Plus className="h-4 w-4 stroke-[2.5]" />
             <span>+ Log Equipment Entry</span>
           </button>
+        </div>
+      </div>
+
+      {/* DEDICATED SITE SWITCHER BAR */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-amber-500" />
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
+              Filter by Site Workspace:
+            </span>
+          </div>
+          <span className="text-[11px] text-slate-400">
+            Click any site tab to switch view and view only its machinery
+          </span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 pt-2.5">
+          <button
+            onClick={() => switchProject && switchProject('all')}
+            disabled={isDataLoading}
+            className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all cursor-pointer ${selectedProjectId === 'all'
+                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 ring-2 ring-amber-400'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200/60'
+              }`}
+          >
+            <Building2 className="h-3.5 w-3.5" />
+            <span>All Sites Combined</span>
+            <span
+              className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold ${selectedProjectId === 'all'
+                  ? 'bg-amber-600 text-slate-950'
+                  : 'bg-slate-200 text-slate-600'
+                }`}
+            >
+              {siteEquipmentCounts.all || 0}
+            </span>
+            {selectedProjectId === 'all' && <Check className="h-3.5 w-3.5 stroke-[2.5]" />}
+          </button>
+
+          {(projects || []).map((p) => {
+            const isSelected = selectedProjectId === p.id;
+            const count = siteEquipmentCounts[p.id] || 0;
+            return (
+              <button
+                key={p.id}
+                onClick={() => switchProject && switchProject(p.id)}
+                disabled={isDataLoading}
+                className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all cursor-pointer ${isSelected
+                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 ring-2 ring-amber-400'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200/60'
+                  }`}
+              >
+                <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                <span>{p.name}</span>
+                <span
+                  className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold ${isSelected ? 'bg-amber-600 text-slate-950' : 'bg-slate-200 text-slate-600'
+                    }`}
+                >
+                  {count}
+                </span>
+                {isSelected && <Check className="h-3.5 w-3.5 stroke-[2.5]" />}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -575,8 +596,10 @@ export const EquipmentReportPage = () => {
                       </td>
                       <td className="py-3.5 px-4">
                         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200/80 text-[11px] font-semibold text-slate-700">
-                          <Building className="h-3 w-3 text-slate-400 shrink-0" />
-                          <span className="truncate max-w-[150px]">{eq.projectName || currentProject?.name || 'Assigned Site'}</span>
+                          <Building2 className="h-3 w-3 text-slate-400 shrink-0" />
+                          <span className="truncate max-w-[150px]">
+                            {eq.projectName || currentProject?.name || 'Assigned Site'}
+                          </span>
                         </div>
                       </td>
                       <td className="py-3.5 px-4">
@@ -650,7 +673,7 @@ export const EquipmentReportPage = () => {
                 </button>
                 <button
                   onClick={() => setIsAddModalOpen(false)}
-                  className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                  className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -658,37 +681,30 @@ export const EquipmentReportPage = () => {
             </div>
 
             <form onSubmit={handleSaveEquipment} className="p-6 space-y-4 overflow-y-auto flex-1">
-              {/* Site selector when viewing all projects */}
-              {selectedProjectId === 'all' ? (
-                <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-3.5">
-                  <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-1.5">
-                    <Building className="h-3.5 w-3.5 text-amber-600" />
-                    <span>Assign Equipment to Site / Project <span className="text-rose-500">*</span></span>
-                  </label>
-                  <select
-                    value={modalProjectId}
-                    onChange={(e) => setModalProjectId(e.target.value)}
-                    required
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-800 focus:border-amber-500 focus:outline-hidden cursor-pointer"
-                  >
-                    {(projects || []).map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} ({p.code || 'Site'})
-                      </option>
-                    ))}
-                  </select>
-                  <p className="mt-1 text-[11px] text-slate-500">
-                    The logged machinery will be stored and tracked under this specific site.
-                  </p>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600">
-                  <Building className="h-4 w-4 text-slate-400" />
+              {/* SITE SELECTOR ALWAYS VISIBLE IN FORM */}
+              <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 shadow-2xs">
+                <label className="block text-xs font-bold text-slate-800 mb-1.5 flex items-center gap-1.5">
+                  <Building2 className="h-4 w-4 text-amber-600" />
                   <span>
-                    Logging equipment for site: <strong className="text-slate-900">{currentProject?.name}</strong>
+                    Project Site / Location <span className="text-rose-500">*</span>
                   </span>
-                </div>
-              )}
+                </label>
+                <select
+                  value={modalProjectId}
+                  onChange={(e) => setModalProjectId(e.target.value)}
+                  required
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-900 focus:border-amber-500 focus:outline-hidden cursor-pointer shadow-xs"
+                >
+                  {(projects || []).map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} ({p.code || 'Site'}) {p.location ? `— ${p.location}` : ''}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1.5 text-[11px] text-slate-500">
+                  Select the exact site workspace where this equipment will be deployed and recorded.
+                </p>
+              </div>
 
               {equipmentEntries.map((entry, idx) => (
                 <div
