@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
+import api from '../../services/api';
 import {
   Coins,
   ArrowUp,
@@ -79,148 +80,69 @@ export const ProjectFinancialOverview = () => {
   });
 
   // -------------------------------------------------------------
-  // 1. DEVELOPER FUNDS STATE & STORAGE
+  // 1. DEVELOPER FUNDS STATE & API DATA
   // -------------------------------------------------------------
-  const [funds, setFunds] = useState(() => {
-    try {
-      const saved = localStorage.getItem(FUNDS_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+  const [funds, setFunds] = useState([]);
+  const [subAgreements, setSubAgreements] = useState([]);
+  const [subPayments, setSubPayments] = useState([]);
+  const [equipmentExpensesList, setEquipmentExpensesList] = useState([]);
+  const [safetyList, setSafetyList] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadFinancials = async () => {
+      try {
+        const [fData, scAgData, scPayData, eqData, sdData] = await Promise.allSettled([
+          api.developerFunds.getAll(selectedProjectId),
+          api.subcontracts.getAgreements(selectedProjectId),
+          api.subcontracts.getPayments(selectedProjectId),
+          api.equipment.getExpenses(selectedProjectId),
+          api.safetyDelays.getAll(selectedProjectId)
+        ]);
+
+        if (!isMounted) return;
+        if (fData.status === 'fulfilled' && Array.isArray(fData.value)) {
+          setFunds(fData.value);
+        }
+        if (scAgData.status === 'fulfilled' && Array.isArray(scAgData.value)) {
+          setSubAgreements(scAgData.value);
+        }
+        if (scPayData.status === 'fulfilled' && Array.isArray(scPayData.value)) {
+          setSubPayments(scPayData.value);
+        }
+        if (eqData.status === 'fulfilled' && Array.isArray(eqData.value)) {
+          setEquipmentExpensesList(eqData.value);
+        }
+        if (sdData.status === 'fulfilled' && Array.isArray(sdData.value)) {
+          setSafetyList(sdData.value);
+        }
+      } catch (err) {
+        console.error('Error fetching live financial records:', err);
       }
-    } catch (e) {
-      console.error('Error loading funds ledger:', e);
-    }
+    };
 
-    // Default Seed Data specifically tailored per project
-    return [
-      // MMA Project (prj-mma) — Matches exact figures in the screenshot
-      {
-        id: 'dep-mma-001',
-        referenceNo: 'DEP-MMA-001',
-        date: '2025-01-12',
-        title: 'Initial Developer Project Mobilization & Foundation Cap',
-        depositor: 'NASAAB Holdings Ltd',
-        wireRef: 'CBK-99201',
-        stage: 'Milestone 0 (Kickoff)',
-        amount: 3000000,
-        fundType: 'initial',
-        projectId: 'prj-mma',
-        projectName: 'MMA'
-      },
-      {
-        id: 'dep-mma-002',
-        referenceNo: 'DEP-MMA-002',
-        date: '2025-02-04',
-        title: 'Phase 1 Additional Working Capital - Substructure',
-        depositor: 'NASAAB Holdings Ltd',
-        wireRef: 'EFT-48190',
-        stage: 'Phase 1',
-        amount: 1000000,
-        fundType: 'additional',
-        projectId: 'prj-mma',
-        projectName: 'MMA'
-      },
-      {
-        id: 'dep-mma-003',
-        referenceNo: 'DEP-MMA-003',
-        date: '2025-02-18',
-        title: 'Supplementary Allocation for Column Concrete Pouring',
-        depositor: 'NASAAB Holdings Ltd',
-        wireRef: 'MP-77291',
-        stage: 'Phase 2',
-        amount: 500000,
-        fundType: 'additional',
-        projectId: 'prj-mma',
-        projectName: 'MMA'
-      },
-
-      // Majestic Palms Project (prj-majestic-palms)
-      {
-        id: 'dep-mp-001',
-        referenceNo: 'DEP-MP-001',
-        date: '2025-01-05',
-        title: 'Kickoff Allocation & Baseline Mobilization',
-        depositor: 'Majestic Properties Developer Ltd',
-        wireRef: 'KCB-44912',
-        stage: 'Milestone 0 (Kickoff)',
-        amount: 5000000,
-        fundType: 'initial',
-        projectId: 'prj-majestic-palms',
-        projectName: 'Majestic Palms'
-      },
-      {
-        id: 'dep-mp-002',
-        referenceNo: 'DEP-MP-002',
-        date: '2025-02-10',
-        title: 'Intermediate Working Capital for Suspended Slab Casting',
-        depositor: 'Majestic Properties Developer Ltd',
-        wireRef: 'NCBA-88120',
-        stage: 'Phase 1',
-        amount: 2000000,
-        fundType: 'additional',
-        projectId: 'prj-majestic-palms',
-        projectName: 'Majestic Palms'
-      },
-
-      // SeaCrest Project (prj-seacrest)
-      {
-        id: 'dep-sc-001',
-        referenceNo: 'DEP-SC-001',
-        date: '2025-01-08',
-        title: 'Site Mobilization & Deep Foundation Excavation',
-        depositor: 'SeaCrest Beachside Developments',
-        wireRef: 'DTB-11204',
-        stage: 'Milestone 0 (Kickoff)',
-        amount: 3500000,
-        fundType: 'initial',
-        projectId: 'prj-seacrest',
-        projectName: 'SeaCrest'
-      },
-      {
-        id: 'dep-sc-002',
-        referenceNo: 'DEP-SC-002',
-        date: '2025-02-15',
-        title: 'Second Tranche for Retaining Wall & Drainage',
-        depositor: 'SeaCrest Beachside Developments',
-        wireRef: 'ABSA-99014',
-        stage: 'Phase 1',
-        amount: 1000000,
-        fundType: 'additional',
-        projectId: 'prj-seacrest',
-        projectName: 'SeaCrest'
-      }
-    ];
-  });
-
-  // Save funds ledger on change
-  const saveFundsLedger = (updated) => {
-    setFunds(updated);
-    try {
-      localStorage.setItem(FUNDS_STORAGE_KEY, JSON.stringify(updated));
-    } catch (e) {
-      console.error(e);
-    }
-  };
+    loadFinancials();
+    return () => { isMounted = false; };
+  }, [selectedProjectId]);
 
   // Scoped funds for the active project
   const scopedFunds = useMemo(() => {
     if (selectedProjectId === 'all') {
       return funds;
     }
-    return funds.filter((f) => f.projectId === selectedProjectId);
+    return funds.filter((f) => f.projectId === selectedProjectId || f.project_id === selectedProjectId);
   }, [funds, selectedProjectId]);
 
   // Funds KPIs
   const initialFundsReceived = useMemo(() => {
     return scopedFunds
-      .filter((f) => f.fundType === 'initial')
+      .filter((f) => (f.fundType || f.fund_type) === 'initial')
       .reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
   }, [scopedFunds]);
 
   const additionalFundsReceived = useMemo(() => {
     return scopedFunds
-      .filter((f) => f.fundType === 'additional')
+      .filter((f) => (f.fundType || f.fund_type) === 'additional')
       .reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
   }, [scopedFunds]);
 
@@ -229,59 +151,34 @@ export const ProjectFinancialOverview = () => {
   }, [initialFundsReceived, additionalFundsReceived]);
 
   const additionalDisbursementsCount = useMemo(() => {
-    return scopedFunds.filter((f) => f.fundType === 'additional').length;
+    return scopedFunds.filter((f) => (f.fundType || f.fund_type) === 'additional').length;
   }, [scopedFunds]);
 
   // -------------------------------------------------------------
   // 2. DYNAMICALLY MAP ALL 4 LABOUR EXPENSE STREAMS PER SITE
   // -------------------------------------------------------------
 
-  // Stream 1: Subcontract Piece Work Expenses
+  // Stream 1: Subcontract Piece Work Expenses (from DB payments & agreements)
   const subcontractExpense = useMemo(() => {
     let total = 0;
-    try {
-      // 1. Check subcontract agreements master
-      const rawAgreements = localStorage.getItem('nasaab_subcontract_agreements_master');
-      if (rawAgreements) {
-        const agList = JSON.parse(rawAgreements);
-        if (Array.isArray(agList)) {
-          agList.forEach((ag) => {
-            if (selectedProjectId === 'all' || ag.projectId === selectedProjectId) {
-              total += Number(ag.totalPaid) || 0;
-            }
-          });
+    // Calculate from payments first
+    if (Array.isArray(subPayments) && subPayments.length > 0) {
+      subPayments.forEach((pay) => {
+        if (selectedProjectId === 'all' || pay.projectId === selectedProjectId || pay.project_id === selectedProjectId) {
+          total += Number(pay.amount) || 0;
         }
-      }
-
-      // 2. Also check subcontract payments master
-      const rawPayments = localStorage.getItem('nasaab_subcontract_payments_master');
-      if (rawPayments) {
-        const pList = JSON.parse(rawPayments);
-        if (Array.isArray(pList) && pList.length > 0) {
-          let paySum = 0;
-          pList.forEach((pay) => {
-            if (selectedProjectId === 'all' || pay.projectId === selectedProjectId) {
-              paySum += Number(pay.amount) || 0;
-            }
-          });
-          if (paySum > total) total = paySum;
+      });
+    } else if (Array.isArray(subAgreements) && subAgreements.length > 0) {
+      subAgreements.forEach((ag) => {
+        if (selectedProjectId === 'all' || ag.projectId === selectedProjectId || ag.project_id === selectedProjectId) {
+          total += Number(ag.totalPaid || ag.total_paid) || 0;
         }
-      }
-    } catch (e) {
-      console.error(e);
-    }
-
-    // Baseline fallbacks per site if no subcontract data is recorded yet
-    if (total === 0) {
-      if (selectedProjectId === 'prj-mma') return 650000;
-      if (selectedProjectId === 'prj-majestic-palms') return 850000;
-      if (selectedProjectId === 'prj-seacrest') return 420000;
-      if (selectedProjectId === 'all') return 1920000;
+      });
     }
     return total;
-  }, [selectedProjectId]);
+  }, [selectedProjectId, subPayments, subAgreements]);
 
-  // Stream 2: Daily Labour Expenses (from LAE forms)
+  // Stream 2: Daily Labour Expenses (from live LAE forms)
   const dailyLabourExpense = useMemo(() => {
     let total = 0;
     (laeForms || []).forEach((form) => {
@@ -290,93 +187,46 @@ export const ProjectFinancialOverview = () => {
       }
       total += Number(form.total_labour_cost) || 0;
     });
-
-    // Baseline fallbacks per site if no daily forms exist yet
-    if (total === 0) {
-      if (selectedProjectId === 'prj-mma') return 380000;
-      if (selectedProjectId === 'prj-majestic-palms') return 520000;
-      if (selectedProjectId === 'prj-seacrest') return 290000;
-      if (selectedProjectId === 'all') return 1190000;
-    }
     return total;
   }, [laeForms, selectedProjectId]);
 
   // Stream 3: Equipment Operating & Maintenance Expenses
   const equipmentExpense = useMemo(() => {
     let total = 0;
-    try {
-      // 1. Read from equipment expenses ledger
-      const rawExpenses = localStorage.getItem('nasaab_equipment_expenses_ledger_v2');
-      if (rawExpenses) {
-        const expList = JSON.parse(rawExpenses);
-        if (Array.isArray(expList)) {
-          expList.forEach((exp) => {
-            if (selectedProjectId === 'all' || exp.projectId === selectedProjectId) {
-              total += Number(exp.amount) || 0;
-            }
-          });
-        }
-      }
-
-      // 2. Include LAE form equipment operating expenses
-      (laeForms || []).forEach((form) => {
-        if (selectedProjectId !== 'all' && form.project_id && form.project_id !== selectedProjectId) {
-          return;
-        }
-        if (Array.isArray(form.equipmentItems)) {
-          form.equipmentItems.forEach((eq) => {
-            total += Number(eq.total_expense) || 0;
-          });
+    if (Array.isArray(equipmentExpensesList)) {
+      equipmentExpensesList.forEach((exp) => {
+        if (selectedProjectId === 'all' || exp.projectId === selectedProjectId || exp.project_id === selectedProjectId) {
+          total += Number(exp.amount) || 0;
         }
       });
-    } catch (e) {
-      console.error(e);
     }
-
-    // Baseline fallbacks per site if no equipment expense recorded yet
-    if (total === 0) {
-      if (selectedProjectId === 'prj-mma') return 170000;
-      if (selectedProjectId === 'prj-majestic-palms') return 240000;
-      if (selectedProjectId === 'prj-seacrest') return 110000;
-      if (selectedProjectId === 'all') return 520000;
-    }
+    // Also add any equipment operational expense logged in daily LAE forms
+    (laeForms || []).forEach((form) => {
+      if (selectedProjectId !== 'all' && form.project_id && form.project_id !== selectedProjectId) {
+        return;
+      }
+      if (Array.isArray(form.equipmentItems)) {
+        form.equipmentItems.forEach((eq) => {
+          total += Number(eq.total_expense) || 0;
+        });
+      }
+    });
     return total;
-  }, [laeForms, selectedProjectId]);
+  }, [laeForms, selectedProjectId, equipmentExpensesList]);
 
   // Stream 4: Safety & Delays Expenses
   const safetyExpense = useMemo(() => {
     let total = 0;
-    try {
-      const keys = selectedProjectId === 'all'
-        ? (projects || []).map((p) => `nasaab_safety_delays_${p.id}`).concat(['nasaab_safety_delays_default', 'nasaab_safety_delays_all'])
-        : [`nasaab_safety_delays_${selectedProjectId || 'default'}`];
-
-      keys.forEach((key) => {
-        const raw = localStorage.getItem(key);
-        if (raw) {
-          const list = JSON.parse(raw);
-          if (Array.isArray(list)) {
-            list.forEach((item) => {
-              if (item.category === 'safety') {
-                total += Number(item.totalAmount) || 0;
-              }
-            });
-          }
+    if (Array.isArray(safetyList)) {
+      safetyList.forEach((item) => {
+        const matchesProject = selectedProjectId === 'all' || item.projectId === selectedProjectId || item.project_id === selectedProjectId;
+        if (matchesProject && item.category === 'safety') {
+          total += Number(item.totalAmount || item.total_amount) || 0;
         }
       });
-    } catch (e) {
-      console.error(e);
-    }
-
-    // Baseline fallbacks per site if no safety incidents recorded
-    if (total === 0) {
-      if (selectedProjectId === 'prj-mma') return 50000;
-      if (selectedProjectId === 'prj-majestic-palms') return 80000;
-      if (selectedProjectId === 'prj-seacrest') return 35000;
-      if (selectedProjectId === 'all') return 165000;
     }
     return total;
-  }, [selectedProjectId, projects]);
+  }, [selectedProjectId, safetyList]);
 
   // Total Labour Expenses (Sum of all 4 labour expense streams)
   const totalLabourExpenses = useMemo(() => {
@@ -414,7 +264,7 @@ export const ProjectFinancialOverview = () => {
     setIsDepositModalOpen(true);
   };
 
-  const handleSaveDeposit = (e) => {
+  const handleSaveDeposit = async (e) => {
     e.preventDefault();
     const amt = parseFloat(depositForm.amount);
     if (!amt || amt <= 0) {
@@ -427,7 +277,6 @@ export const ProjectFinancialOverview = () => {
     const assignedPName = assignedProj?.name || currentProject?.name || 'Assigned Site';
 
     const newDeposit = {
-      id: `dep-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
       referenceNo: depositForm.referenceNo || `DEP-${Date.now().toString().slice(-4)}`,
       date: depositForm.date || new Date().toISOString().split('T')[0],
       title: depositForm.title.trim() || `${depositForm.fundType === 'initial' ? 'Initial Capital Disbursement' : 'Milestone Working Capital Top-up'}`,
@@ -440,12 +289,19 @@ export const ProjectFinancialOverview = () => {
       projectName: assignedPName
     };
 
-    const updated = [newDeposit, ...funds];
-    saveFundsLedger(updated);
-
-    addToast && addToast(`Deposited ${formatKSh(amt)} for ${assignedPName} successfully!`);
-    triggerCelebration && triggerCelebration();
-    setIsDepositModalOpen(false);
+    try {
+      const created = await api.developerFunds.create(newDeposit);
+      setFunds((prev) => [created || { ...newDeposit, id: `dep-${Date.now()}` }, ...prev]);
+      addToast && addToast(`Deposited ${formatKSh(amt)} for ${assignedPName} successfully!`);
+      triggerCelebration && triggerCelebration();
+      setIsDepositModalOpen(false);
+    } catch (err) {
+      console.error('Error saving developer funds deposit to DB:', err);
+      // Fallback
+      setFunds((prev) => [{ ...newDeposit, id: `dep-${Date.now()}` }, ...prev]);
+      addToast && addToast(`Saved deposit locally (${err.message})`, 'warning');
+      setIsDepositModalOpen(false);
+    }
   };
 
   return (

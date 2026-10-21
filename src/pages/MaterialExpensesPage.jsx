@@ -28,6 +28,7 @@ import {
   Download
 } from 'lucide-react';
 import { generateMaterialExpensesReportPDF } from '../utils/pdfGenerator';
+import api from '../services/api';
 
 const FUNDS_STORAGE_KEY = 'nasaab_material_expenses_funds_master';
 const EXPENSES_STORAGE_KEY = 'nasaab_material_expenses_master';
@@ -76,346 +77,39 @@ export const MaterialExpensesPage = () => {
   };
 
   // -------------------------------------------------------------
-  // 2. FUNDS RECEIVED STATE & PERSISTENCE
+  // 2. FUNDS & EXPENSES LIVE POSTGRESQL STATE
+  // Clean empty state ready for real production launch
   // -------------------------------------------------------------
-  const [fundsList, setFundsList] = useState(() => {
-    try {
-      const saved = localStorage.getItem(FUNDS_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {
-      console.error('Error loading material funds storage:', e);
-    }
-
-    // Default funds records across sites
-    // Site 1 (Majestic Palms): Exactly matches the screenshot (Initial: 3,000,000, Additional: 500,000 -> Total: 3,500,000)
-    return [
-      {
-        id: 'fund-mp-1',
-        projectId: proj1Id,
-        projectName: proj1Name,
-        reference: 'Initial Funding',
-        date: '2026-10-15',
-        description: 'Initial funds from developer',
-        amount: 3000000,
-        fundType: 'initial'
-      },
-      {
-        id: 'fund-mp-2',
-        projectId: proj1Id,
-        projectName: proj1Name,
-        reference: 'Additional Deposit #001',
-        date: '2026-10-18',
-        description: 'Extra funds for purchasing more materials',
-        amount: 500000,
-        fundType: 'additional'
-      },
-      // Site 2 (MMA)
-      {
-        id: 'fund-mma-1',
-        projectId: proj2Id,
-        projectName: proj2Name,
-        reference: 'Initial Site Allocation',
-        date: '2026-10-10',
-        description: 'Site startup disbursement from developer',
-        amount: 2500000,
-        fundType: 'initial'
-      },
-      {
-        id: 'fund-mma-2',
-        projectId: proj2Id,
-        projectName: proj2Name,
-        reference: 'Additional Deposit #001',
-        date: '2026-10-19',
-        description: 'Supplemental material float for masonry',
-        amount: 300000,
-        fundType: 'additional'
-      },
-      // Site 3 (SeaCrest)
-      {
-        id: 'fund-sc-1',
-        projectId: proj3Id,
-        projectName: proj3Name,
-        reference: 'Initial Foundation Allocation',
-        date: '2026-10-08',
-        description: 'Initial developer release for ground works',
-        amount: 4000000,
-        fundType: 'initial'
-      },
-      {
-        id: 'fund-sc-2',
-        projectId: proj3Id,
-        projectName: proj3Name,
-        reference: 'Additional Deposit #001',
-        date: '2026-10-23',
-        description: 'Structural slab reinforcement funding',
-        amount: 1000000,
-        fundType: 'additional'
-      }
-    ];
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(FUNDS_STORAGE_KEY, JSON.stringify(fundsList));
-    } catch (e) {
-      console.error('Failed to save material funds:', e);
-    }
-  }, [fundsList]);
+  const [fundsList, setFundsList] = useState([]);
 
   // -------------------------------------------------------------
   // 3. MATERIAL EXPENSES STATE & PERSISTENCE
   // -------------------------------------------------------------
-  const [expensesList, setExpensesList] = useState(() => {
+  const [expensesList, setExpensesList] = useState([]);
+
+  // Load live funds and material expenses from database
+  const loadDatabaseExpenses = async () => {
     try {
-      const saved = localStorage.getItem(EXPENSES_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map((e) => {
-            let cat = e.category;
-            if (cat === 'Cement') cat = 'Casting Materials';
-            if (cat === 'Sand & Aggregates') cat = 'Masoary & Plasta Materials';
-            if (cat === 'Plumbing') cat = 'Plumbing Materials';
-            if (cat === 'Electrical') cat = 'Electrical Materials';
-            return cat !== e.category ? { ...e, category: cat } : e;
-          });
-        }
-      }
-    } catch (e) {
-      console.error('Error loading material expenses storage:', e);
+      const [funds, expenses] = await Promise.all([
+        api.developerFunds.getAll(selectedProjectId),
+        api.materialExpenses.getAll(selectedProjectId)
+      ]);
+      setFundsList(Array.isArray(funds) ? funds : []);
+      setExpensesList(Array.isArray(expenses) ? expenses : []);
+    } catch (err) {
+      console.error('Failed to load material funds and expenses:', err);
     }
-
-    // Default expenses records across sites
-    // Site 1 (Majestic Palms): Rows match the user screenshot items,
-    // totaling KSh 1,250,000 for perfect mathematical consistency with the KPI cards!
-    return [
-      {
-        id: 'exp-mp-1',
-        expenseId: 'EXP-001',
-        projectId: proj1Id,
-        projectName: proj1Name,
-        date: '2026-10-15',
-        description: 'Cement (50kg bags)',
-        supplier: 'Mombasa Cement Ltd',
-        quantity: '200 Bags',
-        amount: 110000,
-        category: 'Casting Materials',
-        invoiceRef: 'INV-MCL-8801',
-        status: 'Verified'
-      },
-      {
-        id: 'exp-mp-2',
-        expenseId: 'EXP-002',
-        projectId: proj1Id,
-        projectName: proj1Name,
-        date: '2026-10-16',
-        description: 'Reinforcement steel (12mm)',
-        supplier: 'Steel Masters',
-        quantity: '10 Tons',
-        amount: 450000,
-        category: 'Reinforcement Steel',
-        invoiceRef: 'SM-KE-4029',
-        status: 'Verified'
-      },
-      {
-        id: 'exp-mp-3',
-        expenseId: 'EXP-003',
-        projectId: proj1Id,
-        projectName: proj1Name,
-        date: '2026-10-18',
-        description: 'Sand',
-        supplier: 'Mombasa Sand & Gravel',
-        quantity: '50 Tons',
-        amount: 150000,
-        category: 'Masoary & Plasta Materials',
-        invoiceRef: 'MSG-3391',
-        status: 'Verified'
-      },
-      {
-        id: 'exp-mp-4',
-        expenseId: 'EXP-004',
-        projectId: proj1Id,
-        projectName: proj1Name,
-        date: '2026-10-20',
-        description: 'Ballast',
-        supplier: 'KPA Supplies',
-        quantity: '30 Tons',
-        amount: 135000,
-        category: 'Masoary & Plasta Materials',
-        invoiceRef: 'KPA-8820',
-        status: 'Verified'
-      },
-      {
-        id: 'exp-mp-5',
-        expenseId: 'EXP-005',
-        projectId: proj1Id,
-        projectName: proj1Name,
-        date: '2026-10-22',
-        description: 'Building blocks (200mm)',
-        supplier: 'Alpha Blocks Ltd',
-        quantity: '1,000 Pieces',
-        amount: 105000,
-        category: 'Building Blocks',
-        invoiceRef: 'ABL-7712',
-        status: 'Verified'
-      },
-      {
-        id: 'exp-mp-6',
-        expenseId: 'EXP-006',
-        projectId: proj1Id,
-        projectName: proj1Name,
-        date: '2026-10-24',
-        description: 'Plumbing materials',
-        supplier: 'Best Plumbing Supplies',
-        quantity: '1 Lot',
-        amount: 120000,
-        category: 'Plumbing Materials',
-        invoiceRef: 'BPS-0092',
-        status: 'Verified'
-      },
-      {
-        id: 'exp-mp-7',
-        expenseId: 'EXP-007',
-        projectId: proj1Id,
-        projectName: proj1Name,
-        date: '2026-10-27',
-        description: 'Electrical materials',
-        supplier: 'PowerTech',
-        quantity: '1 Lot',
-        amount: 180000,
-        category: 'Electrical Materials',
-        invoiceRef: 'PT-6641',
-        status: 'Verified'
-      },
-
-      // Site 2 (MMA) records
-      {
-        id: 'exp-mma-1',
-        expenseId: 'EXP-008',
-        projectId: proj2Id,
-        projectName: proj2Name,
-        date: '2026-10-14',
-        description: 'Bamburi Cement 42.5N',
-        supplier: 'Bamburi Cement Limited',
-        quantity: '150 Bags',
-        amount: 132000,
-        category: 'Casting Materials',
-        invoiceRef: 'BAM-1049',
-        status: 'Verified'
-      },
-      {
-        id: 'exp-mma-2',
-        expenseId: 'EXP-009',
-        projectId: proj2Id,
-        projectName: proj2Name,
-        date: '2026-10-17',
-        description: 'High-Yield Ribbed Bars D16',
-        supplier: 'Apex Steel Mills',
-        quantity: '4.5 Tons',
-        amount: 480000,
-        category: 'Reinforcement Steel',
-        invoiceRef: 'APX-7741',
-        status: 'Verified'
-      },
-      {
-        id: 'exp-mma-3',
-        expenseId: 'EXP-010',
-        projectId: proj2Id,
-        projectName: proj2Name,
-        date: '2026-10-21',
-        description: 'Marine Plywood 18mm & Battens',
-        supplier: 'Coast Timber & Hardware',
-        quantity: '40 Sheets',
-        amount: 128000,
-        category: 'Formwork & Timber',
-        invoiceRef: 'CT-991',
-        status: 'Verified'
-      },
-      {
-        id: 'exp-mma-4',
-        expenseId: 'EXP-011',
-        projectId: proj2Id,
-        projectName: proj2Name,
-        date: '2026-10-25',
-        description: 'Coarse River Sand Graded',
-        supplier: 'Mombasa Sand & Gravel',
-        quantity: '35 Tons',
-        amount: 120000,
-        category: 'Masoary & Plasta Materials',
-        invoiceRef: 'MSG-3420',
-        status: 'Verified'
-      },
-
-      // Site 3 (SeaCrest) records
-      {
-        id: 'exp-sc-1',
-        expenseId: 'EXP-012',
-        projectId: proj3Id,
-        projectName: proj3Name,
-        date: '2026-10-12',
-        description: 'ReadyMix Concrete C30 Graded',
-        supplier: 'ReadyMix Kenya Ltd',
-        quantity: '25 m³',
-        amount: 320000,
-        category: 'Casting Materials',
-        invoiceRef: 'RM-221',
-        status: 'Verified'
-      },
-      {
-        id: 'exp-sc-2',
-        expenseId: 'EXP-013',
-        projectId: proj3Id,
-        projectName: proj3Name,
-        date: '2026-10-16',
-        description: 'Reinforcement Steel D12 & D16',
-        supplier: 'Steel Masters Ltd',
-        quantity: '6 Tons',
-        amount: 620000,
-        category: 'Reinforcement Steel',
-        invoiceRef: 'SM-551',
-        status: 'Verified'
-      },
-      {
-        id: 'exp-sc-3',
-        expenseId: 'EXP-014',
-        projectId: proj3Id,
-        projectName: proj3Name,
-        date: '2026-10-20',
-        description: 'Heavy Duty PVC Sleeves & 110mm Pipes',
-        supplier: 'Metro Hardware Mombasa',
-        quantity: '1 Lot',
-        amount: 95000,
-        category: 'Plumbing Materials',
-        invoiceRef: 'MTR-881',
-        status: 'Verified'
-      },
-      {
-        id: 'exp-sc-4',
-        expenseId: 'EXP-015',
-        projectId: proj3Id,
-        projectName: proj3Name,
-        date: '2026-10-26',
-        description: 'Deep Coral Machine Cut Stones 9x9',
-        supplier: 'Coast Quarry Works',
-        quantity: '2,000 Pieces',
-        amount: 130000,
-        category: 'Building Blocks',
-        invoiceRef: 'CQW-909',
-        status: 'Verified'
-      }
-    ];
-  });
+  };
 
   useEffect(() => {
     try {
-      localStorage.setItem(EXPENSES_STORAGE_KEY, JSON.stringify(expensesList));
+      localStorage.removeItem('nasaab_material_expenses_funds_master');
+      localStorage.removeItem('nasaab_material_expenses_master');
     } catch (e) {
-      console.error('Failed to save material expenses:', e);
+      // ignore
     }
-  }, [expensesList]);
+    loadDatabaseExpenses();
+  }, [selectedProjectId]);
 
   // -------------------------------------------------------------
   // 4. FILTERING & SITE SWITCHING CALCULATIONS
@@ -585,7 +279,7 @@ export const MaterialExpensesPage = () => {
     setIsAddFundsOpen(true);
   };
 
-  const handleSaveAddFunds = (e) => {
+  const handleSaveAddFunds = async (e) => {
     e.preventDefault();
     if (!fundForm.reference || !fundForm.amount || Number(fundForm.amount) <= 0) {
       addToast('Please provide a valid reference and positive amount.', 'warning');
@@ -604,9 +298,15 @@ export const MaterialExpensesPage = () => {
       fundType: fundForm.fundType || 'additional'
     };
 
-    setFundsList((prev) => [newEntry, ...prev]);
-    setIsAddFundsOpen(false);
-    addToast(`Added fund: ${newEntry.reference} (${formatKSh(newEntry.amount)})`);
+    try {
+      await api.developerFunds.create(newEntry);
+      setFundsList((prev) => [newEntry, ...prev]);
+      setIsAddFundsOpen(false);
+      addToast(`Added fund: ${newEntry.reference} (${formatKSh(newEntry.amount)})`);
+    } catch (err) {
+      console.error('Failed to record fund deposit:', err);
+      addToast('Failed to record fund deposit: ' + err.message, 'error');
+    }
   };
 
   const handleOpenEditFund = (fund) => {
@@ -622,7 +322,7 @@ export const MaterialExpensesPage = () => {
     });
   };
 
-  const handleSaveEditFund = (e) => {
+  const handleSaveEditFund = async (e) => {
     e.preventDefault();
     if (!editingFund) return;
     if (!fundForm.reference || !fundForm.amount || Number(fundForm.amount) <= 0) {
@@ -630,32 +330,49 @@ export const MaterialExpensesPage = () => {
       return;
     }
 
-    const assignedProj = projects.find((p) => p.id === fundForm.projectId);
-    setFundsList((prev) =>
-      prev.map((f) =>
-        f.id === editingFund.id
-          ? {
-            ...f,
-            projectId: fundForm.projectId,
-            projectName: assignedProj?.name || f.projectName,
-            reference: fundForm.reference.trim(),
-            date: fundForm.date,
-            description: fundForm.description.trim(),
-            amount: Number(fundForm.amount),
-            fundType: fundForm.fundType
-          }
-          : f
-      )
-    );
-    setEditingFund(null);
-    addToast('Fund entry updated successfully.');
+    try {
+      await api.developerFunds.update(editingFund.id, {
+        referenceNo: fundForm.reference.trim(),
+        date: fundForm.date,
+        title: fundForm.description.trim(),
+        amount: Number(fundForm.amount),
+        fundType: fundForm.fundType
+      });
+      setFundsList((prev) =>
+        prev.map((f) =>
+          f.id === editingFund.id
+            ? {
+              ...f,
+              projectId: fundForm.projectId,
+              projectName: assignedProj?.name || f.projectName,
+              reference: fundForm.reference.trim(),
+              date: fundForm.date,
+              description: fundForm.description.trim(),
+              amount: Number(fundForm.amount),
+              fundType: fundForm.fundType
+            }
+            : f
+        )
+      );
+      setEditingFund(null);
+      addToast('Fund entry updated successfully.');
+    } catch (err) {
+      console.error('Failed to update fund:', err);
+      addToast('Failed to update fund: ' + err.message, 'error');
+    }
   };
 
-  const handleDeleteFund = () => {
+  const handleDeleteFund = async () => {
     if (isStoreKeeper || !deletingFund) return;
-    setFundsList((prev) => prev.filter((f) => f.id !== deletingFund.id));
-    addToast(`Removed fund record: ${deletingFund.reference}`, 'info');
-    setDeletingFund(null);
+    try {
+      await api.developerFunds.delete(deletingFund.id);
+      setFundsList((prev) => prev.filter((f) => f.id !== deletingFund.id));
+      addToast(`Removed fund record: ${deletingFund.reference}`, 'info');
+      setDeletingFund(null);
+    } catch (err) {
+      console.error('Failed to delete fund:', err);
+      addToast('Failed to delete fund: ' + err.message, 'error');
+    }
   };
 
   // -------------------------------------------------------------
@@ -685,7 +402,7 @@ export const MaterialExpensesPage = () => {
     setIsAddExpenseOpen(true);
   };
 
-  const handleSaveAddExpense = (e) => {
+  const handleSaveAddExpense = async (e) => {
     e.preventDefault();
     if (!expenseForm.description || !expenseForm.amount || Number(expenseForm.amount) <= 0) {
       addToast('Please provide a valid description and positive total amount.', 'warning');
@@ -708,9 +425,15 @@ export const MaterialExpensesPage = () => {
       status: 'Verified'
     };
 
-    setExpensesList((prev) => [newExp, ...prev]);
-    setIsAddExpenseOpen(false);
-    addToast(`Recorded expense: ${newExp.expenseId} (${formatKSh(newExp.amount)})`);
+    try {
+      await api.materialExpenses.create(newExp);
+      setExpensesList((prev) => [newExp, ...prev]);
+      setIsAddExpenseOpen(false);
+      addToast(`Recorded expense: ${newExp.expenseId} (${formatKSh(newExp.amount)})`);
+    } catch (err) {
+      console.error('Failed to save material expense:', err);
+      addToast('Failed to save expense: ' + err.message, 'error');
+    }
   };
 
   const handleOpenEditExpense = (expense) => {
@@ -734,7 +457,7 @@ export const MaterialExpensesPage = () => {
     });
   };
 
-  const handleSaveEditExpense = (e) => {
+  const handleSaveEditExpense = async (e) => {
     e.preventDefault();
     if (!editingExpense) return;
     if (!expenseForm.description || !expenseForm.amount || Number(expenseForm.amount) <= 0) {
@@ -742,35 +465,54 @@ export const MaterialExpensesPage = () => {
       return;
     }
 
-    const assignedProj = projects.find((p) => p.id === expenseForm.projectId);
-    setExpensesList((prev) =>
-      prev.map((e) =>
-        e.id === editingExpense.id
-          ? {
-            ...e,
-            projectId: expenseForm.projectId,
-            projectName: assignedProj?.name || e.projectName,
-            expenseId: expenseForm.expenseId,
-            date: expenseForm.date,
-            description: expenseForm.description.trim(),
-            supplier: expenseForm.supplier.trim(),
-            quantity: expenseForm.quantity.trim(),
-            amount: Number(expenseForm.amount),
-            category: expenseForm.category,
-            invoiceRef: expenseForm.invoiceRef.trim()
-          }
-          : e
-      )
-    );
-    setEditingExpense(null);
-    addToast('Material expense transaction updated.');
+    try {
+      await api.materialExpenses.update(editingExpense.id, {
+        date: expenseForm.date,
+        description: expenseForm.description.trim(),
+        supplier: expenseForm.supplier.trim(),
+        quantity: expenseForm.quantity.trim(),
+        amount: Number(expenseForm.amount),
+        category: expenseForm.category,
+        invoiceRef: expenseForm.invoiceRef.trim()
+      });
+      setExpensesList((prev) =>
+        prev.map((e) =>
+          e.id === editingExpense.id
+            ? {
+              ...e,
+              projectId: expenseForm.projectId,
+              projectName: assignedProj?.name || e.projectName,
+              expenseId: expenseForm.expenseId,
+              date: expenseForm.date,
+              description: expenseForm.description.trim(),
+              supplier: expenseForm.supplier.trim(),
+              quantity: expenseForm.quantity.trim(),
+              amount: Number(expenseForm.amount),
+              category: expenseForm.category,
+              invoiceRef: expenseForm.invoiceRef.trim()
+            }
+            : e
+        )
+      );
+      setEditingExpense(null);
+      addToast('Material expense transaction updated.');
+    } catch (err) {
+      console.error('Failed to update expense:', err);
+      addToast('Failed to update expense: ' + err.message, 'error');
+    }
   };
 
-  const handleDeleteExpense = () => {
+  const handleDeleteExpense = async () => {
     if (!deletingExpense) return;
-    setExpensesList((prev) => prev.filter((e) => e.id !== deletingExpense.id));
-    addToast(`Deleted transaction: ${deletingExpense.expenseId}`, 'info');
-    setDeletingExpense(null);
+    try {
+      await api.materialExpenses.delete(deletingExpense.id);
+      setExpensesList((prev) => prev.filter((e) => e.id !== deletingExpense.id));
+      addToast(`Deleted transaction: ${deletingExpense.expenseId}`, 'info');
+      setDeletingExpense(null);
+    } catch (err) {
+      console.error('Failed to delete expense:', err);
+      addToast('Failed to delete expense: ' + err.message, 'error');
+    }
   };
 
   const handleDownloadMaterialExpensesPDF = () => {

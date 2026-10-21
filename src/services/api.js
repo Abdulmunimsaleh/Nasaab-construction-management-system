@@ -161,7 +161,68 @@ export const api = {
       return request(`/weekly-reports/data?${q}`);
     },
     save: (data) => request('/weekly-reports/save', { method: 'POST', body: data })
+  },
+
+  // 9. SUBCONTRACT PIECE WORK & PAYMENTS
+  subcontracts: {
+    getAgreements: (projectId) => request(`/subcontracts/agreements${projectId && projectId !== 'all' ? `?projectId=${encodeURIComponent(projectId)}` : ''}`),
+    createAgreement: (data) => request('/subcontracts/agreements', { method: 'POST', body: data }),
+    updateAgreement: (id, data) => request(`/subcontracts/agreements/${id}`, { method: 'PUT', body: data }),
+    deleteAgreement: (id) => request(`/subcontracts/agreements/${id}`, { method: 'DELETE' }),
+    getPayments: (projectId) => request(`/subcontracts/payments${projectId && projectId !== 'all' ? `?projectId=${encodeURIComponent(projectId)}` : ''}`),
+    createPayment: (data) => request('/subcontracts/payments', { method: 'POST', body: data }),
+    deletePayment: (id) => request(`/subcontracts/payments/${id}`, { method: 'DELETE' })
+  },
+
+  // 10. EQUIPMENT INVENTORY & EXPENSES
+  equipment: {
+    getAll: (projectId) => request(`/equipment${projectId && projectId !== 'all' ? `?projectId=${encodeURIComponent(projectId)}` : ''}`),
+    create: (data) => request('/equipment', { method: 'POST', body: data }),
+    delete: (id) => request(`/equipment/${id}`, { method: 'DELETE' }),
+    getExpenses: (projectId) => request(`/equipment/expenses${projectId && projectId !== 'all' ? `?projectId=${encodeURIComponent(projectId)}` : ''}`),
+    createExpense: (data) => request('/equipment/expenses', { method: 'POST', body: data }),
+    deleteExpense: (id) => request(`/equipment/expenses/${id}`, { method: 'DELETE' })
+  },
+
+  // 11. SAFETY, DELAYS & VISITORS
+  safetyDelays: {
+    getAll: (projectId) => request(`/safety-delays${projectId && projectId !== 'all' ? `?projectId=${encodeURIComponent(projectId)}` : ''}`),
+    create: (data) => request('/safety-delays', { method: 'POST', body: data }),
+    delete: (id) => request(`/safety-delays/${id}`, { method: 'DELETE' })
+  },
+
+  // 12. SITE PROGRESS & CUSTOM ACTIVITIES
+  siteProgress: {
+    getAll: (projectId) => request(`/site-progress${projectId && projectId !== 'all' ? `?projectId=${encodeURIComponent(projectId)}` : ''}`),
+    create: (data) => request('/site-progress', { method: 'POST', body: data }),
+    delete: (id) => request(`/site-progress/${id}`, { method: 'DELETE' }),
+    getCategories: () => request('/site-progress/categories'),
+    createCategory: (name) => request('/site-progress/categories', { method: 'POST', body: { name } })
+  },
+
+  // 13. MATERIALS RECEIVED
+  materialsReceived: {
+    getAll: (projectId) => request(`/materials-received${projectId && projectId !== 'all' ? `?projectId=${encodeURIComponent(projectId)}` : ''}`),
+    create: (data) => request('/materials-received', { method: 'POST', body: data }),
+    delete: (id) => request(`/materials-received/${id}`, { method: 'DELETE' })
+  },
+
+  // 14. DEVELOPER FUNDS
+  developerFunds: {
+    getAll: (projectId) => request(`/developer-funds${projectId && projectId !== 'all' ? `?projectId=${encodeURIComponent(projectId)}` : ''}`),
+    create: (data) => request('/developer-funds', { method: 'POST', body: data }),
+    update: (id, data) => request(`/developer-funds/${id}`, { method: 'PUT', body: data }),
+    delete: (id) => request(`/developer-funds/${id}`, { method: 'DELETE' })
+  },
+
+  // 15. MATERIAL EXPENSES
+  materialExpenses: {
+    getAll: (projectId) => request(`/material-expenses${projectId && projectId !== 'all' ? `?projectId=${encodeURIComponent(projectId)}` : ''}`),
+    create: (data) => request('/material-expenses', { method: 'POST', body: data }),
+    update: (id, data) => request(`/material-expenses/${id}`, { method: 'PUT', body: data }),
+    delete: (id) => request(`/material-expenses/${id}`, { method: 'DELETE' })
   }
 };
 
 export default api;
+

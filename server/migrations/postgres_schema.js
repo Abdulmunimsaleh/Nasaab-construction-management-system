@@ -242,6 +242,178 @@ export async function initPostgresSchema(pool) {
     );
   `);
 
+  // 14. Subcontract Agreements
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS subcontract_agreements (
+      id VARCHAR(64) PRIMARY KEY,
+      contract_id VARCHAR(64) NOT NULL,
+      project_id VARCHAR(64) NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      team_name VARCHAR(150) NOT NULL,
+      foreman_name VARCHAR(150) DEFAULT NULL,
+      contract_date DATE DEFAULT NULL,
+      floor VARCHAR(100) DEFAULT NULL,
+      agreed_amount DECIMAL(15, 2) NOT NULL DEFAULT 0.00,
+      total_paid DECIMAL(15, 2) NOT NULL DEFAULT 0.00,
+      status VARCHAR(50) NOT NULL DEFAULT 'In Progress',
+      notes TEXT DEFAULT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  // 15. Subcontract Payments
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS subcontract_payments (
+      id VARCHAR(64) PRIMARY KEY,
+      payment_ref VARCHAR(64) NOT NULL,
+      agreement_id VARCHAR(64) DEFAULT NULL REFERENCES subcontract_agreements(id) ON DELETE CASCADE,
+      project_id VARCHAR(64) NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      team_name VARCHAR(150) DEFAULT NULL,
+      floor VARCHAR(100) DEFAULT NULL,
+      week_period VARCHAR(100) DEFAULT NULL,
+      contract_amount DECIMAL(15, 2) NOT NULL DEFAULT 0.00,
+      paid_this_week DECIMAL(15, 2) NOT NULL DEFAULT 0.00,
+      cumulative_paid DECIMAL(15, 2) NOT NULL DEFAULT 0.00,
+      remaining_balance DECIMAL(15, 2) NOT NULL DEFAULT 0.00,
+      date DATE NOT NULL,
+      notes TEXT DEFAULT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  // 16. Site Equipment Inventory
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS site_equipment_inventory (
+      id VARCHAR(64) PRIMARY KEY,
+      project_id VARCHAR(64) NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      equipment_name VARCHAR(150) NOT NULL,
+      status VARCHAR(50) NOT NULL DEFAULT 'Active',
+      machine_notes TEXT DEFAULT NULL,
+      date DATE DEFAULT CURRENT_DATE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  // 17. Equipment Expenses
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS equipment_expenses (
+      id VARCHAR(64) PRIMARY KEY,
+      project_id VARCHAR(64) NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      equipment_name VARCHAR(150) NOT NULL,
+      amount DECIMAL(15, 2) NOT NULL DEFAULT 0.00,
+      description TEXT DEFAULT NULL,
+      date DATE NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  // 18. Safety & Delays & Site Visitors
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS safety_and_delays (
+      id VARCHAR(64) PRIMARY KEY,
+      project_id VARCHAR(64) NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      category VARCHAR(50) NOT NULL,
+      title VARCHAR(255) NOT NULL,
+      cause VARCHAR(255) DEFAULT NULL,
+      severity VARCHAR(50) DEFAULT 'Medium',
+      duration_hours DECIMAL(6, 2) DEFAULT 0.00,
+      description TEXT DEFAULT NULL,
+      action_taken TEXT DEFAULT NULL,
+      total_amount DECIMAL(15, 2) DEFAULT 0.00,
+      visitor_name VARCHAR(150) DEFAULT NULL,
+      visitor_org VARCHAR(150) DEFAULT NULL,
+      purpose TEXT DEFAULT NULL,
+      photos TEXT DEFAULT NULL,
+      date DATE NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  // 19. Custom Site Progress Activities
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS custom_site_activities (
+      id VARCHAR(64) PRIMARY KEY,
+      project_id VARCHAR(64) NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      category VARCHAR(100) NOT NULL,
+      additional_categories TEXT DEFAULT NULL,
+      description TEXT NOT NULL,
+      zone VARCHAR(150) DEFAULT NULL,
+      status VARCHAR(50) NOT NULL DEFAULT 'in_progress',
+      progress INT NOT NULL DEFAULT 0,
+      work_done_today TEXT DEFAULT NULL,
+      remarks TEXT DEFAULT NULL,
+      source VARCHAR(100) DEFAULT 'Site Log',
+      photos TEXT DEFAULT NULL,
+      date DATE NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  // 20. Custom Progress Categories
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS custom_progress_categories (
+      id VARCHAR(64) PRIMARY KEY,
+      name VARCHAR(100) NOT NULL UNIQUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  // 21. Materials Received & Inward Deliveries
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS materials_received (
+      id VARCHAR(64) PRIMARY KEY,
+      project_id VARCHAR(64) NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      delivery_note_no VARCHAR(100) DEFAULT NULL,
+      date DATE NOT NULL,
+      item_name VARCHAR(200) NOT NULL,
+      supplier VARCHAR(150) DEFAULT NULL,
+      quantity VARCHAR(100) NOT NULL,
+      total_cost DECIMAL(15, 2) NOT NULL DEFAULT 0.00,
+      received_by VARCHAR(150) DEFAULT NULL,
+      status VARCHAR(50) DEFAULT 'Verified & Stored',
+      description TEXT DEFAULT NULL,
+      photos TEXT DEFAULT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  // 22. Developer Funds Received / Site Allocations
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS developer_funds (
+      id VARCHAR(64) PRIMARY KEY,
+      reference_no VARCHAR(100) DEFAULT NULL,
+      project_id VARCHAR(64) NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      date DATE NOT NULL,
+      title VARCHAR(255) NOT NULL,
+      depositor VARCHAR(150) DEFAULT NULL,
+      wire_ref VARCHAR(100) DEFAULT NULL,
+      stage VARCHAR(100) DEFAULT NULL,
+      amount DECIMAL(15, 2) NOT NULL DEFAULT 0.00,
+      fund_type VARCHAR(100) DEFAULT 'additional',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  // 23. Material Expenses
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS material_expenses (
+      id VARCHAR(64) PRIMARY KEY,
+      expense_id VARCHAR(64) DEFAULT NULL,
+      project_id VARCHAR(64) NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      date DATE NOT NULL,
+      description VARCHAR(255) NOT NULL,
+      supplier VARCHAR(150) DEFAULT NULL,
+      quantity VARCHAR(100) DEFAULT NULL,
+      amount DECIMAL(15, 2) NOT NULL DEFAULT 0.00,
+      category VARCHAR(100) DEFAULT NULL,
+      invoice_ref VARCHAR(100) DEFAULT NULL,
+      status VARCHAR(50) DEFAULT 'Verified',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
   console.log('✅ PostgreSQL tables verified.');
 
   // ---------------- Seed Initial Data If Empty ----------------

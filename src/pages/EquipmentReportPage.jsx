@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import { formatKES } from '../utils/formatters';
 import { generateEquipmentReportPDF } from '../utils/pdfGenerator';
+import api from '../services/api';
 import {
   Truck,
   Wrench,
@@ -24,9 +25,6 @@ import {
   RotateCcw,
   Receipt
 } from 'lucide-react';
-
-const STORAGE_KEY = 'nasaab_equipment_ledger_v2';
-const EXPENSES_STORAGE_KEY = 'nasaab_equipment_expenses_ledger_v2';
 
 export const EquipmentReportPage = () => {
   const {
@@ -55,7 +53,7 @@ export const EquipmentReportPage = () => {
   // Multiple equipment entries in Log Plant & Machinery modal
   const [equipmentEntries, setEquipmentEntries] = useState([createEmptyEquipmentEntry()]);
 
-  // Unified custom equipment state
+  // Unified custom equipment state (Live PostgreSQL)
   const [customEquipment, setCustomEquipment] = useState([]);
 
   // ==========================================
@@ -71,132 +69,31 @@ export const EquipmentReportPage = () => {
 
   const [isExpenseFormOpen, setIsExpenseFormOpen] = useState(true);
   const [expenseEntries, setExpenseEntries] = useState([createEmptyExpenseEntry()]);
-  const [customExpenses, setCustomExpenses] = useState(() => {
-    try {
-      const saved = localStorage.getItem(EXPENSES_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch (e) {
-      console.error(e);
-    }
-    return [
-      {
-        id: 'exp-demo-1',
-        equipmentName: 'CAT 320 Hydraulic Excavator',
-        amount: 45000,
-        description: 'Replaced hydraulic return line hose and refilled 40L Shell Tellus S2 hydraulic fluid.',
-        date: new Date().toISOString().split('T')[0],
-        projectId: 'prj-mma',
-        projectName: 'MMA'
-      },
-      {
-        id: 'exp-demo-2',
-        equipmentName: 'Concrete Mixer 400L (Hydraulic Hopper)',
-        amount: 18500,
-        description: 'Engine service: changed oil, fuel filter, cleaned carburetor and greased mixing drum bearings.',
-        date: new Date().toISOString().split('T')[0],
-        projectId: 'prj-mma',
-        projectName: 'MMA'
-      }
-    ];
-  });
+  const [customExpenses, setCustomExpenses] = useState([]);
 
-  // Initialize and migrate any legacy equipment into unified store
+  // Load equipment and expenses from PostgreSQL database
+  const loadDatabaseEquipment = async () => {
+    try {
+      const [fetchedEq, fetchedExp] = await Promise.all([
+        api.equipment.getAll(selectedProjectId),
+        api.equipment.getExpenses(selectedProjectId)
+      ]);
+      setCustomEquipment(Array.isArray(fetchedEq) ? fetchedEq : []);
+      setCustomExpenses(Array.isArray(fetchedExp) ? fetchedExp : []);
+    } catch (err) {
+      console.error('Failed to load equipment from database:', err);
+    }
+  };
+
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          setCustomEquipment(parsed);
-          return;
-        }
-      }
-
-      // Migration: check per-project legacy keys if unified store doesn't exist
-      const migrated = [];
-      const seenIds = new Set();
-
-      (projects || []).forEach((proj) => {
-        const legacyKey = `nasaab_equipment_${proj.id}`;
-        const raw = localStorage.getItem(legacyKey);
-        if (raw) {
-          try {
-            const list = JSON.parse(raw);
-            if (Array.isArray(list)) {
-              list.forEach((item, itemIdx) => {
-                const uniqueId = `migrated-${proj.id}-${item.id || itemIdx}`;
-                if (!seenIds.has(uniqueId)) {
-                  seenIds.add(uniqueId);
-                  migrated.push({
-                    ...item,
-                    id: uniqueId,
-                    projectId: proj.id,
-                    projectName: proj.name
-                  });
-                }
-              });
-            }
-          } catch (e) {
-            console.error(e);
-          }
-        }
-      });
-
-      // If nothing was found anywhere, seed demo items STRICTLY for the first project only
-      if (migrated.length === 0 && projects && projects.length > 0) {
-        const firstProj = projects[0];
-        const initialSeed = [
-          {
-            id: `eq-seed-1-${firstProj.id}`,
-            equipmentName: 'Concrete Mixer 400L (Hydraulic Hopper)',
-            status: 'Active',
-            machineNotes: 'Mixing concrete for column casting; operational on site.',
-            date: new Date().toISOString().split('T')[0],
-            projectId: firstProj.id,
-            projectName: firstProj.name
-          },
-          {
-            id: `eq-seed-2-${firstProj.id}`,
-            equipmentName: 'CAT 320 Hydraulic Excavator',
-            status: 'Active',
-            machineNotes: 'Trench excavation for storm drainage and backfilling.',
-            date: new Date().toISOString().split('T')[0],
-            projectId: firstProj.id,
-            projectName: firstProj.name
-          },
-          {
-            id: `eq-seed-3-${firstProj.id}`,
-            equipmentName: 'Plate Compactor 90kg (Robin Engine)',
-            status: 'Maintenance / Breakdown',
-            machineNotes: 'Used for hardcore leveling in corridor zone.',
-            date: new Date().toISOString().split('T')[0],
-            projectId: firstProj.id,
-            projectName: firstProj.name
-          },
-          {
-            id: `eq-seed-4-${firstProj.id}`,
-            equipmentName: 'Bar Bending & Cutting Machine',
-            status: 'Active',
-            machineNotes: 'Bending D16 rebar on ground floor.',
-            date: new Date().toISOString().split('T')[0],
-            projectId: firstProj.id,
-            projectName: firstProj.name
-          }
-        ];
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(initialSeed));
-        setCustomEquipment(initialSeed);
-      } else {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
-        setCustomEquipment(migrated);
-      }
-    } catch (err) {
-      console.error('Error initializing equipment ledger:', err);
-      setCustomEquipment([]);
+      localStorage.removeItem('nasaab_equipment_ledger_v2');
+      localStorage.removeItem('nasaab_equipment_expenses_ledger_v2');
+    } catch (e) {
+      // ignore
     }
-  }, [projects]);
+    loadDatabaseEquipment();
+  }, [selectedProjectId]);
 
   // Open modal and pre-select project
   const handleOpenAddModal = () => {
@@ -227,7 +124,7 @@ export const EquipmentReportPage = () => {
   };
 
   // Save new equipment entries — strictly assigned to the chosen project site
-  const handleSaveEquipment = (e) => {
+  const handleSaveEquipment = async (e) => {
     e.preventDefault();
     const validEntries = equipmentEntries.filter((eq) => eq.equipmentName && eq.equipmentName.trim());
     if (validEntries.length === 0) {
@@ -250,22 +147,22 @@ export const EquipmentReportPage = () => {
       projectName: assignedPName
     }));
 
-    const updated = [...newItems, ...customEquipment];
-    setCustomEquipment(updated);
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      await api.equipment.create(newItems);
+      const updated = [...newItems, ...customEquipment];
+      setCustomEquipment(updated);
+      addToast && addToast(
+        `Added ${newItems.length} equipment ${newItems.length === 1 ? 'record' : 'records'} to ${assignedPName} successfully!`
+      );
+      setIsAddModalOpen(false);
     } catch (err) {
-      console.error(err);
+      console.error('Failed to save equipment:', err);
+      addToast && addToast('Failed to save equipment to database: ' + err.message, 'error');
     }
-
-    addToast && addToast(
-      `Added ${newItems.length} equipment ${newItems.length === 1 ? 'record' : 'records'} to ${assignedPName} successfully!`
-    );
-    setIsAddModalOpen(false);
   };
 
   // Delete equipment entry — strictly removes ONLY that specific item
-  const handleDeleteEquipment = (eq) => {
+  const handleDeleteEquipment = async (eq) => {
     if (eq.source === 'lae') {
       addToast && addToast(
         `This machine is part of official Daily LAE Log #${eq.formNumber || ''}. To remove it, please edit that daily log directly.`,
@@ -274,19 +171,19 @@ export const EquipmentReportPage = () => {
       return;
     }
 
-    const updated = customEquipment.filter((item) => item.id !== eq.id);
-    setCustomEquipment(updated);
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      await api.equipment.delete(eq.id);
+      const updated = customEquipment.filter((item) => item.id !== eq.id);
+      setCustomEquipment(updated);
+      addToast && addToast(`Removed ${eq.equipmentName} from ${eq.projectName || 'site'}.`, 'info');
     } catch (err) {
-      console.error(err);
+      console.error('Failed to delete equipment:', err);
+      addToast && addToast('Failed to delete equipment: ' + err.message, 'error');
     }
-
-    addToast && addToast(`Removed ${eq.equipmentName} from ${eq.projectName || 'site'}.`, 'info');
   };
 
   // Reset or clear custom equipment for the active site
-  const handleClearSiteEquipment = () => {
+  const handleClearSiteEquipment = async () => {
     if (selectedProjectId === 'all') {
       addToast && addToast('Please select a specific project site to reset its machinery fleet.', 'warning');
       return;
@@ -296,15 +193,16 @@ export const EquipmentReportPage = () => {
       return;
     }
 
-    const updated = customEquipment.filter((item) => item.projectId !== selectedProjectId);
-    setCustomEquipment(updated);
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      const toDelete = customEquipment.filter((item) => item.projectId === selectedProjectId);
+      await Promise.all(toDelete.map((item) => api.equipment.delete(item.id)));
+      const updated = customEquipment.filter((item) => item.projectId !== selectedProjectId);
+      setCustomEquipment(updated);
+      addToast && addToast(`All equipment records cleared for ${siteName}.`, 'info');
     } catch (err) {
-      console.error(err);
+      console.error('Failed to clear equipment records:', err);
+      addToast && addToast('Failed to clear equipment: ' + err.message, 'error');
     }
-
-    addToast && addToast(`All equipment records cleared for ${siteName}.`, 'info');
   };
 
   // Filter custom equipment strictly by selected project
@@ -438,7 +336,7 @@ export const EquipmentReportPage = () => {
     });
   };
 
-  const handleSaveExpenses = (e) => {
+  const handleSaveExpenses = async (e) => {
     e.preventDefault();
     const validEntries = expenseEntries.filter((exp) => {
       const name = exp.equipmentName === 'custom' ? exp.customName : exp.equipmentName;
@@ -468,29 +366,30 @@ export const EquipmentReportPage = () => {
       };
     });
 
-    const updated = [...newItems, ...customExpenses];
-    setCustomExpenses(updated);
     try {
-      localStorage.setItem(EXPENSES_STORAGE_KEY, JSON.stringify(updated));
+      await api.equipment.createExpense(newItems);
+      const updated = [...newItems, ...customExpenses];
+      setCustomExpenses(updated);
+      addToast && addToast(
+        `Logged ${newItems.length} equipment expense ${newItems.length === 1 ? 'record' : 'records'} for ${assignedPName} successfully!`
+      );
+      setExpenseEntries([createEmptyExpenseEntry()]);
     } catch (err) {
-      console.error(err);
+      console.error('Failed to save expenses:', err);
+      addToast && addToast('Failed to save equipment expenses: ' + err.message, 'error');
     }
-
-    addToast && addToast(
-      `Logged ${newItems.length} equipment expense ${newItems.length === 1 ? 'record' : 'records'} for ${assignedPName} successfully!`
-    );
-    setExpenseEntries([createEmptyExpenseEntry()]);
   };
 
-  const handleDeleteExpense = (id) => {
-    const updated = customExpenses.filter((e) => e.id !== id);
-    setCustomExpenses(updated);
+  const handleDeleteExpense = async (id) => {
     try {
-      localStorage.setItem(EXPENSES_STORAGE_KEY, JSON.stringify(updated));
+      await api.equipment.deleteExpense(id);
+      const updated = customExpenses.filter((e) => e.id !== id);
+      setCustomExpenses(updated);
+      addToast && addToast('Equipment expense record removed.', 'info');
     } catch (err) {
-      console.error(err);
+      console.error('Failed to delete expense:', err);
+      addToast && addToast('Failed to delete expense: ' + err.message, 'error');
     }
-    addToast && addToast('Equipment expense record removed.', 'info');
   };
 
   // Filter expenses strictly by selected project

@@ -29,6 +29,13 @@ import materialRequestsRoutes from './routes/material_requests.routes.js';
 import costsRoutes from './routes/costs.routes.js';
 import settingsRoutes from './routes/settings.routes.js';
 import weeklyReportsRoutes from './routes/weekly_reports.routes.js';
+import subcontractsRoutes from './routes/subcontracts.routes.js';
+import equipmentRoutes from './routes/equipment.routes.js';
+import safetyDelaysRoutes from './routes/safety_delays.routes.js';
+import siteProgressRoutes from './routes/site_progress.routes.js';
+import materialsReceivedRoutes from './routes/materials_received.routes.js';
+import developerFundsRoutes from './routes/developer_funds.routes.js';
+import materialExpensesRoutes from './routes/material_expenses.routes.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -95,6 +102,13 @@ app.use('/api/material-requests', materialRequestsRoutes);
 app.use('/api/costs', costsRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/weekly-reports', weeklyReportsRoutes);
+app.use('/api/subcontracts', subcontractsRoutes);
+app.use('/api/equipment', equipmentRoutes);
+app.use('/api/safety-delays', safetyDelaysRoutes);
+app.use('/api/site-progress', siteProgressRoutes);
+app.use('/api/materials-received', materialsReceivedRoutes);
+app.use('/api/developer-funds', developerFundsRoutes);
+app.use('/api/material-expenses', materialExpensesRoutes);
 
 // --------------- 404 Catch-all for API ---------------
 

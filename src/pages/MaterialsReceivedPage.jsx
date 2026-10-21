@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { formatKES, getDayOfWeek, formatDate } from '../utils/formatters';
 import { generateMaterialsReceivedReportPDF } from '../utils/pdfGenerator';
-
+import api from '../services/api';
 const MASTER_STORAGE_KEY = 'nasaab_materials_received_master';
 
 export const MaterialsReceivedPage = () => {
@@ -79,134 +79,33 @@ export const MaterialsReceivedPage = () => {
     }
   }, [selectedProjectId, currentProject, projects]);
 
-  // Initialize custom deliveries with project tagging
-  const [customDeliveries, setCustomDeliveries] = useState(() => {
+  // Initialize custom deliveries from live PostgreSQL
+  const [customDeliveries, setCustomDeliveries] = useState([]);
+
+  // Load live inward deliveries from database
+  const loadDatabaseDeliveries = async () => {
     try {
-      const savedMaster = localStorage.getItem(MASTER_STORAGE_KEY);
-      if (savedMaster) {
-        const parsed = JSON.parse(savedMaster);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-
-      // Check legacy per-project keys and merge
-      const merged = [];
-      const seenIds = new Set();
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith('nasaab_materials_received_')) {
-          try {
-            const raw = localStorage.getItem(k);
-            if (raw) {
-              const arr = JSON.parse(raw);
-              if (Array.isArray(arr)) {
-                arr.forEach((it) => {
-                  if (it && it.id && !seenIds.has(it.id)) {
-                    seenIds.add(it.id);
-                    merged.push(it);
-                  }
-                });
-              }
-            }
-          } catch (e) {
-            // ignore
-          }
-        }
-      }
-
-      if (merged.length > 0) {
-        localStorage.setItem(MASTER_STORAGE_KEY, JSON.stringify(merged));
-        return merged;
-      }
-    } catch (e) {
-      console.error(e);
-    }
-
-    const defaultProjId = (projects && projects[0]?.id) || 'proj-1';
-    const defaultProjName = (projects && projects[0]?.name) || 'Nasaab Residence';
-    const secondProjId = (projects && projects[1]?.id) || 'proj-2';
-    const secondProjName = (projects && projects[1]?.name) || 'Al-Noor Tower';
-
-    return [
-      {
-        id: 'deliv-1',
-        projectId: defaultProjId,
-        projectName: defaultProjName,
-        itemName: 'Bamburi Portland Cement 42.5N',
-        supplier: 'Bamburi Cement Limited',
-        quantity: '250 Bags',
-        totalCost: 220000,
-        deliveryNoteNo: 'DN-99421',
-        status: 'Verified & Stored',
-        receivedBy: 'Storekeeper Ali',
-        notes: 'Offloaded to dry storage shed; all bags dry and intact with intact manufacturer seals.',
-        date: new Date().toISOString().split('T')[0],
-        day: getDayOfWeek(new Date().toISOString().split('T')[0]),
-        photos: []
-      },
-      {
-        id: 'deliv-2',
-        projectId: defaultProjId,
-        projectName: defaultProjName,
-        itemName: 'High-Yield Ribbed Reinforcement Bars D16 (12m)',
-        supplier: 'Apex Steel Mills Kenya',
-        quantity: '120 Bars (5.5 Tonnes)',
-        totalCost: 342000,
-        deliveryNoteNo: 'APX-7741',
-        status: 'Verified & Stored',
-        receivedBy: 'Storekeeper Ali',
-        notes: 'Bend test sample approved by site foreman; stacked on timber battens above ground.',
-        date: new Date().toISOString().split('T')[0],
-        day: getDayOfWeek(new Date().toISOString().split('T')[0]),
-        photos: []
-      },
-      {
-        id: 'deliv-3',
-        projectId: secondProjId,
-        projectName: secondProjName,
-        itemName: 'Clean River Sand (Coarse Graded)',
-        supplier: 'Mombasa River Aggregates Ltd',
-        quantity: '4 Trips (15-Ton Lorries)',
-        totalCost: 96000,
-        deliveryNoteNo: 'MRA-1029',
-        status: 'Verified & Stored',
-        receivedBy: 'Storekeeper Ali',
-        notes: 'Discharged at batching yard; silt content checked under 4%.',
-        date: new Date().toISOString().split('T')[0],
-        day: getDayOfWeek(new Date().toISOString().split('T')[0]),
-        photos: []
-      },
-      {
-        id: 'deliv-4',
-        projectId: secondProjId,
-        projectName: secondProjName,
-        itemName: 'Marine Film Faced Plywood 18mm (8x4)',
-        supplier: 'Coast Timber & Hardware',
-        quantity: '80 Sheets',
-        totalCost: 256000,
-        deliveryNoteNo: 'CT-5510',
-        status: 'Verified & Stored',
-        receivedBy: 'Storekeeper Ali',
-        notes: 'Shuttering boards inspected for edge sealant. Allocated to slab carpenters.',
-        date: new Date().toISOString().split('T')[0],
-        day: getDayOfWeek(new Date().toISOString().split('T')[0]),
-        photos: []
-      }
-    ];
-  });
-
-  // Save deliveries to both master and legacy keys
-  const saveCustomDeliveries = (updated) => {
-    setCustomDeliveries(updated);
-    try {
-      localStorage.setItem(MASTER_STORAGE_KEY, JSON.stringify(updated));
-      if (selectedProjectId && selectedProjectId !== 'all') {
-        const perProject = updated.filter((d) => d.projectId === selectedProjectId);
-        localStorage.setItem(`nasaab_materials_received_${selectedProjectId}`, JSON.stringify(perProject));
-      }
+      const records = await api.materialsReceived.getAll(selectedProjectId);
+      setCustomDeliveries(Array.isArray(records) ? records : []);
     } catch (err) {
-      console.error(err);
+      console.error('Failed to load materials received from database:', err);
     }
   };
+
+  useEffect(() => {
+    try {
+      localStorage.removeItem('nasaab_materials_received_master');
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('nasaab_materials_received_')) {
+          localStorage.removeItem(k);
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+    loadDatabaseDeliveries();
+  }, [selectedProjectId]);
 
   // Convert uploaded image file to base64 data URL
   const fileToBase64 = (file) => {
@@ -300,7 +199,7 @@ export const MaterialsReceivedPage = () => {
     });
   };
 
-  const handleSaveDelivery = (e) => {
+  const handleSaveDelivery = async (e) => {
     e.preventDefault();
 
     const validItems = items.filter(
@@ -338,31 +237,43 @@ export const MaterialsReceivedPage = () => {
       };
     });
 
-    const updated = [...newEntries, ...customDeliveries];
-    saveCustomDeliveries(updated);
+    try {
+      await api.materialsReceived.create(newEntries);
+      const updated = [...newEntries, ...customDeliveries];
+      setCustomDeliveries(updated);
 
-    addToast && addToast(`${newEntries.length} material item${newEntries.length > 1 ? 's' : ''} recorded for ${projName}!`);
-    setIsAddModalOpen(false);
+      addToast && addToast(`${newEntries.length} material item${newEntries.length > 1 ? 's' : ''} recorded for ${projName}!`);
+      setIsAddModalOpen(false);
 
-    // Reset modal form state
-    setItems([
-      {
-        materialItem: '',
-        supplier: '',
-        deliveredQuantity: '',
-        totalAmount: '',
-        description: '',
-        receiptPhotos: []
-      }
-    ]);
-    setDeliveryDate(getLocalToday());
+      // Reset modal form state
+      setItems([
+        {
+          materialItem: '',
+          supplier: '',
+          deliveredQuantity: '',
+          totalAmount: '',
+          description: '',
+          receiptPhotos: []
+        }
+      ]);
+      setDeliveryDate(getLocalToday());
+    } catch (err) {
+      console.error('Failed to save materials received:', err);
+      addToast && addToast('Failed to save materials received: ' + err.message, 'error');
+    }
   };
 
-  const handleDeleteCustomDelivery = (id) => {
+  const handleDeleteCustomDelivery = async (id) => {
     if (!window.confirm('Are you sure you want to delete this delivery record?')) return;
-    const updated = customDeliveries.filter((d) => d.id !== id);
-    saveCustomDeliveries(updated);
-    addToast && addToast('Delivery record removed', 'success');
+    try {
+      await api.materialsReceived.delete(id);
+      const updated = customDeliveries.filter((d) => d.id !== id);
+      setCustomDeliveries(updated);
+      addToast && addToast('Delivery record removed', 'success');
+    } catch (err) {
+      console.error('Failed to delete delivery record:', err);
+      addToast && addToast('Failed to delete delivery record: ' + err.message, 'error');
+    }
   };
 
   // Active project name for header

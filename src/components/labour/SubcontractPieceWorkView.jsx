@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { formatDate } from '../../utils/formatters';
 import { generateSubcontractReportPDF } from '../../utils/pdfGenerator';
+import api from '../../services/api';
 import {
   FileText,
   FileSpreadsheet,
@@ -45,9 +46,6 @@ export const SUBCONTRACT_TEAMS = [
   'Tiles'
 ];
 
-const AGREEMENTS_STORAGE_KEY = 'nasaab_subcontract_agreements_master';
-const PAYMENTS_STORAGE_KEY = 'nasaab_subcontract_payments_master';
-
 const formatKSh = (amount) => {
   if (amount === undefined || amount === null || isNaN(amount)) return 'KSh 0';
   return `KSh ${Number(amount).toLocaleString('en-US')}`;
@@ -77,154 +75,40 @@ export const SubcontractPieceWorkView = () => {
   const defaultProjectName = currentProject?.name || projects[0]?.name || 'Majestic Palms';
 
   // -------------------------------------------------------------
-  // 1. AGREEMENTS STATE & LOCALSTORAGE
+  // 1. AGREEMENTS & PAYMENTS DATABASE STATE
+  // Clean empty defaults ready for real production launch
   // -------------------------------------------------------------
-  const [agreements, setAgreements] = useState(() => {
+  const [agreements, setAgreements] = useState([]);
+  const [payments, setPayments] = useState([]);
+  const [isLoadingData, setIsLoadingData] = useState(false);
+
+  // Load live data from PostgreSQL
+  const loadSubcontractData = async () => {
     try {
-      const saved = localStorage.getItem(AGREEMENTS_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {
-      console.error(e);
+      setIsLoadingData(true);
+      const [fetchedAgreements, fetchedPayments] = await Promise.all([
+        api.subcontracts.getAgreements(selectedProjectId),
+        api.subcontracts.getPayments(selectedProjectId)
+      ]);
+      setAgreements(Array.isArray(fetchedAgreements) ? fetchedAgreements : []);
+      setPayments(Array.isArray(fetchedPayments) ? fetchedPayments : []);
+    } catch (err) {
+      console.error('Failed to load subcontract data from database:', err);
+    } finally {
+      setIsLoadingData(false);
     }
-
-    // Default Seed Data matching exact screenshot figures:
-    // Total Value: 900,000 | Total Paid: 250,000 | Outstanding: 650,000
-    const p1Id = projects[0]?.id || 'prj-majestic-palms';
-    const p1Name = projects[0]?.name || 'Majestic Palms';
-
-    return [
-      {
-        id: 'sc-1',
-        contractId: 'SC-2025-001',
-        projectId: p1Id,
-        projectName: p1Name,
-        teamName: 'Shuttering',
-        foremanName: 'David Mwangi',
-        contractDate: '2025-04-12',
-        floor: 'Ground Floor',
-        agreedAmount: 300000,
-        totalPaid: 150000,
-        paymentsCount: 2,
-        notes: 'Columns, beams & deck casting propping',
-        status: 'Partially Paid'
-      },
-      {
-        id: 'sc-2',
-        contractId: 'SC-2025-002',
-        projectId: p1Id,
-        projectName: p1Name,
-        teamName: 'Blocks & Plasta',
-        foremanName: 'John Kamau',
-        contractDate: '2025-04-18',
-        floor: 'Ground Floor',
-        agreedAmount: 250000,
-        totalPaid: 100000,
-        paymentsCount: 1,
-        notes: 'Ground floor perimeter & division walling',
-        status: 'Partially Paid'
-      },
-      {
-        id: 'sc-3',
-        contractId: 'SC-2025-003',
-        projectId: p1Id,
-        projectName: p1Name,
-        teamName: 'Shuttering',
-        foremanName: 'David Mwangi',
-        contractDate: '2025-05-02',
-        floor: 'First Floor',
-        agreedAmount: 350000,
-        totalPaid: 0,
-        paymentsCount: 0,
-        notes: 'First floor slab deck shuttering & props',
-        status: 'Active (Unpaid)'
-      }
-    ];
-  });
+  };
 
   useEffect(() => {
+    // Purge legacy demo test localStorage keys once
     try {
-      localStorage.setItem(AGREEMENTS_STORAGE_KEY, JSON.stringify(agreements));
+      localStorage.removeItem('nasaab_subcontract_agreements_master');
+      localStorage.removeItem('nasaab_subcontract_payments_master');
     } catch (e) {
-      console.error(e);
+      // ignore
     }
-  }, [agreements]);
-
-  // -------------------------------------------------------------
-  // 2. PAYMENTS STATE & LOCALSTORAGE
-  // -------------------------------------------------------------
-  const [payments, setPayments] = useState(() => {
-    try {
-      const saved = localStorage.getItem(PAYMENTS_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {
-      console.error(e);
-    }
-
-    const p1Id = projects[0]?.id || 'prj-majestic-palms';
-    const p1Name = projects[0]?.name || 'Majestic Palms';
-
-    return [
-      {
-        id: 'pay-1',
-        paymentRef: 'PAY-WK16-01',
-        agreementId: 'SC-2025-001',
-        projectId: p1Id,
-        projectName: p1Name,
-        teamName: 'Shuttering',
-        floor: 'Ground Floor',
-        weekPeriod: '12th Apr 2026 to 19th Apr 2026',
-        contractAmount: 300000,
-        paidThisWeek: 80000,
-        cumulativePaid: 80000,
-        remainingBalance: 220000,
-        date: '2026-04-19'
-      },
-      {
-        id: 'pay-2',
-        paymentRef: 'PAY-WK17-02',
-        agreementId: 'SC-2025-001',
-        projectId: p1Id,
-        projectName: p1Name,
-        teamName: 'Shuttering',
-        floor: 'Ground Floor',
-        weekPeriod: '19th Apr 2026 to 26th Apr 2026',
-        contractAmount: 300000,
-        paidThisWeek: 70000,
-        cumulativePaid: 150000,
-        remainingBalance: 150000,
-        date: '2026-04-26'
-      },
-      {
-        id: 'pay-3',
-        paymentRef: 'PAY-WK17-03',
-        agreementId: 'SC-2025-002',
-        projectId: p1Id,
-        projectName: p1Name,
-        teamName: 'Blocks & Plasta',
-        floor: 'Ground Floor',
-        weekPeriod: '19th Apr 2026 to 26th Apr 2026',
-        contractAmount: 250000,
-        paidThisWeek: 100000,
-        cumulativePaid: 100000,
-        remainingBalance: 150000,
-        date: '2026-04-26'
-      }
-    ];
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(PAYMENTS_STORAGE_KEY, JSON.stringify(payments));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [payments]);
+    loadSubcontractData();
+  }, [selectedProjectId]);
 
   // -------------------------------------------------------------
   // 3. SITE-AWARE FILTERING & CALCULATIONS
@@ -305,7 +189,7 @@ export const SubcontractPieceWorkView = () => {
     addToast('Agreement specifications reset.', 'info');
   };
 
-  const handleSaveAgreements = (e) => {
+  const handleSaveAgreements = async (e) => {
     e.preventDefault();
     const newItems = [];
     let counter = agreements.length + 1;
@@ -328,7 +212,7 @@ export const SubcontractPieceWorkView = () => {
       const contractId = `SC-${new Date().getFullYear()}-${String(counter).padStart(3, '0')}`;
       counter++;
 
-      newItems.push({
+      const agreementData = {
         id: `sc-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
         contractId,
         projectId: defaultProjectId,
@@ -342,7 +226,16 @@ export const SubcontractPieceWorkView = () => {
         paymentsCount: 0,
         notes: spec.notes.trim() || 'Floor piecework contract',
         status: 'Active (Unpaid)'
-      });
+      };
+
+      try {
+        await api.subcontracts.createAgreement(agreementData);
+        newItems.push(agreementData);
+      } catch (err) {
+        console.error('Failed to save agreement to DB:', err);
+        addToast('Failed to save agreement to database: ' + err.message, 'error');
+        return;
+      }
     }
 
     setAgreements((prev) => [...newItems, ...prev]);
@@ -440,7 +333,7 @@ export const SubcontractPieceWorkView = () => {
     setIsRecordPaymentOpen(true);
   };
 
-  const handleSaveWeeklyPayment = (e) => {
+  const handleSaveWeeklyPayment = async (e) => {
     e.preventDefault();
     if (!newPayment.agreementId) {
       addToast('Please select an active subcontract agreement.', 'warning');
@@ -463,21 +356,7 @@ export const SubcontractPieceWorkView = () => {
     const newRemaining = Math.max(0, targetAgreement.agreedAmount - newCumulative);
     const updatedStatus = newRemaining <= 0 ? 'Fully Paid' : 'Partially Paid';
 
-    // 1. Update Agreement
-    setAgreements((prev) =>
-      prev.map((a) =>
-        a.contractId === targetAgreement.contractId
-          ? {
-            ...a,
-            totalPaid: newCumulative,
-            paymentsCount: (a.paymentsCount || 0) + 1,
-            status: updatedStatus
-          }
-          : a
-      )
-    );
-
-    // 2. Build week period string from date range
+    // Build week period string from date range
     const formatPeriodDate = (dateStr) => {
       if (!dateStr) return '';
       const d = new Date(dateStr + 'T00:00:00');
@@ -490,11 +369,11 @@ export const SubcontractPieceWorkView = () => {
     const nextPayNum = payments.length + 1;
     const autoRef = `PAY-WK${Math.floor(10 + Math.random() * 40)}-${String(nextPayNum).padStart(2, '0')}`;
 
-    // 3. Add Payment Record
+    // Add Payment Record
     const payItem = {
       id: `pay-${Date.now()}`,
       paymentRef: autoRef,
-      agreementId: targetAgreement.contractId,
+      agreementId: targetAgreement.id,
       projectId: targetAgreement.projectId,
       projectName: targetAgreement.projectName,
       teamName: targetAgreement.teamName,
@@ -504,12 +383,32 @@ export const SubcontractPieceWorkView = () => {
       paidThisWeek: amt,
       cumulativePaid: newCumulative,
       remainingBalance: newRemaining,
-      date: newPayment.weekEnd || getTodayStr()
+      date: newPayment.weekEnd || getTodayStr(),
+      notes: newPayment.notes
     };
 
-    setPayments((prev) => [payItem, ...prev]);
-    setIsRecordPaymentOpen(false);
-    addToast(`Recorded weekly disbursement: ${formatKSh(amt)} for ${targetAgreement.teamName}!`, 'success');
+    try {
+      await api.subcontracts.createPayment(payItem);
+      // 1. Update Agreement
+      setAgreements((prev) =>
+        prev.map((a) =>
+          a.contractId === targetAgreement.contractId
+            ? {
+              ...a,
+              totalPaid: newCumulative,
+              paymentsCount: (a.paymentsCount || 0) + 1,
+              status: updatedStatus
+            }
+            : a
+        )
+      );
+      setPayments((prev) => [payItem, ...prev]);
+      setIsRecordPaymentOpen(false);
+      addToast(`Recorded weekly disbursement: ${formatKSh(amt)} for ${targetAgreement.teamName}!`, 'success');
+    } catch (err) {
+      console.error('Failed to record payment:', err);
+      addToast('Failed to record payment: ' + err.message, 'error');
+    }
   };
 
   // -------------------------------------------------------------
@@ -580,35 +479,41 @@ export const SubcontractPieceWorkView = () => {
     addToast(`Payment ${editingPayment.paymentRef} updated successfully.`, 'success');
   };
 
-  const handleDeletePayment = () => {
+  const handleDeletePayment = async () => {
     if (!deletingPayment) return;
 
-    const updatedPayments = payments.filter((p) => p.id !== deletingPayment.id);
-    setPayments(updatedPayments);
+    try {
+      await api.subcontracts.deletePayment(deletingPayment.id);
+      const updatedPayments = payments.filter((p) => p.id !== deletingPayment.id);
+      setPayments(updatedPayments);
 
-    // Synchronize target agreement
-    setAgreements((prevAgreements) =>
-      prevAgreements.map((ag) => {
-        if (ag.contractId !== deletingPayment.agreementId) return ag;
-        const agPayments = updatedPayments.filter((p) => p.agreementId === ag.contractId);
-        const sumPaid = agPayments.reduce((s, p) => s + (Number(p.paidThisWeek) || 0), 0);
-        const count = agPayments.length;
-        const rem = Math.max(0, ag.agreedAmount - sumPaid);
-        const st = rem <= 0 ? 'Fully Paid' : sumPaid > 0 ? 'Partially Paid' : 'Active (Unpaid)';
-        return {
-          ...ag,
-          totalPaid: sumPaid,
-          paymentsCount: count,
-          status: st
-        };
-      })
-    );
+      // Synchronize target agreement
+      setAgreements((prevAgreements) =>
+        prevAgreements.map((ag) => {
+          if (ag.contractId !== deletingPayment.agreementId) return ag;
+          const agPayments = updatedPayments.filter((p) => p.agreementId === ag.contractId);
+          const sumPaid = agPayments.reduce((s, p) => s + (Number(p.paidThisWeek) || 0), 0);
+          const count = agPayments.length;
+          const rem = Math.max(0, ag.agreedAmount - sumPaid);
+          const st = rem <= 0 ? 'Fully Paid' : sumPaid > 0 ? 'Partially Paid' : 'Active (Unpaid)';
+          return {
+            ...ag,
+            totalPaid: sumPaid,
+            paymentsCount: count,
+            status: st
+          };
+        })
+      );
 
-    setDeletingPayment(null);
-    addToast(`Payment ${deletingPayment.paymentRef} deleted.`, 'info');
+      setDeletingPayment(null);
+      addToast(`Payment ${deletingPayment.paymentRef} deleted.`, 'info');
+    } catch (err) {
+      console.error('Failed to delete payment:', err);
+      addToast('Failed to delete payment: ' + err.message, 'error');
+    }
   };
 
-  const handleSaveEditAgreement = (e) => {
+  const handleSaveEditAgreement = async (e) => {
     e.preventDefault();
     if (!editingAgreement) return;
     if (!editingAgreement.agreedAmount || Number(editingAgreement.agreedAmount) <= 0) {
@@ -616,30 +521,50 @@ export const SubcontractPieceWorkView = () => {
       return;
     }
 
-    setAgreements((prev) =>
-      prev.map((a) =>
-        a.id === editingAgreement.id
-          ? {
-            ...a,
-            teamName: editingAgreement.teamName,
-            floor: editingAgreement.floor,
-            contractDate: editingAgreement.contractDate,
-            agreedAmount: Number(editingAgreement.agreedAmount),
-            foremanName: editingAgreement.foremanName,
-            notes: editingAgreement.notes
-          }
-          : a
-      )
-    );
-    setEditingAgreement(null);
-    addToast('Agreement updated successfully.');
+    try {
+      await api.subcontracts.updateAgreement(editingAgreement.id, {
+        teamName: editingAgreement.teamName,
+        floor: editingAgreement.floor,
+        contractDate: editingAgreement.contractDate,
+        agreedAmount: Number(editingAgreement.agreedAmount),
+        foremanName: editingAgreement.foremanName,
+        notes: editingAgreement.notes
+      });
+
+      setAgreements((prev) =>
+        prev.map((a) =>
+          a.id === editingAgreement.id
+            ? {
+              ...a,
+              teamName: editingAgreement.teamName,
+              floor: editingAgreement.floor,
+              contractDate: editingAgreement.contractDate,
+              agreedAmount: Number(editingAgreement.agreedAmount),
+              foremanName: editingAgreement.foremanName,
+              notes: editingAgreement.notes
+            }
+            : a
+        )
+      );
+      setEditingAgreement(null);
+      addToast('Agreement updated successfully.');
+    } catch (err) {
+      console.error('Failed to update agreement:', err);
+      addToast('Failed to update agreement: ' + err.message, 'error');
+    }
   };
 
-  const handleDeleteAgreement = () => {
+  const handleDeleteAgreement = async () => {
     if (!deletingAgreement) return;
-    setAgreements((prev) => prev.filter((a) => a.id !== deletingAgreement.id));
-    setDeletingAgreement(null);
-    addToast('Agreement deleted.', 'info');
+    try {
+      await api.subcontracts.deleteAgreement(deletingAgreement.id);
+      setAgreements((prev) => prev.filter((a) => a.id !== deletingAgreement.id));
+      setDeletingAgreement(null);
+      addToast('Agreement deleted.', 'info');
+    } catch (err) {
+      console.error('Failed to delete agreement:', err);
+      addToast('Failed to delete agreement: ' + err.message, 'error');
+    }
   };
 
   // Export to Excel / CSV

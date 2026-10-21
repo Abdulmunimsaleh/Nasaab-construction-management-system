@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { formatKES } from '../utils/formatters';
 import { generateSafetyDelaysReportPDF } from '../utils/pdfGenerator';
+import api from '../services/api';
 
 export const SafetyDelaysPage = () => {
   const {
@@ -61,104 +62,26 @@ export const SafetyDelaysPage = () => {
     photos: []
   });
 
-  const storageKey = `nasaab_safety_delays_${selectedProjectId || 'default'}`;
-  const [customRecords, setCustomRecords] = useState(() => {
-    try {
-      const saved = localStorage.getItem(storageKey);
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.error(e);
-    }
-    return [
-      {
-        id: 'del-1',
-        category: 'delay',
-        title: 'Heavy coastal rain shower delayed morning slab curing and concreting',
-        cause: 'Weather / Heavy Rain',
-        severity: 'Medium',
-        durationHours: 3.0,
-        description: 'Morning downpour flooded access trench and caused concrete truck delay.',
-        actionTaken: 'Deployed 2 submersible dewatering pumps. Concreting rescheduled to 11:30 AM.',
-        photos: [],
-        date: new Date().toISOString().split('T')[0]
-      },
-      {
-        id: 'del-2',
-        category: 'safety',
-        title: 'Weekly Tool-Box Safety Talk on Scaffold Safety & Full PPE Compliance',
-        severity: 'Low',
-        description: 'Conducted mandatory 20-minute safety induction on safety harnesses and fall prevention.',
-        actionTaken: 'All 34 site workers signed attendance and were issued replacement high-vis vests.',
-        photos: [],
-        date: new Date().toISOString().split('T')[0]
-      },
-      {
-        id: 'del-3',
-        category: 'visitor',
-        title: 'Lead Structural Engineer Inspection of Beam Reinforcement',
-        visitorName: 'Eng. David M. Mwangi, PE',
-        visitorOrg: 'Mwangi Consulting Engineers',
-        purpose: 'Inspection and sign-off of first floor transfer beam reinforcement prior to casting.',
-        actionTaken: 'Passed inspection. Approved casting proceed conditional on extra stirrups at Grid B.',
-        photos: [],
-        date: new Date().toISOString().split('T')[0]
-      }
-    ];
-  });
+  const [customRecords, setCustomRecords] = useState([]);
 
-  // Synchronize customRecords when project workspace switches
+  // Load live safety, delays & visitor records from PostgreSQL
+  const loadDatabaseRecords = async () => {
+    try {
+      const records = await api.safetyDelays.getAll(selectedProjectId);
+      setCustomRecords(Array.isArray(records) ? records : []);
+    } catch (err) {
+      console.error('Failed to load safety and delays from database:', err);
+    }
+  };
+
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(storageKey);
-      if (saved !== null) {
-        const parsed = JSON.parse(saved);
-        setCustomRecords(Array.isArray(parsed) ? parsed : []);
-        return;
-      }
+      localStorage.removeItem(`nasaab_safety_delays_${selectedProjectId || 'default'}`);
     } catch (e) {
-      console.error(e);
+      // ignore
     }
-
-    if (selectedProjectId === 'all' || selectedProjectId === 'prj-mma' || selectedProjectId === 'default') {
-      setCustomRecords([
-        {
-          id: 'del-1',
-          category: 'delay',
-          title: 'Heavy coastal rain shower delayed morning slab curing and concreting',
-          cause: 'Weather / Heavy Rain',
-          severity: 'Medium',
-          durationHours: 3.0,
-          description: 'Morning downpour flooded access trench and caused concrete truck delay.',
-          actionTaken: 'Deployed 2 submersible dewatering pumps. Concreting rescheduled to 11:30 AM.',
-          photos: [],
-          date: new Date().toISOString().split('T')[0]
-        },
-        {
-          id: 'del-2',
-          category: 'safety',
-          title: 'Weekly Tool-Box Safety Talk on Scaffold Safety & Full PPE Compliance',
-          severity: 'Low',
-          description: 'Conducted mandatory 20-minute safety induction on safety harnesses and fall prevention.',
-          actionTaken: 'All 34 site workers signed attendance and were issued replacement high-vis vests.',
-          photos: [],
-          date: new Date().toISOString().split('T')[0]
-        },
-        {
-          id: 'del-3',
-          category: 'visitor',
-          title: 'Lead Structural Engineer Inspection of Beam Reinforcement',
-          visitorName: 'Eng. David M. Mwangi, PE',
-          visitorOrg: 'Mwangi Consulting Engineers',
-          purpose: 'Inspection and sign-off of first floor transfer beam reinforcement prior to casting.',
-          actionTaken: 'Passed inspection. Approved casting proceed conditional on extra stirrups at Grid B.',
-          photos: [],
-          date: new Date().toISOString().split('T')[0]
-        }
-      ]);
-    } else {
-      setCustomRecords([]);
-    }
-  }, [storageKey, selectedProjectId]);
+    loadDatabaseRecords();
+  }, [selectedProjectId]);
 
   // Convert uploaded image file to base64
   const fileToBase64 = (file) => {
@@ -226,7 +149,7 @@ export const SafetyDelaysPage = () => {
     setIsAddModalOpen(true);
   };
 
-  const handleSaveItem = (e) => {
+  const handleSaveItem = async (e) => {
     e.preventDefault();
     if (!newItem.title.trim()) {
       addToast && addToast('Please enter a title or description', 'error');
@@ -250,30 +173,30 @@ export const SafetyDelaysPage = () => {
       date: new Date().toISOString().split('T')[0]
     };
 
-    const updated = [item, ...customRecords];
-    setCustomRecords(updated);
     try {
-      localStorage.setItem(storageKey, JSON.stringify(updated));
+      await api.safetyDelays.create(item);
+      const updated = [item, ...customRecords];
+      setCustomRecords(updated);
+      addToast && addToast('Record added successfully!');
+      setIsAddModalOpen(false);
+      setNewItem({
+        category: activeTab === 'safety' ? 'safety' : activeTab === 'visitors' ? 'visitor' : 'delay',
+        title: '',
+        severity: 'Medium',
+        cause: 'Weather / Heavy Rain',
+        durationHours: 2.5,
+        description: '',
+        actionTaken: '',
+        totalAmount: '',
+        visitorName: '',
+        visitorOrg: '',
+        purpose: '',
+        photos: []
+      });
     } catch (err) {
-      console.error(err);
+      console.error('Failed to save safety/delay record:', err);
+      addToast && addToast('Failed to save record: ' + err.message, 'error');
     }
-
-    addToast && addToast('Record added successfully!');
-    setIsAddModalOpen(false);
-    setNewItem({
-      category: activeTab === 'safety' ? 'safety' : activeTab === 'visitors' ? 'visitor' : 'delay',
-      title: '',
-      severity: 'Medium',
-      cause: 'Weather / Heavy Rain',
-      durationHours: 2.5,
-      description: '',
-      actionTaken: '',
-      totalAmount: '',
-      visitorName: '',
-      visitorOrg: '',
-      purpose: '',
-      photos: []
-    });
   };
 
   // Compile all entries including delays_issues_incidents and site_visitors from LAE forms

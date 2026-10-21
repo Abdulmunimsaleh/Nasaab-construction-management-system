@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { getDayOfWeek } from '../utils/formatters';
 import { generateSiteProgressReportPDF } from '../utils/pdfGenerator';
+import api from '../services/api';
 
 // Predefined categories requested for site progress
 const DEFAULT_PROGRESS_CATEGORIES = [
@@ -73,161 +74,39 @@ export const SiteProgressPage = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  // Available categories (default + user-created custom categories)
-  const [availableCategories, setAvailableCategories] = useState(() => {
+  // Available categories (default + database custom categories)
+  const [availableCategories, setAvailableCategories] = useState(DEFAULT_PROGRESS_CATEGORIES);
+  const [customActivities, setCustomActivities] = useState([]);
+
+  // Load live site progress activities and categories from PostgreSQL
+  const loadDatabaseProgress = async () => {
     try {
-      const saved = localStorage.getItem('nasaab_progress_categories');
-      if (saved) {
-        const parsed = JSON.parse(saved);
+      const [activities, cats] = await Promise.all([
+        api.siteProgress.getAll(selectedProjectId),
+        api.siteProgress.getCategories()
+      ]);
+      setCustomActivities(Array.isArray(activities) ? activities : []);
+      if (Array.isArray(cats) && cats.length > 0) {
         const combined = [...DEFAULT_PROGRESS_CATEGORIES];
-        parsed.forEach((c) => {
+        cats.forEach((c) => {
           if (!combined.includes(c)) combined.push(c);
         });
-        return combined;
+        setAvailableCategories(combined);
       }
-    } catch (e) {
-      console.error(e);
+    } catch (err) {
+      console.error('Failed to load site progress from database:', err);
     }
-    return DEFAULT_PROGRESS_CATEGORIES;
-  });
+  };
 
-  // Category addition UI state
-  const [newCategoryInput, setNewCategoryInput] = useState('');
-  const [showNewCategoryFormIndex, setShowNewCategoryFormIndex] = useState(null);
-  const [viewingPhoto, setViewingPhoto] = useState(null);
-
-  // Refs for camera capture and gallery file selection
-  const cameraInputRef = useRef(null);
-  const galleryInputRef = useRef(null);
-  const [activePhotoFormIndex, setActivePhotoFormIndex] = useState(0);
-
-  // Helper to generate a new category progress form item
-  const createNewProgressForm = () => ({
-    id: `entry-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
-    category: '',
-    descriptionDetails: '',
-    zone: 'Ground Floor',
-    status: 'in_progress',
-    progress: 50,
-    workDoneToday: '',
-    remarks: '',
-    photos: []
-  });
-
-  // Multiple category progress forms inside the modal
-  const [progressForms, setProgressForms] = useState([createNewProgressForm()]);
-
-  // Local storage key for custom logged progress
-  const storageKey = `nasaab_activities_${selectedProjectId || 'default'}`;
-  const [customActivities, setCustomActivities] = useState(() => {
-    try {
-      const saved = localStorage.getItem(storageKey);
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.error(e);
-    }
-    return [
-      {
-        id: 'act-demo-1',
-        category: 'Shuttering',
-        additionalCategories: ['Scalfolding', 'Steelwork'],
-        description: 'Shuttering - Formwork reinforcement for first floor suspended slab',
-        zone: 'First Floor Slab',
-        status: 'in_progress',
-        progress: 65,
-        workDoneToday: 'Completed positioning 85% of props and marine plywood decking across Grid A-D.',
-        date: new Date().toISOString().split('T')[0],
-        source: 'Site Log',
-        photos: []
-      },
-      {
-        id: 'act-demo-2',
-        category: 'Plumbing',
-        additionalCategories: ['Helpers'],
-        description: 'Plumbing - Rough-in and drainage sleeper pipe sleeves cast into ground beam',
-        zone: 'Ground Floor / Substructure',
-        status: 'completed',
-        progress: 100,
-        workDoneToday: 'All 110mm PVC waste lines pressure tested and sleeved through foundation footing.',
-        date: new Date().toISOString().split('T')[0],
-        source: 'Subcontract Inspection',
-        photos: []
-      },
-      {
-        id: 'act-demo-3',
-        category: 'Casting',
-        additionalCategories: ['Operator', 'Unskilled'],
-        description: 'Casting - Reinforced concrete columns C1 to C12 with vibrator compaction',
-        zone: 'Columns Level 1',
-        status: 'in_progress',
-        progress: 40,
-        workDoneToday: 'Columns C1-C6 poured with class 25 concrete and cube test samples taken.',
-        date: new Date().toISOString().split('T')[0],
-        source: 'Daily Shift Log',
-        photos: []
-      }
-    ];
-  });
-
-  // Synchronize customActivities when project workspace switches
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(storageKey);
-      if (saved !== null) {
-        const parsed = JSON.parse(saved);
-        setCustomActivities(Array.isArray(parsed) ? parsed : []);
-        return;
-      }
+      localStorage.removeItem(`nasaab_activities_${selectedProjectId || 'default'}`);
+      localStorage.removeItem('nasaab_progress_categories');
     } catch (e) {
-      console.error(e);
+      // ignore
     }
-
-    if (selectedProjectId === 'all' || selectedProjectId === 'prj-mma' || selectedProjectId === 'default') {
-      setCustomActivities([
-        {
-          id: 'act-demo-1',
-          category: 'Shuttering',
-          additionalCategories: ['Scalfolding', 'Steelwork'],
-          description: 'Shuttering - Formwork reinforcement for first floor suspended slab',
-          zone: 'First Floor Slab',
-          status: 'in_progress',
-          progress: 65,
-          workDoneToday: 'Completed positioning 85% of props and marine plywood decking across Grid A-D.',
-          date: new Date().toISOString().split('T')[0],
-          source: 'Site Log',
-          photos: []
-        },
-        {
-          id: 'act-demo-2',
-          category: 'Plumbing',
-          additionalCategories: ['Helpers'],
-          description: 'Plumbing - Rough-in and drainage sleeper pipe sleeves cast into ground beam',
-          zone: 'Ground Floor / Substructure',
-          status: 'completed',
-          progress: 100,
-          workDoneToday: 'All 110mm PVC waste lines pressure tested and sleeved through foundation footing.',
-          date: new Date().toISOString().split('T')[0],
-          source: 'Subcontract Inspection',
-          photos: []
-        },
-        {
-          id: 'act-demo-3',
-          category: 'Casting',
-          additionalCategories: ['Operator', 'Unskilled'],
-          description: 'Casting - Reinforced concrete columns C1 to C12 with vibrator compaction',
-          zone: 'Columns Level 1',
-          status: 'in_progress',
-          progress: 40,
-          workDoneToday: 'Columns C1-C6 poured with class 25 concrete and cube test samples taken.',
-          date: new Date().toISOString().split('T')[0],
-          source: 'Daily Shift Log',
-          photos: []
-        }
-      ]);
-    } else {
-      setCustomActivities([]);
-    }
-  }, [storageKey, selectedProjectId]);
+    loadDatabaseProgress();
+  }, [selectedProjectId]);
 
   // Handlers for adding/removing/updating progress forms
   const handleAddProgressForm = () => {
@@ -302,18 +181,17 @@ export const SiteProgressPage = () => {
   };
 
   // Add custom category to list and persist
-  const handleAddCustomCategory = (nameToAdd, targetFormIndex) => {
+  const handleAddCustomCategory = async (nameToAdd, targetFormIndex) => {
     const name = (nameToAdd || newCategoryInput).trim();
     if (!name) return;
 
     if (!availableCategories.includes(name)) {
-      const updated = [...availableCategories, name];
-      setAvailableCategories(updated);
       try {
-        const customOnly = updated.filter((c) => !DEFAULT_PROGRESS_CATEGORIES.includes(c));
-        localStorage.setItem('nasaab_progress_categories', JSON.stringify(customOnly));
+        await api.siteProgress.createCategory(name);
+        const updated = [...availableCategories, name];
+        setAvailableCategories(updated);
       } catch (err) {
-        console.error(err);
+        console.error('Failed to save category:', err);
       }
     }
 
@@ -327,7 +205,7 @@ export const SiteProgressPage = () => {
   };
 
   // Save all custom progress form entries together
-  const handleSaveActivity = (e) => {
+  const handleSaveActivity = async (e) => {
     e.preventDefault();
 
     // Check if any form is missing category
@@ -358,19 +236,19 @@ export const SiteProgressPage = () => {
       };
     });
 
-    const updated = [...newItems, ...customActivities];
-    setCustomActivities(updated);
     try {
-      localStorage.setItem(storageKey, JSON.stringify(updated));
+      await api.siteProgress.create(newItems);
+      const updated = [...newItems, ...customActivities];
+      setCustomActivities(updated);
+      const count = newItems.length;
+      addToast && addToast(`${count} site progress ${count === 1 ? 'entry' : 'entries'} logged successfully!`);
+      setIsAddModalOpen(false);
+      setProgressForms([createNewProgressForm()]);
+      setShowNewCategoryFormIndex(null);
     } catch (err) {
-      console.error(err);
+      console.error('Failed to save site progress:', err);
+      addToast && addToast('Failed to save progress: ' + err.message, 'error');
     }
-
-    const count = newItems.length;
-    addToast && addToast(`${count} site progress ${count === 1 ? 'entry' : 'entries'} logged successfully!`);
-    setIsAddModalOpen(false);
-    setProgressForms([createNewProgressForm()]);
-    setShowNewCategoryFormIndex(null);
   };
 
   // Compile all activities/progress from both LAE forms and custom entries
