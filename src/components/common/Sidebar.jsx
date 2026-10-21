@@ -148,9 +148,11 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
         { label: 'Material Expenses', path: '/material-expenses', icon: Coins }
       ]
     },
+    { type: 'link', label: 'Site Progress', path: '/activities', icon: TrendingUp },
     { type: 'link', label: 'PDF Reports', path: '/reports', icon: FileText },
     { type: 'link', label: 'Profile & Settings', path: '/settings', icon: Settings },
   ];
+
 
   const navigationItems = isForeman
     ? foremanNavItems

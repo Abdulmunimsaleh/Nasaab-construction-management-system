@@ -121,7 +121,7 @@ export const isRouteAllowedForRole = (role, pathname, assignedProjectId = 'PRJ-0
     return true;
   }
 
-  // Storekeeper: Access to Materials modules, Projects, Dashboard, Reports
+  // Storekeeper: Access to Materials modules, Projects, Dashboard, Reports, and Site Progress
   // FORBIDDEN from Labour
   if (isStoreKeeperRole(role)) {
     if (
@@ -131,6 +131,8 @@ export const isRouteAllowedForRole = (role, pathname, assignedProjectId = 'PRJ-0
       pathname === '/dashboard' ||
       pathname === '/projects' ||
       pathname.startsWith('/projects/') ||
+      pathname === '/activities' ||
+      pathname === '/site-progress' ||
       pathname === '/reports' ||
       pathname === '/settings'
     ) {
