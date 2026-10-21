@@ -102,6 +102,60 @@ export const SafetyDelaysPage = () => {
     ];
   });
 
+  // Synchronize customRecords when project workspace switches
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved !== null) {
+        const parsed = JSON.parse(saved);
+        setCustomRecords(Array.isArray(parsed) ? parsed : []);
+        return;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
+    if (selectedProjectId === 'all' || selectedProjectId === 'prj-mma' || selectedProjectId === 'default') {
+      setCustomRecords([
+        {
+          id: 'del-1',
+          category: 'delay',
+          title: 'Heavy coastal rain shower delayed morning slab curing and concreting',
+          cause: 'Weather / Heavy Rain',
+          severity: 'Medium',
+          durationHours: 3.0,
+          description: 'Morning downpour flooded access trench and caused concrete truck delay.',
+          actionTaken: 'Deployed 2 submersible dewatering pumps. Concreting rescheduled to 11:30 AM.',
+          photos: [],
+          date: new Date().toISOString().split('T')[0]
+        },
+        {
+          id: 'del-2',
+          category: 'safety',
+          title: 'Weekly Tool-Box Safety Talk on Scaffold Safety & Full PPE Compliance',
+          severity: 'Low',
+          description: 'Conducted mandatory 20-minute safety induction on safety harnesses and fall prevention.',
+          actionTaken: 'All 34 site workers signed attendance and were issued replacement high-vis vests.',
+          photos: [],
+          date: new Date().toISOString().split('T')[0]
+        },
+        {
+          id: 'del-3',
+          category: 'visitor',
+          title: 'Lead Structural Engineer Inspection of Beam Reinforcement',
+          visitorName: 'Eng. David M. Mwangi, PE',
+          visitorOrg: 'Mwangi Consulting Engineers',
+          purpose: 'Inspection and sign-off of first floor transfer beam reinforcement prior to casting.',
+          actionTaken: 'Passed inspection. Approved casting proceed conditional on extra stirrups at Grid B.',
+          photos: [],
+          date: new Date().toISOString().split('T')[0]
+        }
+      ]);
+    } else {
+      setCustomRecords([]);
+    }
+  }, [storageKey, selectedProjectId]);
+
   // Convert uploaded image file to base64
   const fileToBase64 = (file) => {
     return new Promise((resolve, reject) => {

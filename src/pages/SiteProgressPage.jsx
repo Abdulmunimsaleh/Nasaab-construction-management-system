@@ -165,6 +165,66 @@ export const SiteProgressPage = () => {
     ];
   });
 
+  // Synchronize customActivities when project workspace switches
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved !== null) {
+        const parsed = JSON.parse(saved);
+        setCustomActivities(Array.isArray(parsed) ? parsed : []);
+        return;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
+    if (selectedProjectId === 'all' || selectedProjectId === 'prj-mma' || selectedProjectId === 'default') {
+      setCustomActivities([
+        {
+          id: 'act-demo-1',
+          category: 'Shuttering',
+          additionalCategories: ['Scalfolding', 'Steelwork'],
+          description: 'Shuttering - Formwork reinforcement for first floor suspended slab',
+          zone: 'First Floor Slab',
+          status: 'in_progress',
+          progress: 65,
+          workDoneToday: 'Completed positioning 85% of props and marine plywood decking across Grid A-D.',
+          date: new Date().toISOString().split('T')[0],
+          source: 'Site Log',
+          photos: []
+        },
+        {
+          id: 'act-demo-2',
+          category: 'Plumbing',
+          additionalCategories: ['Helpers'],
+          description: 'Plumbing - Rough-in and drainage sleeper pipe sleeves cast into ground beam',
+          zone: 'Ground Floor / Substructure',
+          status: 'completed',
+          progress: 100,
+          workDoneToday: 'All 110mm PVC waste lines pressure tested and sleeved through foundation footing.',
+          date: new Date().toISOString().split('T')[0],
+          source: 'Subcontract Inspection',
+          photos: []
+        },
+        {
+          id: 'act-demo-3',
+          category: 'Casting',
+          additionalCategories: ['Operator', 'Unskilled'],
+          description: 'Casting - Reinforced concrete columns C1 to C12 with vibrator compaction',
+          zone: 'Columns Level 1',
+          status: 'in_progress',
+          progress: 40,
+          workDoneToday: 'Columns C1-C6 poured with class 25 concrete and cube test samples taken.',
+          date: new Date().toISOString().split('T')[0],
+          source: 'Daily Shift Log',
+          photos: []
+        }
+      ]);
+    } else {
+      setCustomActivities([]);
+    }
+  }, [storageKey, selectedProjectId]);
+
   // Handlers for adding/removing/updating progress forms
   const handleAddProgressForm = () => {
     setProgressForms((prev) => [...prev, createNewProgressForm()]);

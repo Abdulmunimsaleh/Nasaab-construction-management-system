@@ -70,9 +70,34 @@ router.get('/', requireProjectAccess, async (req, res) => {
 
     const [forms] = await pool.query(query, params);
 
+    let equipByForm = {};
+    let actByForm = {};
+    if (forms.length > 0) {
+      const formIds = forms.map(f => f.id);
+      const [equipRows] = await pool.query(
+        'SELECT * FROM lae_form_equipment_items WHERE form_id IN (?) ORDER BY created_at ASC',
+        [formIds]
+      );
+      for (const eq of equipRows) {
+        if (!equipByForm[eq.form_id]) equipByForm[eq.form_id] = [];
+        equipByForm[eq.form_id].push(eq);
+      }
+
+      const [actRows] = await pool.query(
+        'SELECT * FROM lae_form_activity_items WHERE form_id IN (?) ORDER BY created_at ASC',
+        [formIds]
+      );
+      for (const act of actRows) {
+        if (!actByForm[act.form_id]) actByForm[act.form_id] = [];
+        actByForm[act.form_id].push(act);
+      }
+    }
+
     const formatted = forms.map(f => ({
       ...f,
-      site_photos: safeParseJson(f.site_photos, [])
+      site_photos: safeParseJson(f.site_photos, []),
+      equipmentItems: equipByForm[f.id] || [],
+      activityItems: actByForm[f.id] || []
     }));
 
     res.json(formatted);
