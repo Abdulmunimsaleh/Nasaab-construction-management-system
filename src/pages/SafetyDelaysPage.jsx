@@ -15,8 +15,10 @@ import {
   FileWarning,
   Eye,
   Camera,
-  Image as ImageIcon
+  Image as ImageIcon,
+  DollarSign
 } from 'lucide-react';
+import { formatKES } from '../utils/formatters';
 
 export const SafetyDelaysPage = () => {
   const {
@@ -48,6 +50,7 @@ export const SafetyDelaysPage = () => {
     durationHours: 2.5,
     description: '',
     actionTaken: '',
+    totalAmount: '',
     visitorName: '',
     visitorOrg: '',
     purpose: '',
@@ -156,6 +159,7 @@ export const SafetyDelaysPage = () => {
       durationHours: 2.5,
       description: '',
       actionTaken: '',
+      totalAmount: '',
       visitorName: '',
       visitorOrg: '',
       purpose: '',
@@ -180,6 +184,7 @@ export const SafetyDelaysPage = () => {
       durationHours: Number(newItem.durationHours) || 0,
       description: newItem.description,
       actionTaken: newItem.actionTaken,
+      totalAmount: newItem.category === 'safety' ? (Number(newItem.totalAmount) || 0) : 0,
       visitorName: newItem.visitorName,
       visitorOrg: newItem.visitorOrg,
       purpose: newItem.purpose,
@@ -205,6 +210,7 @@ export const SafetyDelaysPage = () => {
       durationHours: 2.5,
       description: '',
       actionTaken: '',
+      totalAmount: '',
       visitorName: '',
       visitorOrg: '',
       purpose: '',
@@ -275,12 +281,14 @@ export const SafetyDelaysPage = () => {
     const safety = allRecords.filter((r) => r.category === 'safety');
     const visitors = allRecords.filter((r) => r.category === 'visitor');
     const totalLostHours = delays.reduce((acc, d) => acc + (d.durationHours || 0), 0);
+    const totalMedicalCost = safety.reduce((acc, s) => acc + (Number(s.totalAmount) || 0), 0);
 
     return {
       delaysCount: delays.length,
       safetyCount: safety.length,
       visitorsCount: visitors.length,
-      totalLostHours
+      totalLostHours,
+      totalMedicalCost
     };
   }, [allRecords]);
 
@@ -347,6 +355,17 @@ export const SafetyDelaysPage = () => {
             {stats.visitorsCount} Registered
           </div>
           <p className="mt-1 text-[11px] text-slate-400">Engineers, architects & authorities</p>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Medical / Injury Costs</span>
+            <DollarSign className="h-4 w-4 text-rose-500" />
+          </div>
+          <div className="mt-2 text-2xl font-extrabold text-rose-600 font-mono">
+            {formatKES(stats.totalMedicalCost)}
+          </div>
+          <p className="mt-1 text-[11px] text-slate-400">Hospital & worker medical coverage</p>
         </div>
       </div>
 
@@ -450,6 +469,13 @@ export const SafetyDelaysPage = () => {
                   {item.visitorOrg && (
                     <span className="text-[11px] font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
                       {item.visitorOrg}
+                    </span>
+                  )}
+
+                  {Number(item.totalAmount) > 0 && (
+                    <span className="text-[11px] font-mono font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200 flex items-center gap-1">
+                      <DollarSign className="h-3 w-3" />
+                      <span>Total Amount: {formatKES(item.totalAmount)}</span>
                     </span>
                   )}
                 </div>
@@ -616,32 +642,53 @@ export const SafetyDelaysPage = () => {
               )}
 
               {newItem.category === 'safety' && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Severity Level
-                    </label>
-                    <select
-                      value={newItem.severity}
-                      onChange={(e) => setNewItem({ ...newItem, severity: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
-                    >
-                      <option value="Low">Low (Toolbox / Routine)</option>
-                      <option value="Medium">Medium (Near Miss / Minor)</option>
-                      <option value="High">High (Immediate Hazard / Stoppage)</option>
-                    </select>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Severity Level
+                      </label>
+                      <select
+                        value={newItem.severity}
+                        onChange={(e) => setNewItem({ ...newItem, severity: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                      >
+                        <option value="Low">Low (Toolbox / Routine)</option>
+                        <option value="Medium">Medium (Near Miss / Minor)</option>
+                        <option value="High">High (Immediate Hazard / Stoppage)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Remedial Action / Follow-up
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Issued PPE, hospital referral"
+                        value={newItem.actionTaken}
+                        onChange={(e) => setNewItem({ ...newItem, actionTaken: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                      />
+                    </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Remedial Action / Follow-up
+                    <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+                      <span className="flex items-center gap-1">
+                        <DollarSign className="h-3.5 w-3.5 text-rose-500" />
+                        <span>Total Amount (KES)</span>
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-normal">Hospital & medical coverage for injury</span>
                     </label>
                     <input
-                      type="text"
-                      placeholder="e.g. Issued PPE, cordoned off area"
-                      value={newItem.actionTaken}
-                      onChange={(e) => setNewItem({ ...newItem, actionTaken: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                      type="number"
+                      min="0"
+                      step="any"
+                      placeholder="e.g. 15000 (Hospital bill, medication, worker medical cover)"
+                      value={newItem.totalAmount}
+                      onChange={(e) => setNewItem({ ...newItem, totalAmount: e.target.value })}
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:border-amber-500 focus:outline-hidden"
                     />
                   </div>
                 </div>

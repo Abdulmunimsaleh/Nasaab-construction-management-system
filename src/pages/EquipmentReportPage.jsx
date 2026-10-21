@@ -15,7 +15,8 @@ import {
   Download,
   FileText,
   DollarSign,
-  X
+  X,
+  Trash2
 } from 'lucide-react';
 
 export const EquipmentReportPage = () => {
@@ -31,18 +32,47 @@ export const EquipmentReportPage = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  // New Equipment state
-  const [newEquipment, setNewEquipment] = useState({
+  // Helper to generate empty equipment entry
+  const createEmptyEquipmentEntry = () => ({
+    id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
     equipmentName: '',
     operatingStatus: 'Active',
     hoursUsed: 8,
-    fuelCost: 4500,
-    operatorCost: 2000,
-    repairCost: 0,
-    mechanicCost: 0,
-    transportCost: 0,
+    fuelCost: '',
+    operatorCost: '',
+    repairCost: '',
+    mechanicCost: '',
+    transportCost: '',
     machineNotes: ''
   });
+
+  // Multiple equipment entries in Log Plant & Machinery modal
+  const [equipmentEntries, setEquipmentEntries] = useState([createEmptyEquipmentEntry()]);
+
+  const handleOpenAddModal = () => {
+    setEquipmentEntries([createEmptyEquipmentEntry()]);
+    setIsAddModalOpen(true);
+  };
+
+  const handleAddEquipmentEntry = () => {
+    setEquipmentEntries((prev) => [...prev, createEmptyEquipmentEntry()]);
+  };
+
+  const handleRemoveEquipmentEntry = (index) => {
+    if (equipmentEntries.length === 1) {
+      setEquipmentEntries([createEmptyEquipmentEntry()]);
+      return;
+    }
+    setEquipmentEntries((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateEquipmentEntry = (index, field, value) => {
+    setEquipmentEntries((prev) => {
+      const copy = [...prev];
+      copy[index] = { ...copy[index], [field]: value };
+      return copy;
+    });
+  };
 
   const storageKey = `nasaab_equipment_${selectedProjectId || 'default'}`;
   const [customEquipment, setCustomEquipment] = useState(() => {
@@ -114,34 +144,38 @@ export const EquipmentReportPage = () => {
 
   const handleSaveEquipment = (e) => {
     e.preventDefault();
-    if (!newEquipment.equipmentName.trim()) {
-      addToast && addToast('Please enter an equipment name', 'error');
+    const validEntries = equipmentEntries.filter((eq) => eq.equipmentName && eq.equipmentName.trim());
+    if (validEntries.length === 0) {
+      addToast && addToast('Please enter at least one equipment / machinery name', 'error');
       return;
     }
 
-    const fuel = Number(newEquipment.fuelCost) || 0;
-    const operator = Number(newEquipment.operatorCost) || 0;
-    const repair = Number(newEquipment.repairCost) || 0;
-    const mechanic = Number(newEquipment.mechanicCost) || 0;
-    const transport = Number(newEquipment.transportCost) || 0;
-    const total = fuel + operator + repair + mechanic + transport;
+    const todayStr = new Date().toISOString().split('T')[0];
+    const newItems = validEntries.map((eq, i) => {
+      const fuel = Number(eq.fuelCost) || 0;
+      const operator = Number(eq.operatorCost) || 0;
+      const repair = Number(eq.repairCost) || 0;
+      const mechanic = Number(eq.mechanicCost) || 0;
+      const transport = Number(eq.transportCost) || 0;
+      const total = fuel + operator + repair + mechanic + transport;
 
-    const item = {
-      id: `eq-${Date.now()}`,
-      equipmentName: newEquipment.equipmentName,
-      operatingStatus: newEquipment.operatingStatus,
-      hoursUsed: Number(newEquipment.hoursUsed) || 0,
-      fuelCost: fuel,
-      operatorCost: operator,
-      repairCost: repair,
-      mechanicCost: mechanic,
-      transportCost: transport,
-      totalExpense: total,
-      machineNotes: newEquipment.machineNotes,
-      date: new Date().toISOString().split('T')[0]
-    };
+      return {
+        id: `eq-${Date.now()}-${i}`,
+        equipmentName: eq.equipmentName.trim(),
+        operatingStatus: eq.operatingStatus || 'Active',
+        hoursUsed: Number(eq.hoursUsed) || 0,
+        fuelCost: fuel,
+        operatorCost: operator,
+        repairCost: repair,
+        mechanicCost: mechanic,
+        transportCost: transport,
+        totalExpense: total,
+        machineNotes: (eq.machineNotes || '').trim(),
+        date: todayStr
+      };
+    });
 
-    const updated = [item, ...customEquipment];
+    const updated = [...newItems, ...customEquipment];
     setCustomEquipment(updated);
     try {
       localStorage.setItem(storageKey, JSON.stringify(updated));
@@ -149,7 +183,7 @@ export const EquipmentReportPage = () => {
       console.error(err);
     }
 
-    addToast && addToast('Equipment record added successfully!');
+    addToast && addToast(`Added ${newItems.length} equipment ${newItems.length === 1 ? 'record' : 'records'} successfully!`);
     setIsAddModalOpen(false);
   };
 
@@ -258,7 +292,7 @@ export const EquipmentReportPage = () => {
         </div>
 
         <button
-          onClick={() => setIsAddModalOpen(true)}
+          onClick={handleOpenAddModal}
           className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-amber-500/20 transition-all cursor-pointer self-start sm:self-auto"
         >
           <Plus className="h-4 w-4 stroke-[2.5]" />
@@ -388,7 +422,7 @@ export const EquipmentReportPage = () => {
               No equipment matching this query is logged. Log equipment using the button below.
             </p>
             <button
-              onClick={() => setIsAddModalOpen(true)}
+              onClick={handleOpenAddModal}
               className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-amber-400 cursor-pointer shadow-xs"
             >
               <Plus className="h-4 w-4" />
@@ -461,8 +495,8 @@ export const EquipmentReportPage = () => {
       {/* Modal: Log Equipment */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
-            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+          <div className="w-full max-w-2xl rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 shrink-0 bg-white">
               <div className="flex items-center gap-2">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500">
                   <Truck className="h-5 w-5" />
@@ -472,60 +506,177 @@ export const EquipmentReportPage = () => {
                   <p className="text-[11px] text-slate-500">Record equipment status & daily running expenses</p>
                 </div>
               </div>
-              <button
-                onClick={() => setIsAddModalOpen(false)}
-                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleAddEquipmentEntry}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/80 bg-amber-50 hover:bg-amber-100/70 px-3 py-1.5 text-xs font-bold text-amber-800 transition-colors cursor-pointer shadow-2xs"
+                  title="Add Another Machine"
+                >
+                  <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
+                  <span>Add Machine</span>
+                </button>
+                <button
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
 
-            <form onSubmit={handleSaveEquipment} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Equipment / Machinery Name <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Concrete Mixer 400L, CAT 320 Excavator"
-                  value={newEquipment.equipmentName}
-                  onChange={(e) => setNewEquipment({ ...newEquipment, equipmentName: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
-                />
-              </div>
+            <form onSubmit={handleSaveEquipment} className="p-6 space-y-4 overflow-y-auto flex-1">
+              {equipmentEntries.map((entry, idx) => (
+                <div
+                  key={entry.id || idx}
+                  className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 space-y-3.5"
+                >
+                  <div className="flex items-center justify-between border-b border-slate-200/70 pb-2">
+                    <span className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center gap-1.5">
+                      <Truck className="h-3.5 w-3.5 text-amber-500" />
+                      <span>Machine #{idx + 1}</span>
+                    </span>
+                    {equipmentEntries.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveEquipmentEntry(idx)}
+                        className="p-1 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                        title="Remove Machine"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Operating Status
-                  </label>
-                  <select
-                    value={newEquipment.operatingStatus}
-                    onChange={(e) => setNewEquipment({ ...newEquipment, operatingStatus: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
-                  >
-                    <option value="Active">Active / Operational</option>
-                    <option value="Maintenance">Maintenance / Breakdown</option>
-                  </select>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Equipment / Machinery Name <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Concrete Mixer 400L, CAT 320 Excavator, Generator 50kVA"
+                      value={entry.equipmentName}
+                      onChange={(e) => handleUpdateEquipmentEntry(idx, 'equipmentName', e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Operating Status
+                      </label>
+                      <select
+                        value={entry.operatingStatus}
+                        onChange={(e) => handleUpdateEquipmentEntry(idx, 'operatingStatus', e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                      >
+                        <option value="Active">Active / Operational</option>
+                        <option value="Standby">Standby / Idle</option>
+                        <option value="Maintenance">Maintenance / Breakdown</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Hours Used Today
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        placeholder="e.g. 8"
+                        value={entry.hoursUsed}
+                        onChange={(e) => handleUpdateEquipmentEntry(idx, 'hoursUsed', e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                        Fuel (KES)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                        value={entry.fuelCost}
+                        onChange={(e) => handleUpdateEquipmentEntry(idx, 'fuelCost', e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-mono text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                        Operator (KES)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                        value={entry.operatorCost}
+                        onChange={(e) => handleUpdateEquipmentEntry(idx, 'operatorCost', e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-mono text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                        Repairs / Spares
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                        value={entry.repairCost}
+                        onChange={(e) => handleUpdateEquipmentEntry(idx, 'repairCost', e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-mono text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                        Transport (KES)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                        value={entry.transportCost}
+                        onChange={(e) => handleUpdateEquipmentEntry(idx, 'transportCost', e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-mono text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Machine Notes & Observations
+                    </label>
+                    <textarea
+                      rows="2"
+                      placeholder="Note oil checks, hydraulic leaks, spares replaced, or work done..."
+                      value={entry.machineNotes}
+                      onChange={(e) => handleUpdateEquipmentEntry(idx, 'machineNotes', e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                    />
+                  </div>
                 </div>
+              ))}
 
-              </div>
+              <button
+                type="button"
+                onClick={handleAddEquipmentEntry}
+                className="w-full py-3 rounded-2xl border-2 border-dashed border-amber-300 hover:border-amber-500 bg-amber-50/40 hover:bg-amber-50 text-amber-800 text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-2xs"
+              >
+                <Plus className="h-4 w-4 stroke-[2.5]" />
+                <span>+ Add Another Machine</span>
+              </button>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Machine Notes & Maintenance Observations
-                </label>
-                <textarea
-                  rows="2"
-                  placeholder="Note oil checks, hydraulic leaks, parts replaced, or specific site work performed..."
-                  value={newEquipment.machineNotes}
-                  onChange={(e) => setNewEquipment({ ...newEquipment, machineNotes: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
@@ -535,9 +686,9 @@ export const EquipmentReportPage = () => {
                 </button>
                 <button
                   type="submit"
-                  className="rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2 text-xs font-bold text-slate-950 shadow-xs cursor-pointer"
+                  className="rounded-xl bg-amber-500 hover:bg-amber-400 px-5 py-2 text-xs font-bold text-slate-950 shadow-xs cursor-pointer"
                 >
-                  Save Equipment Log
+                  Save Equipment {equipmentEntries.length > 1 ? `(${equipmentEntries.length} Machines)` : 'Log'}
                 </button>
               </div>
             </form>
