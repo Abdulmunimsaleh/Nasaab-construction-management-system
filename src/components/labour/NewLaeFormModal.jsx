@@ -484,25 +484,6 @@ export const NewLaeFormModal = ({
               </p>
             </div>
 
-            <div>
-              <label className="text-[10px] font-bold text-slate-700 uppercase tracking-wider block mb-1.5">
-                ESTIMATED PROGRESS (%)
-              </label>
-              <div className="relative">
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  placeholder="50"
-                  value={estimatedSiteProgress}
-                  onChange={(e) => setEstimatedSiteProgress(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-medium text-slate-800 focus:border-amber-500 focus:outline-none pr-16"
-                />
-                <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-[11px] font-medium text-slate-400">
-                  % Done
-                </span>
-              </div>
-            </div>
           </div>
 
           {/* SECTION 1: LABOUR & WORKFORCE */}
@@ -634,11 +615,10 @@ export const NewLaeFormModal = ({
                             readOnly={!canEditRate}
                             disabled={!canEditRate}
                             onChange={(e) => handleUpdateTrade(idx, 'foremanRate', e.target.value)}
-                            className={`w-full rounded-lg border px-3 py-1.5 text-xs font-semibold ${
-                              !canEditRate
+                            className={`w-full rounded-lg border px-3 py-1.5 text-xs font-semibold ${!canEditRate
                                 ? 'bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed select-none'
                                 : 'bg-white text-slate-800 border-slate-200 focus:border-amber-500 focus:outline-none'
-                            }`}
+                              }`}
                           />
                         </div>
 
@@ -653,11 +633,10 @@ export const NewLaeFormModal = ({
                             readOnly={!canEditRate}
                             disabled={!canEditRate}
                             onChange={(e) => handleUpdateTrade(idx, 'skilledRate', e.target.value)}
-                            className={`w-full rounded-lg border px-3 py-1.5 text-xs font-semibold ${
-                              !canEditRate
+                            className={`w-full rounded-lg border px-3 py-1.5 text-xs font-semibold ${!canEditRate
                                 ? 'bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed select-none'
                                 : 'bg-white text-slate-800 border-slate-200 focus:border-amber-500 focus:outline-none'
-                            }`}
+                              }`}
                           />
                         </div>
 
@@ -672,11 +651,10 @@ export const NewLaeFormModal = ({
                             readOnly={!canEditRate}
                             disabled={!canEditRate}
                             onChange={(e) => handleUpdateTrade(idx, 'unskilledRate', e.target.value)}
-                            className={`w-full rounded-lg border px-3 py-1.5 text-xs font-semibold ${
-                              !canEditRate
+                            className={`w-full rounded-lg border px-3 py-1.5 text-xs font-semibold ${!canEditRate
                                 ? 'bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed select-none'
                                 : 'bg-white text-slate-800 border-slate-200 focus:border-amber-500 focus:outline-none'
-                            }`}
+                              }`}
                           />
                         </div>
                       </div>
@@ -757,283 +735,6 @@ export const NewLaeFormModal = ({
             </div>
           </div>
 
-          {/* SECTION 2: MACHINERY & EQUIPMENT */}
-          <div className="rounded-2xl border-2 border-slate-200 bg-slate-50/20 p-4 sm:p-5 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-100 text-orange-600">
-                  <ArrowRightLeft className="h-4 w-4" />
-                </div>
-                <div>
-                  <h3 className="text-xs font-extrabold uppercase tracking-wide text-slate-900">
-                    MACHINERY & EQUIPMENT
-                  </h3>
-                  <p className="text-[11px] text-slate-500">
-                    Track machinery on site, operating & maintenance expenses.
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleAddEquipment}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-orange-500/80 bg-white hover:bg-orange-50 px-3 py-1.5 text-xs font-bold text-orange-700 transition-colors cursor-pointer self-start sm:self-auto shadow-2xs"
-              >
-                <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
-                <span>Add Equipment / Machine</span>
-              </button>
-            </div>
-
-            {/* Machinery Items */}
-            <div className="space-y-4">
-              {equipmentList.map((eq, idx) => {
-                const fuel = Number(eq.fuelCost) || 0;
-                const operator = Number(eq.operatorCost) || 0;
-                const repair = Number(eq.repairCost) || 0;
-                const mechanic = Number(eq.mechanicCost) || 0;
-                const transport = Number(eq.transportCost) || 0;
-                const totalMachineExpense = fuel + operator + repair + mechanic + transport;
-
-                return (
-                  <div
-                    key={idx}
-                    className="rounded-xl border border-slate-200 bg-white p-4 space-y-3.5 shadow-xs"
-                  >
-                    {/* Machine Name & Delete */}
-                    <div className="flex items-center justify-between gap-3">
-                      <input
-                        type="text"
-                        placeholder="e.g. Cat 320D Excavator - 20T (EX-04)"
-                        value={eq.equipmentName}
-                        onChange={(e) => handleUpdateEquipment(idx, 'equipmentName', e.target.value)}
-                        className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3.5 py-1.5 text-xs font-bold text-slate-800 placeholder:text-slate-400 focus:border-orange-500 focus:bg-white focus:outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveEquipment(idx)}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
-                        title="Delete Equipment"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-
-                    {/* 5 Expense Fields */}
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-600 uppercase block mb-1">
-                          FUEL COST (KES)
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          value={eq.fuelCost}
-                          onChange={(e) => handleUpdateEquipment(idx, 'fuelCost', e.target.value)}
-                          className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-800 focus:border-orange-500 focus:outline-none"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-600 uppercase block mb-1">
-                          OPERATOR COST (KES)
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          value={eq.operatorCost}
-                          onChange={(e) => handleUpdateEquipment(idx, 'operatorCost', e.target.value)}
-                          className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-800 focus:border-orange-500 focus:outline-none"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-600 uppercase block mb-1">
-                          REPAIR / SPARES COST (KES)
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          value={eq.repairCost}
-                          onChange={(e) => handleUpdateEquipment(idx, 'repairCost', e.target.value)}
-                          className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-800 focus:border-orange-500 focus:outline-none"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-600 uppercase block mb-1">
-                          MECHANIC COST (KES)
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          value={eq.mechanicCost}
-                          onChange={(e) => handleUpdateEquipment(idx, 'mechanicCost', e.target.value)}
-                          className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-800 focus:border-orange-500 focus:outline-none"
-                        />
-                      </div>
-
-                      <div className="col-span-2 sm:col-span-1">
-                        <label className="text-[10px] font-bold text-slate-600 uppercase block mb-1">
-                          TRANSPORT (KES)
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          value={eq.transportCost}
-                          onChange={(e) => handleUpdateEquipment(idx, 'transportCost', e.target.value)}
-                          className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-800 focus:border-orange-500 focus:outline-none"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Machine Notes / Status / Working Hours */}
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-600 uppercase block mb-1">
-                        MACHINE NOTES / STATUS / WORKING HOURS
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="e.g. 8.5 engine hours logged. Bulk trenching south perimeter."
-                        value={eq.machineNotes}
-                        onChange={(e) => handleUpdateEquipment(idx, 'machineNotes', e.target.value)}
-                        className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-orange-500 focus:bg-white focus:outline-none"
-                      />
-                    </div>
-
-                    {/* Bottom Machine Summary Row */}
-                    <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-slate-100">
-                      <div className="text-xs text-slate-700">
-                        Total Machine Expense: <strong className="font-mono text-slate-900">KES {totalMachineExpense.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-medium text-slate-500">Operating Status:</span>
-                        <select
-                          value={eq.operatingStatus}
-                          onChange={(e) => handleUpdateEquipment(idx, 'operatingStatus', e.target.value)}
-                          className="rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-800 focus:border-orange-500 focus:outline-none"
-                        >
-                          <option value="Active">Active</option>
-                          <option value="Standby">Standby</option>
-                          <option value="Breakdown">Breakdown</option>
-                          <option value="Under Repair">Under Repair</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Add Another Machine / Equipment Button */}
-            <button
-              type="button"
-              onClick={handleAddEquipment}
-              className="w-full py-2.5 rounded-xl border-2 border-dashed border-orange-300 bg-orange-50/30 hover:bg-orange-100/50 text-orange-700 text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2"
-            >
-              <Plus className="h-4 w-4 stroke-[2.5]" />
-              <span>+ Add Another Machine / Equipment</span>
-            </button>
-          </div>
-
-          {/* SECTION 3: ADDITIONAL SITE DETAILS */}
-          <div className="space-y-4">
-            <div>
-              <label className="text-[10px] font-extrabold text-slate-700 uppercase tracking-wider block mb-1.5">
-                DELAYS, ISSUES & SAFETY INCIDENTS
-              </label>
-              <textarea
-                rows={3}
-                placeholder="Detail any site delays, weather slippages, equipment downtime, and HSE / safety incidents or toolbox talks..."
-                value={delaysIssuesIncidents}
-                onChange={(e) => setDelaysIssuesIncidents(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-800 placeholder:text-slate-400 focus:border-amber-500 focus:outline-none transition-colors"
-              />
-            </div>
-
-            <div>
-              <label className="text-[10px] font-extrabold text-slate-700 uppercase tracking-wider block mb-1.5">
-                SITE VISITORS & CLIENT REPS
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. Architect inspection, Structural Engineer, County Building Inspector..."
-                value={siteVisitors}
-                onChange={(e) => setSiteVisitors(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-amber-500 focus:outline-none transition-colors"
-              />
-            </div>
-          </div>
-
-          {/* SECTION 4: SITE PHOTOS */}
-          <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/40 p-4 sm:p-5 space-y-3">
-            <div className="flex items-center gap-2">
-              <Camera className="h-4 w-4 text-slate-600" />
-              <h3 className="text-xs font-extrabold uppercase tracking-wide text-slate-900">
-                SITE PHOTOS
-              </h3>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => siteCameraInputRef.current?.click()}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 px-3.5 py-1.5 text-xs font-bold text-white cursor-pointer shadow-xs transition-colors"
-              >
-                <Camera className="h-3.5 w-3.5" />
-                <span>Take Photo</span>
-              </button>
-              <input
-                ref={siteCameraInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={handleSitePhotoUpload}
-                className="hidden"
-              />
-
-              <button
-                type="button"
-                onClick={() => sitePhotoInputRef.current?.click()}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 px-3.5 py-1.5 text-xs font-bold text-slate-700 cursor-pointer shadow-2xs transition-colors"
-              >
-                <ImageIcon className="h-3.5 w-3.5 text-slate-500" />
-                <span>Choose from Gallery</span>
-              </button>
-              <input
-                ref={sitePhotoInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handleSitePhotoUpload}
-                className="hidden"
-              />
-            </div>
-
-            {/* Photos Preview Grid or Empty state */}
-            {sitePhotos.length > 0 ? (
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2.5 pt-2">
-                {sitePhotos.map((photo, pIdx) => (
-                  <div key={pIdx} className="relative group rounded-xl overflow-hidden border border-slate-200 aspect-square bg-slate-100">
-                    <img src={photo.url} alt={photo.name || 'Site Photo'} className="h-full w-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveSitePhoto(pIdx)}
-                      className="absolute top-1 right-1 rounded-full bg-slate-900/80 p-1 text-white hover:bg-rose-600 transition-colors"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="py-6 text-center">
-                <ImageIcon className="h-8 w-8 text-slate-300 mx-auto mb-1.5" />
-                <p className="text-xs font-semibold text-slate-600">No photos attached yet.</p>
-                <p className="text-[11px] text-slate-400">Use the buttons above to capture or upload site photos.</p>
-              </div>
-            )}
-          </div>
 
           {/* Form Actions Footer */}
           <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-3 border-t border-slate-100">
