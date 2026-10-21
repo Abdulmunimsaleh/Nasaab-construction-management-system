@@ -566,16 +566,16 @@ export const EquipmentReportPage = () => {
             onClick={() => switchProject && switchProject('all')}
             disabled={isDataLoading}
             className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all cursor-pointer ${selectedProjectId === 'all'
-                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 ring-2 ring-amber-400'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200/60'
+              ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 ring-2 ring-amber-400'
+              : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200/60'
               }`}
           >
             <Building2 className="h-3.5 w-3.5" />
             <span>All Sites Combined</span>
             <span
               className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold ${selectedProjectId === 'all'
-                  ? 'bg-amber-600 text-slate-950'
-                  : 'bg-slate-200 text-slate-600'
+                ? 'bg-amber-600 text-slate-950'
+                : 'bg-slate-200 text-slate-600'
                 }`}
             >
               {siteEquipmentCounts.all || 0}
@@ -592,8 +592,8 @@ export const EquipmentReportPage = () => {
                 onClick={() => switchProject && switchProject(p.id)}
                 disabled={isDataLoading}
                 className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all cursor-pointer ${isSelected
-                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 ring-2 ring-amber-400'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200/60'
+                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 ring-2 ring-amber-400'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200/60'
                   }`}
               >
                 <MapPin className="h-3.5 w-3.5 text-slate-400" />
@@ -769,8 +769,8 @@ export const EquipmentReportPage = () => {
                           type="button"
                           onClick={() => handleDeleteEquipment(eq)}
                           className={`p-1.5 rounded-lg transition-colors cursor-pointer ${eq.source === 'lae'
-                              ? 'text-slate-300 hover:text-slate-400 hover:bg-slate-100'
-                              : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
+                            ? 'text-slate-300 hover:text-slate-400 hover:bg-slate-100'
+                            : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
                             }`}
                           title={
                             eq.source === 'lae'

@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { StatCard } from '../components/common/StatCard';
+import { ProjectFinancialOverview } from '../components/dashboard/ProjectFinancialOverview';
 import { formatKES, formatRelativeTime } from '../utils/formatters';
 import {
   FolderKanban,
@@ -201,6 +202,9 @@ export const Dashboard = () => {
           />
         )}
       </div>
+
+      {/* Project Financial Overview: Developer Funds & Labour Expenses */}
+      <ProjectFinancialOverview />
 
       {/* Active Construction Sites Grid */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
