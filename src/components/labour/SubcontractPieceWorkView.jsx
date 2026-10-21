@@ -599,89 +599,111 @@ export const SubcontractPieceWorkView = () => {
       </div>
 
       {/* ------------------------------------------------------------- */}
-      {/* 2. TOP 4 STAT CARDS                                           */}
+      {/* 2. TOP 4 STAT CARDS — Premium Design                          */}
       {/* ------------------------------------------------------------- */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: TOTAL CONTRACT VALUE */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 border-l-4 border-l-slate-900 p-4.5 shadow-2xs flex items-start justify-between">
-          <div>
-            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-              Total Contract Value
+        <div className="relative overflow-hidden rounded-2xl border border-slate-200/60 bg-gradient-to-br from-slate-50 via-white to-slate-50 p-5 shadow-sm hover:shadow-md transition-shadow duration-300">
+          <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-slate-900/5"></div>
+          <div className="absolute -bottom-4 -right-4 w-14 h-14 rounded-full bg-slate-900/[0.03]"></div>
+          <div className="flex items-start justify-between relative z-10">
+            <div className="space-y-1.5">
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                Total Contract Value
+              </div>
+              <div className="text-[22px] leading-tight font-extrabold text-slate-900 font-mono">
+                {formatKSh(stats.totalContractValue)}
+              </div>
+              <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-slate-200/60">
+                  <Layers className="h-2.5 w-2.5 text-slate-500" />
+                </span>
+                <span>{stats.agreementCount} floor agreement{stats.agreementCount !== 1 ? 's' : ''}</span>
+              </div>
             </div>
-            <div className="text-xl sm:text-2xl font-extrabold text-slate-900 font-mono mt-1">
-              {formatKSh(stats.totalContractValue)}
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center text-white shadow-sm shrink-0">
+              <FileText className="h-5 w-5" />
             </div>
-            <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-slate-400"></span>
-              <span>Agreed scope across {stats.agreementCount} floor agreements</span>
-            </div>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700 shrink-0">
-            <FileText className="h-5 w-5" />
           </div>
         </div>
 
         {/* Card 2: TOTAL PAID */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 border-l-4 border-l-emerald-500 p-4.5 shadow-2xs flex items-start justify-between">
-          <div className="flex-1 pr-2">
-            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-              Total Paid
-            </div>
-            <div className="text-xl sm:text-2xl font-extrabold text-emerald-600 font-mono mt-1">
-              {formatKSh(stats.totalPaid)}
-            </div>
-            <div className="mt-1 flex items-center gap-2">
-              <div className="w-full max-w-[130px] bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                <div
-                  className="bg-emerald-500 h-1.5 rounded-full"
-                  style={{ width: `${Math.min(100, stats.pctPaid)}%` }}
-                ></div>
+        <div className="relative overflow-hidden rounded-2xl border border-emerald-200/60 bg-gradient-to-br from-emerald-50/60 via-white to-emerald-50/30 p-5 shadow-sm hover:shadow-md transition-shadow duration-300">
+          <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-emerald-500/5"></div>
+          <div className="absolute -bottom-4 -right-4 w-14 h-14 rounded-full bg-emerald-500/[0.03]"></div>
+          <div className="flex items-start justify-between relative z-10">
+            <div className="space-y-1.5 flex-1 pr-3">
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                Total Paid
               </div>
-              <span className="text-[10px] text-emerald-700 font-bold whitespace-nowrap font-mono">
-                {stats.pctPaid}% paid
-              </span>
+              <div className="text-[22px] leading-tight font-extrabold text-emerald-600 font-mono">
+                {formatKSh(stats.totalPaid)}
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 max-w-[120px] bg-emerald-100 rounded-full h-[5px] overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-full rounded-full transition-all duration-500"
+                    style={{ width: `${Math.min(100, stats.pctPaid)}%` }}
+                  ></div>
+                </div>
+                <span className="text-[10px] text-emerald-700 font-bold whitespace-nowrap font-mono bg-emerald-100/80 px-1.5 py-0.5 rounded">
+                  {stats.pctPaid}%
+                </span>
+              </div>
             </div>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
-            <Banknote className="h-5 w-5" />
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white shadow-sm shrink-0">
+              <Banknote className="h-5 w-5" />
+            </div>
           </div>
         </div>
 
         {/* Card 3: OUTSTANDING BALANCE */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 border-l-4 border-l-orange-500 p-4.5 shadow-2xs flex items-start justify-between">
-          <div>
-            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-              Outstanding Balance
+        <div className="relative overflow-hidden rounded-2xl border border-orange-200/60 bg-gradient-to-br from-orange-50/60 via-white to-amber-50/30 p-5 shadow-sm hover:shadow-md transition-shadow duration-300">
+          <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-orange-500/5"></div>
+          <div className="absolute -bottom-4 -right-4 w-14 h-14 rounded-full bg-orange-500/[0.03]"></div>
+          <div className="flex items-start justify-between relative z-10">
+            <div className="space-y-1.5">
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                Outstanding Balance
+              </div>
+              <div className="text-[22px] leading-tight font-extrabold text-orange-600 font-mono">
+                {formatKSh(stats.outstandingBalance)}
+              </div>
+              <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-orange-100">
+                  <Clock className="h-2.5 w-2.5 text-orange-500" />
+                </span>
+                <span>Remaining across active works</span>
+              </div>
             </div>
-            <div className="text-xl sm:text-2xl font-extrabold text-orange-600 font-mono mt-1">
-              {formatKSh(stats.outstandingBalance)}
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center text-white shadow-sm shrink-0">
+              <Scale className="h-5 w-5" />
             </div>
-            <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-orange-400"></span>
-              <span>Remaining liability across active works</span>
-            </div>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center text-orange-600 shrink-0">
-            <Scale className="h-5 w-5" />
           </div>
         </div>
 
         {/* Card 4: ACTIVE SUBCONTRACT TEAMS */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 border-l-4 border-l-amber-500 p-4.5 shadow-2xs flex items-start justify-between">
-          <div>
-            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-              Active Subcontract Teams
+        <div className="relative overflow-hidden rounded-2xl border border-amber-200/60 bg-gradient-to-br from-amber-50/60 via-white to-yellow-50/30 p-5 shadow-sm hover:shadow-md transition-shadow duration-300">
+          <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-amber-500/5"></div>
+          <div className="absolute -bottom-4 -right-4 w-14 h-14 rounded-full bg-amber-500/[0.03]"></div>
+          <div className="flex items-start justify-between relative z-10">
+            <div className="space-y-1.5">
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                Active Teams
+              </div>
+              <div className="text-[22px] leading-tight font-extrabold text-slate-900">
+                {stats.activeTeamsCount} <span className="text-sm font-bold text-slate-500">Teams</span>
+              </div>
+              <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-amber-100">
+                  <Building className="h-2.5 w-2.5 text-amber-600" />
+                </span>
+                <span>{stats.floorsDisplay}</span>
+              </div>
             </div>
-            <div className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-1">
-              {stats.activeTeamsCount} Teams
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500 to-yellow-500 flex items-center justify-center text-white shadow-sm shrink-0">
+              <Users className="h-5 w-5" />
             </div>
-            <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-400"></span>
-              <span>Deployed on {stats.floorsDisplay}</span>
-            </div>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 shrink-0">
-            <Users className="h-5 w-5" />
           </div>
         </div>
       </div>
@@ -1037,29 +1059,28 @@ export const SubcontractPieceWorkView = () => {
                   })
                 )}
               </tbody>
+              {/* Footer Summary Row — aligned under matching columns */}
+              <tfoot>
+                <tr className="bg-slate-900 text-white">
+                  <td colSpan={4} className="py-3.5 px-4 text-[11px] uppercase tracking-wider font-bold text-slate-300">
+                    Total Agreements Sum
+                  </td>
+                  <td className="py-3.5 px-4 font-mono font-extrabold text-amber-400 text-sm">
+                    {formatKSh(stats.totalContractValue)}
+                  </td>
+                  <td className="py-3.5 px-4 font-mono font-extrabold text-emerald-400 text-sm">
+                    {formatKSh(stats.totalPaid)}
+                  </td>
+                  <td className="py-3.5 px-4 font-mono font-extrabold text-orange-400 text-sm">
+                    {formatKSh(stats.outstandingBalance)}
+                  </td>
+                  <td className="py-3.5 px-4 text-[10px] text-slate-400 font-normal italic">
+                    Auto-calc
+                  </td>
+                  <td className="py-3.5 px-4"></td>
+                </tr>
+              </tfoot>
             </table>
-          </div>
-
-          {/* Dark Footer Summary Row matching screenshot */}
-          <div className="bg-slate-900 text-white px-5 py-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs font-bold border-t border-slate-800">
-            <div className="flex flex-wrap items-center gap-4 sm:gap-6 font-mono">
-              <span className="text-[11px] uppercase tracking-wider text-slate-300 font-sans">
-                Total Agreements Sum:
-              </span>
-              <span className="text-amber-400 font-extrabold text-sm">
-                {formatKSh(stats.totalContractValue)}
-              </span>
-              <span className="text-emerald-400 font-extrabold text-sm">
-                {formatKSh(stats.totalPaid)}
-              </span>
-              <span className="text-orange-400 font-extrabold text-sm">
-                {formatKSh(stats.outstandingBalance)}
-              </span>
-            </div>
-
-            <div className="text-[10px] text-slate-400 font-normal italic">
-              Calculated automatically: Total Value - Total Paid = Outstanding
-            </div>
           </div>
         </div>
       </div>
