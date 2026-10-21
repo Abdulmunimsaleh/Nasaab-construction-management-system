@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import { formatKES } from '../utils/formatters';
+import { generateEquipmentReportPDF } from '../utils/pdfGenerator';
 import {
   Truck,
   Wrench,
@@ -504,6 +505,37 @@ export const EquipmentReportPage = () => {
     return scopedExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   }, [scopedExpenses]);
 
+  const handleDownloadEquipmentPDF = () => {
+    try {
+      const activeProj = currentProject || (selectedProjectId !== 'all' ? (projects || []).find((p) => p.id === selectedProjectId) : null) || { name: 'All Sites Combined', code: 'ALL' };
+      const doc = generateEquipmentReportPDF({
+        project: activeProj,
+        equipmentList: filteredEquipment.map((e) => ({
+          name: e.equipmentName,
+          category: e.category || 'Plant Equipment',
+          status: e.status || 'Active',
+          condition: e.condition || 'Operational',
+          dailyRate: e.dailyRate || 0,
+          operator: e.operatorName || 'Site Assigned',
+          location: e.projectName || activeProj.name
+        })),
+        expensesList: scopedExpenses,
+        metrics: {
+          activeCount: operationalStats.active,
+          maintenanceCount: operationalStats.maintenance,
+          totalExpenses: totalExpenseAmount
+        },
+        companySettings
+      });
+      const fileCode = (activeProj.code || activeProj.name || 'Site').replace(/[^a-zA-Z0-9_-]/g, '_');
+      doc.save(`Equipment_Report_${fileCode}_${new Date().toISOString().split('T')[0]}.pdf`);
+      addToast && addToast('Equipment & Machinery PDF report downloaded successfully!');
+    } catch (err) {
+      console.error('Failed to generate equipment PDF:', err);
+      addToast && addToast('Failed to generate PDF: ' + err.message, 'error');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -526,6 +558,14 @@ export const EquipmentReportPage = () => {
         </div>
 
         <div className="flex items-center gap-2.5 self-start sm:self-auto">
+          <button
+            onClick={handleDownloadEquipmentPDF}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3.5 py-2.5 text-xs font-semibold text-slate-700 shadow-2xs transition-colors cursor-pointer"
+            title="Download formatted Equipment & Machinery PDF report"
+          >
+            <Download className="h-4 w-4 text-slate-600" />
+            <span>Download PDF</span>
+          </button>
           <button
             onClick={handleOpenAddModal}
             className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-amber-500/20 transition-all cursor-pointer"

@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { NewMaterialRequestModal } from '../../components/materials/NewMaterialRequestModal';
 import { ViewMaterialRequestModal } from '../../components/materials/ViewMaterialRequestModal';
 import api from '../../services/api';
-import { generateMaterialRequestPDF } from '../../utils/pdfGenerator';
+import { generateMaterialRequestPDF, generateMaterialRequisitionsSummaryPDF } from '../../utils/pdfGenerator';
 import { getDayOfWeek } from '../../utils/formatters';
 import {
   Boxes,
@@ -26,6 +26,7 @@ export const MaterialsPage = () => {
     materialRequests,
     currentProject,
     selectedProjectId,
+    projects,
     deleteMaterialRequest,
     isForeman,
     isStoreKeeper,
@@ -74,6 +75,23 @@ export const MaterialsPage = () => {
       addToast && addToast('Failed to generate PDF', 'error');
     } finally {
       setDownloadingId(null);
+    }
+  };
+
+  const handleDownloadMaterialRequisitionsPDF = () => {
+    try {
+      const activeProj = currentProject || (selectedProjectId !== 'all' ? (projects || []).find((p) => p.id === selectedProjectId) : null) || { name: 'All Sites Combined', code: 'ALL' };
+      const doc = generateMaterialRequisitionsSummaryPDF({
+        project: activeProj,
+        requests: filteredRequests,
+        companySettings
+      });
+      const fileCode = (activeProj.code || activeProj.name || 'Site').replace(/[^a-zA-Z0-9_-]/g, '_');
+      doc.save(`Material_Requisitions_${fileCode}_${new Date().toISOString().split('T')[0]}.pdf`);
+      addToast && addToast('Material Requisitions PDF report downloaded successfully!');
+    } catch (err) {
+      console.error('Failed to generate material requests PDF:', err);
+      addToast && addToast('Failed to generate PDF: ' + err.message, 'error');
     }
   };
 
@@ -156,27 +174,37 @@ export const MaterialsPage = () => {
           </p>
         </div>
 
-        {todayRequest ? (
+        <div className="flex items-center gap-2 self-start sm:self-auto">
           <button
-            onClick={() => handleOpenEdit(todayRequest)}
-            className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-amber-500/20 transition-all cursor-pointer self-start sm:self-auto"
-            title="Today's material form has already been submitted. Click to edit and update."
+            onClick={handleDownloadMaterialRequisitionsPDF}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3.5 py-2.5 text-xs font-semibold text-slate-700 shadow-2xs transition-colors cursor-pointer"
+            title="Download consolidated Material Requisitions PDF report"
           >
-            <Edit3 className="h-4 w-4 stroke-[2.5]" />
-            <span>Edit Today's Form ({todayRequest.request_number})</span>
+            <Download className="h-4 w-4 text-slate-600" />
+            <span>Download PDF</span>
           </button>
-        ) : (
-          <button
-            onClick={() => {
-              setEditingRequest(null);
-              setIsNewModalOpen(true);
-            }}
-            className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-amber-500/20 transition-all cursor-pointer self-start sm:self-auto"
-          >
-            <Plus className="h-4 w-4 stroke-[2.5]" />
-            <span>+ New Material Needed Request</span>
-          </button>
-        )}
+          {todayRequest ? (
+            <button
+              onClick={() => handleOpenEdit(todayRequest)}
+              className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-amber-500/20 transition-all cursor-pointer"
+              title="Today's material form has already been submitted. Click to edit and update."
+            >
+              <Edit3 className="h-4 w-4 stroke-[2.5]" />
+              <span>Edit Today's Form ({todayRequest.request_number})</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                setEditingRequest(null);
+                setIsNewModalOpen(true);
+              }}
+              className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-amber-500/20 transition-all cursor-pointer"
+            >
+              <Plus className="h-4 w-4 stroke-[2.5]" />
+              <span>+ New Material Needed Request</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Notice if today's form already exists */}

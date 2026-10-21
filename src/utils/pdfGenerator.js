@@ -1957,3 +1957,896 @@ export const generateWeeklyMaterialReportPDF = ({
 
   return doc;
 };
+
+// ============================================================================
+// MODULAR REPORT GENERATION HELPERS
+// ============================================================================
+const renderReportHeader = (doc, companySettings, reportTitle, subtitle, tagText = 'NASAAB CONSTRUCTION LIMITED') => {
+  doc.setFillColor(...PRIMARY_COLOR);
+  doc.rect(0, 0, 210, 36, 'F');
+
+  doc.setFillColor(...ACCENT_COLOR);
+  doc.rect(0, 36, 210, 2, 'F');
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(15);
+  doc.text((companySettings?.companyName || 'NASAAB CONSTRUCTION LIMITED').toUpperCase(), 14, 15);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(203, 213, 225);
+  doc.text(companySettings?.ncaRegistration || 'NCA 1 - Building & Civil Engineering Works', 14, 21);
+  doc.text(`${companySettings?.address || 'Mombasa, Kenya'} | Tel: ${companySettings?.phone || '+254 700 000 000'}`, 14, 26);
+  doc.text(tagText, 14, 31);
+
+  let currentY = 46;
+
+  doc.setTextColor(...PRIMARY_COLOR);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.text(reportTitle.toUpperCase(), 14, currentY);
+
+  currentY += 6;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(...MUTED_COLOR);
+  doc.text(subtitle, 14, currentY);
+
+  return currentY + 8;
+};
+
+const renderPageFooters = (doc, reportName) => {
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(148, 163, 184);
+    doc.text(`NASAAB CONSTRUCTION LIMITED • ${reportName}`, 14, 290);
+    doc.text(`Generated: ${new Date().toLocaleDateString('en-GB')} • Page ${i} of ${pageCount}`, 196, 290, { align: 'right' });
+  }
+};
+
+const renderSignaturesBlock = (doc, currentY, titles = ['PREPARED BY', 'VERIFIED BY', 'APPROVED BY']) => {
+  if (currentY > 250) {
+    doc.addPage();
+    currentY = 25;
+  } else {
+    currentY = Math.max(currentY + 12, 260);
+  }
+
+  doc.setDrawColor(...BORDER_COLOR);
+  doc.line(14, currentY, 68, currentY);
+  doc.line(78, currentY, 132, currentY);
+  doc.line(142, currentY, 196, currentY);
+
+  doc.setFontSize(7);
+  doc.setTextColor(...MUTED_COLOR);
+  doc.text(titles[0] || 'PREPARED BY', 14, currentY + 4);
+  doc.text(titles[1] || 'VERIFIED BY', 78, currentY + 4);
+  doc.text(titles[2] || 'APPROVED BY', 142, currentY + 4);
+
+  return currentY + 10;
+};
+
+const renderMetricCards = (doc, startY, cards = []) => {
+  const count = cards.length;
+  if (!count) return startY;
+  const gap = 3;
+  const totalWidth = 182;
+  const cardWidth = (totalWidth - (count - 1) * gap) / count;
+  const cardHeight = 15;
+
+  cards.forEach((c, idx) => {
+    const x = 14 + idx * (cardWidth + gap);
+    doc.setFillColor(248, 250, 252);
+    doc.roundedRect(x, startY, cardWidth, cardHeight, 1.5, 1.5, 'F');
+    doc.setDrawColor(...BORDER_COLOR);
+    doc.roundedRect(x, startY, cardWidth, cardHeight, 1.5, 1.5, 'D');
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(...MUTED_COLOR);
+    doc.text(c.label.toUpperCase(), x + 3, startY + 5);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...(c.color || PRIMARY_COLOR));
+    doc.text(String(c.value), x + 3, startY + 11.5);
+  });
+
+  return startY + cardHeight + 6;
+};
+
+// ============================================================================
+// 1. SUBCONTRACT (PIECE WORK) REPORT PDF
+// ============================================================================
+export const generateSubcontractReportPDF = ({
+  project,
+  agreements = [],
+  payments = [],
+  metrics = {},
+  companySettings,
+  author
+}) => {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const projName = project?.name || 'All Sites Combined';
+  const subtitle = `Project Site: ${projName} (${project?.code || 'SITE'}) • ${project?.location || 'Operational Site'} • Piece Work Subcontracts`;
+  let currentY = renderReportHeader(doc, companySettings, 'Subcontract (Piece Work) Report', subtitle, 'Workforce Trade Contracts & Disbursements');
+
+  const totalValue = metrics.totalValue !== undefined
+    ? metrics.totalValue
+    : agreements.reduce((s, a) => s + (Number(a.agreedAmount || a.contractAmount) || 0), 0);
+  const totalPaid = metrics.totalPaid !== undefined
+    ? metrics.totalPaid
+    : agreements.reduce((s, a) => s + (Number(a.totalPaid || a.paidAmount) || 0), 0);
+  const remaining = Math.max(0, totalValue - totalPaid);
+
+  currentY = renderMetricCards(doc, currentY, [
+    { label: 'Total Agreed Sum', value: `KSh ${Number(totalValue).toLocaleString()}` },
+    { label: 'Total Paid to Date', value: `KSh ${Number(totalPaid).toLocaleString()}`, color: [5, 150, 105] },
+    { label: 'Remaining Balance', value: `KSh ${Number(remaining).toLocaleString()}`, color: [225, 29, 72] },
+    { label: 'Active Contracts', value: `${agreements.length} Contracts`, color: ACCENT_COLOR }
+  ]);
+
+  // Section 1: Subcontract Agreements Table
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(...PRIMARY_COLOR);
+  doc.text(`1. SUBCONTRACT AGREEMENTS REGISTER (${agreements.length})`, 14, currentY);
+  currentY += 4;
+
+  const agreementRows = agreements.map((a) => {
+    const agreed = Number(a.agreedAmount || a.contractAmount) || 0;
+    const paid = Number(a.totalPaid) || 0;
+    const bal = Math.max(0, agreed - paid);
+    return [
+      a.contractId || a.id || 'SC-REF',
+      a.teamName || a.trade || 'General Trade',
+      a.floor || a.zone || 'Site Floor',
+      `KSh ${agreed.toLocaleString()}`,
+      `KSh ${paid.toLocaleString()}`,
+      `KSh ${bal.toLocaleString()}`,
+      a.status || (bal <= 0 ? 'Fully Paid' : 'Active')
+    ];
+  });
+
+  autoTable(doc, {
+    startY: currentY,
+    head: [['Contract Ref', 'Trade / Team', 'Floor / Zone', 'Agreed Sum', 'Total Paid', 'Balance', 'Status']],
+    body: agreementRows.length > 0 ? agreementRows : [['No agreements found', '—', '—', '0', '0', '0', '—']],
+    theme: 'grid',
+    styles: { fontSize: 7.5, cellPadding: 2 },
+    headStyles: { fillColor: PRIMARY_COLOR, textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+    columnStyles: {
+      0: { cellWidth: 26, fontStyle: 'bold' },
+      1: { cellWidth: 40 },
+      2: { cellWidth: 26 },
+      3: { cellWidth: 25, halign: 'right' },
+      4: { cellWidth: 25, halign: 'right' },
+      5: { cellWidth: 22, halign: 'right', fontStyle: 'bold' },
+      6: { cellWidth: 18, halign: 'center' }
+    },
+    margin: { left: 14, right: 14 }
+  });
+
+  currentY = doc.lastAutoTable.finalY + 6;
+
+  // Section 2: Recent Disbursements
+  if (payments && payments.length > 0) {
+    if (currentY + 40 > 270) {
+      doc.addPage();
+      currentY = 20;
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(...PRIMARY_COLOR);
+    doc.text(`2. RECENT DISBURSEMENTS & PAYMENTS LOG (${payments.length})`, 14, currentY);
+    currentY += 4;
+
+    const paymentRows = payments.slice(0, 15).map((p) => [
+      p.paymentRef || p.id || 'PAY-REF',
+      p.agreementId || '—',
+      p.teamName || '—',
+      p.floor || '—',
+      p.weekPeriod || 'Current Week',
+      `KSh ${(Number(p.paidThisWeek) || 0).toLocaleString()}`,
+      p.date || '—'
+    ]);
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [['Payment Ref', 'Contract', 'Team / Subcontractor', 'Floor', 'Period', 'Amount Paid', 'Date']],
+      body: paymentRows,
+      theme: 'grid',
+      styles: { fontSize: 7.5, cellPadding: 2 },
+      headStyles: { fillColor: [51, 65, 85], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+      columnStyles: {
+        0: { cellWidth: 26, fontStyle: 'bold' },
+        1: { cellWidth: 24 },
+        2: { cellWidth: 42 },
+        3: { cellWidth: 24 },
+        4: { cellWidth: 26 },
+        5: { cellWidth: 22, halign: 'right', fontStyle: 'bold' },
+        6: { cellWidth: 18, halign: 'center' }
+      },
+      margin: { left: 14, right: 14 }
+    });
+
+    currentY = doc.lastAutoTable.finalY + 4;
+  }
+
+  renderSignaturesBlock(doc, currentY, ['SUBCONTRACTOR REP: Signed', 'PROJECT MANAGER: Certified', 'DIRECTOR: Approved']);
+  renderPageFooters(doc, 'Subcontract (Piece Work) Report');
+  return doc;
+};
+
+// ============================================================================
+// 2. DAILY LABOUR REPORT PDF
+// ============================================================================
+export const generateDailyLabourSummaryPDF = ({
+  project,
+  forms = [],
+  companySettings,
+  author
+}) => {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const projName = project?.name || 'All Sites Combined';
+  const subtitle = `Project Site: ${projName} (${project?.code || 'SITE'}) • Daily Workforce & Trade Operations Log`;
+  let currentY = renderReportHeader(doc, companySettings, 'Daily Labour & Workforce Dossier', subtitle, 'Daily Shift Forms & Trade Headcount Register');
+
+  let totalWorkers = 0;
+  let totalCost = 0;
+  forms.forEach((f) => {
+    if (Array.isArray(f.labourItems)) {
+      f.labourItems.forEach((it) => {
+        const fc = Number(it.foreman_count || it.foremanCount || 0);
+        const sc = Number(it.skilled_count || it.skilledCount || 0);
+        const uc = Number(it.unskilled_count || it.unskilledCount || 0);
+        totalWorkers += (fc + sc + uc) || Number(it.number_of_workers || 0);
+        totalCost += Number(it.total_cost || (fc * 1500 + sc * 1000 + uc * 500));
+      });
+    }
+  });
+
+  currentY = renderMetricCards(doc, currentY, [
+    { label: 'Daily Forms Logged', value: `${forms.length} Shifts` },
+    { label: 'Cumulative Headcount', value: `${totalWorkers} Workers`, color: ACCENT_COLOR },
+    { label: 'Est. Labour Expenditure', value: `KSh ${Math.round(totalCost).toLocaleString()}`, color: [5, 150, 105] },
+    { label: 'Active Worksite', value: projName.substring(0, 18) }
+  ]);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(...PRIMARY_COLOR);
+  doc.text(`DAILY SHIFT FORMS REGISTER (${forms.length} Records)`, 14, currentY);
+  currentY += 4;
+
+  const formRows = forms.map((f) => {
+    let wCount = 0;
+    let cSum = 0;
+    if (Array.isArray(f.labourItems)) {
+      f.labourItems.forEach((it) => {
+        const fc = Number(it.foreman_count || it.foremanCount || 0);
+        const sc = Number(it.skilled_count || it.skilledCount || 0);
+        const uc = Number(it.unskilled_count || it.unskilledCount || 0);
+        wCount += (fc + sc + uc) || Number(it.number_of_workers || 0);
+        cSum += Number(it.total_cost || (fc * 1500 + sc * 1000 + uc * 500));
+      });
+    }
+    const rawDate = (f.date || f.created_at || '').split('T')[0];
+    return [
+      f.form_number || f.formNumber || 'LAE-FORM',
+      rawDate || '—',
+      getDayOfWeek(rawDate) || '—',
+      f.prepared_by_name || 'Site Foreman',
+      String(wCount || '—'),
+      `KSh ${Math.round(cSum).toLocaleString()}`,
+      String(f.status || 'Submitted').toUpperCase()
+    ];
+  });
+
+  autoTable(doc, {
+    startY: currentY,
+    head: [['Form #', 'Date', 'Day', 'Prepared By', 'Workers', 'Est. Labour Cost', 'Status']],
+    body: formRows.length > 0 ? formRows : [['No daily shift records found', '—', '—', '—', '0', 'KSh 0', '—']],
+    theme: 'grid',
+    styles: { fontSize: 8, cellPadding: 2.2 },
+    headStyles: { fillColor: PRIMARY_COLOR, textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+    columnStyles: {
+      0: { cellWidth: 30, fontStyle: 'bold' },
+      1: { cellWidth: 26 },
+      2: { cellWidth: 24 },
+      3: { cellWidth: 38 },
+      4: { cellWidth: 18, halign: 'center', fontStyle: 'bold' },
+      5: { cellWidth: 26, halign: 'right', fontStyle: 'bold' },
+      6: { cellWidth: 20, halign: 'center' }
+    },
+    margin: { left: 14, right: 14 }
+  });
+
+  renderSignaturesBlock(doc, doc.lastAutoTable.finalY + 6, ['SITE FOREMAN: Verified', 'PROJECT MANAGER: Certified', 'DIRECTOR: Approved']);
+  renderPageFooters(doc, 'Daily Labour & Workforce Dossier');
+  return doc;
+};
+
+// ============================================================================
+// 3. EQUIPMENT & MACHINERY REPORT PDF
+// ============================================================================
+export const generateEquipmentReportPDF = ({
+  project,
+  equipmentList = [],
+  expensesList = [],
+  metrics = {},
+  companySettings,
+  author
+}) => {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const projName = project?.name || 'All Sites Combined';
+  const subtitle = `Project Site: ${projName} (${project?.code || 'SITE'}) • Plant, Machinery Deployments & Equipment Expenses`;
+  let currentY = renderReportHeader(doc, companySettings, 'Equipment & Machinery Operational Dossier', subtitle, 'Plant Deployments & Operational Fleet Tracker');
+
+  const activeCount = equipmentList.filter((e) => (e.status || '').toLowerCase().includes('active') || (e.status || '').toLowerCase().includes('deployed')).length;
+  const totalExpenses = expensesList.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+
+  currentY = renderMetricCards(doc, currentY, [
+    { label: 'Total Fleet Deployed', value: `${equipmentList.length} Units` },
+    { label: 'Active Machinery', value: `${activeCount} Units`, color: [5, 150, 105] },
+    { label: 'Equipment Expenses', value: `KSh ${Number(totalExpenses).toLocaleString()}`, color: ACCENT_COLOR },
+    { label: 'Active Worksite', value: projName.substring(0, 18) }
+  ]);
+
+  // Section 1: Machinery Inventory
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(...PRIMARY_COLOR);
+  doc.text(`1. SITE MACHINERY & FLEET DEPLOYMENT (${equipmentList.length} Units)`, 14, currentY);
+  currentY += 4;
+
+  const equipRows = equipmentList.map((e) => [
+    e.name || e.equipment_name || 'Machinery Unit',
+    e.category || 'Plant Equipment',
+    e.status || 'Active',
+    e.condition || 'Good',
+    e.dailyRate ? `KSh ${Number(e.dailyRate).toLocaleString()}` : '—',
+    e.operator || e.operator_name || 'Site Assigned',
+    e.location || projName
+  ]);
+
+  autoTable(doc, {
+    startY: currentY,
+    head: [['Machine Name / Unit', 'Category', 'Status', 'Condition', 'Daily Rate', 'Operator / Vendor', 'Location']],
+    body: equipRows.length > 0 ? equipRows : [['No equipment registered for this site', '—', '—', '—', '—', '—', '—']],
+    theme: 'grid',
+    styles: { fontSize: 7.5, cellPadding: 2 },
+    headStyles: { fillColor: PRIMARY_COLOR, textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+    columnStyles: {
+      0: { cellWidth: 42, fontStyle: 'bold' },
+      1: { cellWidth: 28 },
+      2: { cellWidth: 20, halign: 'center' },
+      3: { cellWidth: 18, halign: 'center' },
+      4: { cellWidth: 22, halign: 'right' },
+      5: { cellWidth: 28 },
+      6: { cellWidth: 24 }
+    },
+    margin: { left: 14, right: 14 }
+  });
+
+  currentY = doc.lastAutoTable.finalY + 6;
+
+  // Section 2: Equipment Expenses
+  if (expensesList && expensesList.length > 0) {
+    if (currentY + 40 > 270) {
+      doc.addPage();
+      currentY = 20;
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(...PRIMARY_COLOR);
+    doc.text(`2. EQUIPMENT OPERATIONAL & MAINTENANCE EXPENSES (${expensesList.length})`, 14, currentY);
+    currentY += 4;
+
+    const expRows = expensesList.map((exp) => [
+      exp.id || 'EXP',
+      exp.date || '—',
+      exp.description || 'Equipment expense',
+      exp.supplier || 'Site Supplier',
+      exp.category || 'Maintenance / Fuel',
+      `KSh ${(Number(exp.amount) || 0).toLocaleString()}`
+    ]);
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [['ID', 'Date', 'Description', 'Supplier / Vendor', 'Category', 'Amount (KSh)']],
+      body: expRows,
+      theme: 'grid',
+      styles: { fontSize: 7.5, cellPadding: 2 },
+      headStyles: { fillColor: [51, 65, 85], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+      columnStyles: {
+        0: { cellWidth: 24, fontStyle: 'bold' },
+        1: { cellWidth: 24 },
+        2: { cellWidth: 50 },
+        3: { cellWidth: 34 },
+        4: { cellWidth: 26 },
+        5: { cellWidth: 24, halign: 'right', fontStyle: 'bold' }
+      },
+      margin: { left: 14, right: 14 }
+    });
+
+    currentY = doc.lastAutoTable.finalY + 4;
+  }
+
+  renderSignaturesBlock(doc, currentY, ['PLANT OPERATOR: Verified', 'SITE ENGINEER: Certified', 'DIRECTOR: Approved']);
+  renderPageFooters(doc, 'Equipment & Machinery Operational Dossier');
+  return doc;
+};
+
+// ============================================================================
+// 4. SAFETY & DELAYS REPORT PDF
+// ============================================================================
+export const generateSafetyDelaysReportPDF = ({
+  project,
+  records = [],
+  stats = {},
+  companySettings,
+  author
+}) => {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const projName = project?.name || 'All Sites Combined';
+  const subtitle = `Project Site: ${projName} (${project?.code || 'SITE'}) • HSE Incidents, Delays & Site Visitors`;
+  let currentY = renderReportHeader(doc, companySettings, 'HSE, Site Delays & Visitors Register', subtitle, 'Official Health, Safety & Environmental Record');
+
+  const delays = records.filter((r) => r.category === 'delay');
+  const safety = records.filter((r) => r.category === 'safety');
+  const visitors = records.filter((r) => r.category === 'visitor');
+  const totalLostHours = delays.reduce((acc, d) => acc + (d.durationHours || 0), 0);
+
+  currentY = renderMetricCards(doc, currentY, [
+    { label: 'Logged Delays', value: `${delays.length} Incidents` },
+    { label: 'Lost Stoppage Hours', value: `${totalLostHours.toFixed(1)} Hours`, color: [225, 29, 72] },
+    { label: 'Safety Audits & Talks', value: `${safety.length} Logged`, color: [5, 150, 105] },
+    { label: 'Official Site Visitors', value: `${visitors.length} Registered`, color: ACCENT_COLOR }
+  ]);
+
+  // Table 1: Delays
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(...PRIMARY_COLOR);
+  doc.text(`1. SITE DELAYS & WEATHER INTERRUPTIONS (${delays.length})`, 14, currentY);
+  currentY += 4;
+
+  const delayRows = delays.map((d) => [
+    d.date || '—',
+    d.title || d.cause || 'Site Interruption',
+    d.severity || 'Medium',
+    `${d.durationHours || 0} hrs`,
+    d.actionTaken || d.description || 'Mitigation logged'
+  ]);
+
+  autoTable(doc, {
+    startY: currentY,
+    head: [['Date', 'Delay Cause & Description', 'Severity', 'Duration', 'Remedial Action Taken']],
+    body: delayRows.length > 0 ? delayRows : [['No delays recorded for this project', '—', '—', '0 hrs', '—']],
+    theme: 'grid',
+    styles: { fontSize: 7.5, cellPadding: 2 },
+    headStyles: { fillColor: PRIMARY_COLOR, textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+    columnStyles: {
+      0: { cellWidth: 24 },
+      1: { cellWidth: 58, fontStyle: 'bold' },
+      2: { cellWidth: 20, halign: 'center' },
+      3: { cellWidth: 18, halign: 'center' },
+      4: { cellWidth: 62 }
+    },
+    margin: { left: 14, right: 14 }
+  });
+
+  currentY = doc.lastAutoTable.finalY + 6;
+
+  // Table 2: Safety & Toolbox Talks
+  if (currentY + 40 > 270) {
+    doc.addPage();
+    currentY = 20;
+  }
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(...PRIMARY_COLOR);
+  doc.text(`2. HEALTH & SAFETY AUDITS & TOOLBOX TALKS (${safety.length})`, 14, currentY);
+  currentY += 4;
+
+  const safetyRows = safety.map((s) => [
+    s.date || '—',
+    s.title || s.description || 'Safety briefing',
+    s.severity || 'Low',
+    s.actionTaken || 'Full PPE compliance checked',
+    s.totalAmount ? `KSh ${Number(s.totalAmount).toLocaleString()}` : '—'
+  ]);
+
+  autoTable(doc, {
+    startY: currentY,
+    head: [['Date', 'Safety Topic / Incident', 'Severity', 'Action Taken & Measures', 'Medical Cost']],
+    body: safetyRows.length > 0 ? safetyRows : [['No safety incidents or talks recorded', '—', '—', '—', '—']],
+    theme: 'grid',
+    styles: { fontSize: 7.5, cellPadding: 2 },
+    headStyles: { fillColor: [51, 65, 85], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+    columnStyles: {
+      0: { cellWidth: 24 },
+      1: { cellWidth: 60, fontStyle: 'bold' },
+      2: { cellWidth: 20, halign: 'center' },
+      3: { cellWidth: 54 },
+      4: { cellWidth: 24, halign: 'right' }
+    },
+    margin: { left: 14, right: 14 }
+  });
+
+  currentY = doc.lastAutoTable.finalY + 6;
+
+  // Table 3: Visitors
+  if (visitors.length > 0) {
+    if (currentY + 40 > 270) {
+      doc.addPage();
+      currentY = 20;
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(...PRIMARY_COLOR);
+    doc.text(`3. OFFICIAL SITE VISITORS LOG (${visitors.length})`, 14, currentY);
+    currentY += 4;
+
+    const visitorRows = visitors.map((v) => [
+      v.date || '—',
+      v.visitorName || 'Official Visitor',
+      v.visitorOrg || 'Inspection Authority',
+      v.purpose || 'Site Inspection',
+      v.actionTaken || 'Clearance granted'
+    ]);
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [['Date', 'Visitor Name', 'Organisation', 'Purpose of Visit', 'Action / Clearance']],
+      body: visitorRows,
+      theme: 'grid',
+      styles: { fontSize: 7.5, cellPadding: 2 },
+      headStyles: { fillColor: [71, 85, 105], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+      columnStyles: {
+        0: { cellWidth: 24 },
+        1: { cellWidth: 42, fontStyle: 'bold' },
+        2: { cellWidth: 40 },
+        3: { cellWidth: 46 },
+        4: { cellWidth: 30 }
+      },
+      margin: { left: 14, right: 14 }
+    });
+
+    currentY = doc.lastAutoTable.finalY + 4;
+  }
+
+  renderSignaturesBlock(doc, currentY, ['HSE OFFICER: Verified', 'PROJECT MANAGER: Certified', 'DIRECTOR: Approved']);
+  renderPageFooters(doc, 'HSE, Site Delays & Visitors Register');
+  return doc;
+};
+
+// ============================================================================
+// 5. SITE PROGRESS REPORT PDF
+// ============================================================================
+export const generateSiteProgressReportPDF = ({
+  project,
+  activities = [],
+  stats = {},
+  companySettings,
+  author
+}) => {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const projName = project?.name || 'All Sites Combined';
+  const subtitle = `Project Site: ${projName} (${project?.code || 'SITE'}) • Task Progression, Milestones & Live Status`;
+  let currentY = renderReportHeader(doc, companySettings, 'Site Progress & Task Tracking Dossier', subtitle, 'Operational Progress Milestones & Execution Ledger');
+
+  const total = stats.total || activities.length;
+  const inProg = stats.inProgress || activities.filter((a) => (a.status || '').toLowerCase().includes('progress')).length;
+  const comp = stats.completed || activities.filter((a) => (a.status || '').toLowerCase().includes('completed') || (a.status || '').toLowerCase().includes('done')).length;
+  const avg = stats.avgProgress || Math.round(activities.reduce((s, a) => s + (Number(a.progress) || 0), 0) / (activities.length || 1));
+
+  currentY = renderMetricCards(doc, currentY, [
+    { label: 'Total Tracked Tasks', value: `${total} Tasks` },
+    { label: 'In Progress', value: `${inProg} Tasks`, color: ACCENT_COLOR },
+    { label: 'Completed Milestones', value: `${comp} Tasks`, color: [5, 150, 105] },
+    { label: 'Average Progress', value: `${avg}% Completed`, color: PRIMARY_COLOR }
+  ]);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(...PRIMARY_COLOR);
+  doc.text(`OPERATIONAL ACTIVITIES & MILESTONES (${activities.length} Items)`, 14, currentY);
+  currentY += 4;
+
+  const actRows = activities.map((act) => [
+    act.description || act.activity_description || 'Construction Task',
+    act.category || 'General Operations',
+    act.zone || 'Site Zone',
+    `${act.progress || 0}%`,
+    String(act.status || 'In Progress').replace('_', ' ').toUpperCase(),
+    act.workDoneToday || act.remarks || '—'
+  ]);
+
+  autoTable(doc, {
+    startY: currentY,
+    head: [['Task Description', 'Category', 'Zone / Floor', 'Progress', 'Status', 'Work Executed Today / Notes']],
+    body: actRows.length > 0 ? actRows : [['No activities registered for this site', '—', '—', '0%', '—', '—']],
+    theme: 'grid',
+    styles: { fontSize: 7.5, cellPadding: 2 },
+    headStyles: { fillColor: PRIMARY_COLOR, textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+    columnStyles: {
+      0: { cellWidth: 50, fontStyle: 'bold' },
+      1: { cellWidth: 28 },
+      2: { cellWidth: 24 },
+      3: { cellWidth: 16, halign: 'center', fontStyle: 'bold' },
+      4: { cellWidth: 20, halign: 'center' },
+      5: { cellWidth: 44 }
+    },
+    margin: { left: 14, right: 14 }
+  });
+
+  renderSignaturesBlock(doc, doc.lastAutoTable.finalY + 6, ['SITE FOREMAN: Verified', 'LEAD ENGINEER: Certified', 'DIRECTOR: Approved']);
+  renderPageFooters(doc, 'Site Progress & Task Tracking Dossier');
+  return doc;
+};
+
+// ============================================================================
+// 6. MATERIAL REQUISITIONS REPORT PDF
+// ============================================================================
+export const generateMaterialRequisitionsSummaryPDF = ({
+  project,
+  requests = [],
+  companySettings,
+  author
+}) => {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const projName = project?.name || 'All Sites Combined';
+  const subtitle = `Project Site: ${projName} (${project?.code || 'SITE'}) • Materials Requisitions & Site Demand Register`;
+  let currentY = renderReportHeader(doc, companySettings, 'Material Needed Requisitions Register', subtitle, 'Procurement Demand Register & Site Materials Required');
+
+  const fulfilled = requests.filter((r) => r.status === 'fulfilled' || r.status === 'approved').length;
+  const pending = requests.filter((r) => r.status === 'pending' || r.status === 'submitted').length;
+
+  currentY = renderMetricCards(doc, currentY, [
+    { label: 'Total Requisitions Logged', value: `${requests.length} Logs` },
+    { label: 'Fulfilled / Approved', value: `${fulfilled} Requests`, color: [5, 150, 105] },
+    { label: 'Pending Review', value: `${pending} Requests`, color: ACCENT_COLOR },
+    { label: 'Active Worksite', value: projName.substring(0, 18) }
+  ]);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(...PRIMARY_COLOR);
+  doc.text(`MATERIAL REQUISITIONS REGISTER (${requests.length} Forms)`, 14, currentY);
+  currentY += 4;
+
+  const reqRows = requests.map((req) => {
+    const rawDate = (req.date_needed || req.created_at || '').split('T')[0];
+    const itemsCount = Array.isArray(req.items) ? req.items.length : 0;
+    const hasUrgent = Array.isArray(req.items) && req.items.some((i) => (i.urgency || '').toLowerCase() === 'urgent');
+    return [
+      req.request_number || req.id || 'REQ',
+      rawDate || '—',
+      req.requested_by_name || 'Storekeeper',
+      `${itemsCount} items`,
+      hasUrgent ? 'URGENT' : 'Normal',
+      String(req.status || 'Submitted').toUpperCase(),
+      req.notes || 'Requisition on file'
+    ];
+  });
+
+  autoTable(doc, {
+    startY: currentY,
+    head: [['Request #', 'Date Needed', 'Requested By', 'Item Count', 'Priority', 'Status', 'Notes / Scope']],
+    body: reqRows.length > 0 ? reqRows : [['No material requests registered for this site', '—', '—', '0', '—', '—', '—']],
+    theme: 'grid',
+    styles: { fontSize: 7.5, cellPadding: 2 },
+    headStyles: { fillColor: PRIMARY_COLOR, textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+    columnStyles: {
+      0: { cellWidth: 28, fontStyle: 'bold' },
+      1: { cellWidth: 24 },
+      2: { cellWidth: 32 },
+      3: { cellWidth: 20, halign: 'center' },
+      4: { cellWidth: 18, halign: 'center' },
+      5: { cellWidth: 22, halign: 'center' },
+      6: { cellWidth: 38 }
+    },
+    margin: { left: 14, right: 14 }
+  });
+
+  renderSignaturesBlock(doc, doc.lastAutoTable.finalY + 6, ['STOREKEEPER: Requested', 'PROJECT MANAGER: Verified', 'DIRECTOR: Approved']);
+  renderPageFooters(doc, 'Material Needed Requisitions Register');
+  return doc;
+};
+
+// ============================================================================
+// 7. MATERIALS RECEIVED REPORT PDF
+// ============================================================================
+export const generateMaterialsReceivedReportPDF = ({
+  project,
+  deliveries = [],
+  summary = {},
+  companySettings,
+  author
+}) => {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const projName = project?.name || 'All Sites Combined';
+  const subtitle = `Project Site: ${projName} (${project?.code || 'SITE'}) • Materials Received on Site & Intake Register`;
+  let currentY = renderReportHeader(doc, companySettings, 'Materials Received on Site Register', subtitle, 'Warehouse & Stores Goods Inward Deliveries Record');
+
+  const totalValue = summary.totalValue !== undefined
+    ? summary.totalValue
+    : deliveries.reduce((s, d) => s + (Number(d.totalCost) || 0), 0);
+  const suppliersCount = summary.activeSuppliers !== undefined
+    ? summary.activeSuppliers
+    : new Set(deliveries.map((d) => d.supplier).filter(Boolean)).size;
+
+  currentY = renderMetricCards(doc, currentY, [
+    { label: 'Shipments Received', value: `${deliveries.length} Deliveries` },
+    { label: 'Total Verified Value', value: `KSh ${Number(totalValue).toLocaleString()}`, color: [5, 150, 105] },
+    { label: 'Active Suppliers', value: `${suppliersCount} Vendors`, color: ACCENT_COLOR },
+    { label: 'Active Worksite', value: projName.substring(0, 18) }
+  ]);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(...PRIMARY_COLOR);
+  doc.text(`DELIVERIES INWARD REGISTER (${deliveries.length} Shipments)`, 14, currentY);
+  currentY += 4;
+
+  const delivRows = deliveries.map((d) => [
+    d.deliveryNoteNo || d.id || 'DN-VERIFIED',
+    d.date || '—',
+    d.itemName || 'Material Item',
+    d.supplier || 'Approved Supplier',
+    d.quantity || '1 unit',
+    d.totalCost ? `KSh ${Number(d.totalCost).toLocaleString()}` : '—',
+    d.receivedBy || 'Storekeeper',
+    d.status || 'Verified'
+  ]);
+
+  autoTable(doc, {
+    startY: currentY,
+    head: [['Delivery Ref', 'Date', 'Material Item', 'Supplier / Vendor', 'Quantity', 'Total Value', 'Received By', 'Status']],
+    body: delivRows.length > 0 ? delivRows : [['No deliveries recorded for this site', '—', '—', '—', '0', 'KSh 0', '—', '—']],
+    theme: 'grid',
+    styles: { fontSize: 7.5, cellPadding: 2 },
+    headStyles: { fillColor: PRIMARY_COLOR, textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+    columnStyles: {
+      0: { cellWidth: 26, fontStyle: 'bold' },
+      1: { cellWidth: 22 },
+      2: { cellWidth: 36, fontStyle: 'bold' },
+      3: { cellWidth: 30 },
+      4: { cellWidth: 18, halign: 'center' },
+      5: { cellWidth: 22, halign: 'right' },
+      6: { cellWidth: 20 },
+      7: { cellWidth: 18, halign: 'center' }
+    },
+    margin: { left: 14, right: 14 }
+  });
+
+  renderSignaturesBlock(doc, doc.lastAutoTable.finalY + 6, ['STOREKEEPER: Received', 'QA / FOREMAN: Inspected', 'DIRECTOR: Approved']);
+  renderPageFooters(doc, 'Materials Received on Site Register');
+  return doc;
+};
+
+// ============================================================================
+// 8. MATERIAL EXPENSES REPORT PDF
+// ============================================================================
+export const generateMaterialExpensesReportPDF = ({
+  project,
+  funds = [],
+  expenses = [],
+  metrics = {},
+  companySettings,
+  author
+}) => {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const projName = project?.name || 'All Sites Combined';
+  const subtitle = `Project Site: ${projName} (${project?.code || 'SITE'}) • Financial Audit, Developer Funding & Purchases`;
+  let currentY = renderReportHeader(doc, companySettings, 'Material Expenses & Financial Audit Dossier', subtitle, 'Material Procurement Expenditure & Working Capital Audit');
+
+  const totalFunds = metrics.totalFundsReceived !== undefined
+    ? metrics.totalFundsReceived
+    : funds.reduce((s, f) => s + (Number(f.amount) || 0), 0);
+  const totalExp = metrics.totalMaterialExpenses !== undefined
+    ? metrics.totalMaterialExpenses
+    : expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  const balance = totalFunds - totalExp;
+
+  currentY = renderMetricCards(doc, currentY, [
+    { label: 'Total Funds Received', value: `KSh ${Number(totalFunds).toLocaleString()}`, color: [5, 150, 105] },
+    { label: 'Material Expenses', value: `KSh ${Number(totalExp).toLocaleString()}`, color: [225, 29, 72] },
+    { label: 'Available Balance', value: `KSh ${Number(balance).toLocaleString()}`, color: balance >= 0 ? [5, 150, 105] : [225, 29, 72] },
+    { label: 'Transactions', value: `${expenses.length} Entries`, color: ACCENT_COLOR }
+  ]);
+
+  // Section 1: Developer Funds Received
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(...PRIMARY_COLOR);
+  doc.text(`1. FUNDS RECEIVED AUDIT (${funds.length} Deposits)`, 14, currentY);
+  currentY += 4;
+
+  const fundRows = funds.map((f) => [
+    f.reference || f.id || 'DEP-REF',
+    f.date || '—',
+    f.description || 'Project material funding',
+    `KSh ${(Number(f.amount) || 0).toLocaleString()}`
+  ]);
+
+  autoTable(doc, {
+    startY: currentY,
+    head: [['Receipt / Reference', 'Date Received', 'Description / Purpose', 'Amount Received (KSh)']],
+    body: fundRows.length > 0 ? fundRows : [['No developer funds recorded for this site', '—', '—', 'KSh 0']],
+    theme: 'grid',
+    styles: { fontSize: 7.5, cellPadding: 2 },
+    headStyles: { fillColor: PRIMARY_COLOR, textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+    columnStyles: {
+      0: { cellWidth: 35, fontStyle: 'bold' },
+      1: { cellWidth: 28 },
+      2: { cellWidth: 85 },
+      3: { cellWidth: 34, halign: 'right', fontStyle: 'bold' }
+    },
+    margin: { left: 14, right: 14 }
+  });
+
+  currentY = doc.lastAutoTable.finalY + 6;
+
+  // Section 2: Material Expenses Transactions
+  if (expenses && expenses.length > 0) {
+    if (currentY + 40 > 270) {
+      doc.addPage();
+      currentY = 20;
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(...PRIMARY_COLOR);
+    doc.text(`2. MATERIAL EXPENSE TRANSACTIONS (${expenses.length})`, 14, currentY);
+    currentY += 4;
+
+    const expRows = expenses.map((e) => [
+      e.expenseId || e.id || 'EXP',
+      e.date || '—',
+      e.description || 'Materials',
+      e.supplier || 'Site Vendor',
+      e.quantity || '1 Lot',
+      e.category || 'General',
+      e.invoiceRef || '—',
+      `KSh ${(Number(e.amount) || 0).toLocaleString()}`
+    ]);
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [['Expense ID', 'Date', 'Description', 'Supplier / Vendor', 'Quantity', 'Category', 'Invoice', 'Amount (KSh)']],
+      body: expRows,
+      theme: 'grid',
+      styles: { fontSize: 7, cellPadding: 1.8 },
+      headStyles: { fillColor: [51, 65, 85], textColor: 255, fontStyle: 'bold', fontSize: 7 },
+      columnStyles: {
+        0: { cellWidth: 20, fontStyle: 'bold' },
+        1: { cellWidth: 18 },
+        2: { cellWidth: 42 },
+        3: { cellWidth: 28 },
+        4: { cellWidth: 18 },
+        5: { cellWidth: 24 },
+        6: { cellWidth: 16 },
+        7: { cellWidth: 26, halign: 'right', fontStyle: 'bold' }
+      },
+      margin: { left: 14, right: 14 }
+    });
+
+    currentY = doc.lastAutoTable.finalY + 4;
+  }
+
+  renderSignaturesBlock(doc, currentY, ['STOREKEEPER: Verified', 'ACCOUNTANT: Audited', 'MANAGING DIRECTOR: Approved']);
+  renderPageFooters(doc, 'Material Expenses & Financial Audit Dossier');
+  return doc;
+};
+

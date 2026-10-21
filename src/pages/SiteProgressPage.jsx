@@ -18,9 +18,11 @@ import {
   Image as ImageIcon,
   Tag,
   Eye,
-  Trash2
+  Trash2,
+  Download
 } from 'lucide-react';
 import { getDayOfWeek } from '../utils/formatters';
+import { generateSiteProgressReportPDF } from '../utils/pdfGenerator';
 
 // Predefined categories requested for site progress
 const DEFAULT_PROGRESS_CATEGORIES = [
@@ -56,6 +58,8 @@ export const SiteProgressPage = () => {
     laeForms,
     currentProject,
     selectedProjectId,
+    projects,
+    companySettings,
     isForeman,
     isAdmin,
     isDirector,
@@ -470,6 +474,24 @@ export const SiteProgressPage = () => {
     return { total, inProgress, completed, delayed, avgProgress };
   }, [allActivities]);
 
+  const handleDownloadSiteProgressPDF = () => {
+    try {
+      const activeProj = currentProject || (selectedProjectId !== 'all' ? (projects || []).find((p) => p.id === selectedProjectId) : null) || { name: 'All Sites Combined', code: 'ALL' };
+      const doc = generateSiteProgressReportPDF({
+        project: activeProj,
+        activities: filteredActivities,
+        stats,
+        companySettings
+      });
+      const fileCode = (activeProj.code || activeProj.name || 'Site').replace(/[^a-zA-Z0-9_-]/g, '_');
+      doc.save(`Site_Progress_Report_${fileCode}_${new Date().toISOString().split('T')[0]}.pdf`);
+      addToast && addToast('Site Progress PDF report downloaded successfully!');
+    } catch (err) {
+      console.error('Failed to generate progress PDF:', err);
+      addToast && addToast('Failed to generate PDF: ' + err.message, 'error');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header Banner */}
@@ -491,13 +513,23 @@ export const SiteProgressPage = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => setIsAddModalOpen(true)}
-          className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-amber-500/20 transition-all cursor-pointer self-start sm:self-auto"
-        >
-          <Plus className="h-4 w-4 stroke-[2.5]" />
-          <span>+ Log Site Progress</span>
-        </button>
+        <div className="flex items-center gap-2.5 self-start sm:self-auto">
+          <button
+            onClick={handleDownloadSiteProgressPDF}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3.5 py-2.5 text-xs font-semibold text-slate-700 shadow-2xs transition-colors cursor-pointer"
+            title="Download formatted Site Progress & Task Tracking PDF report"
+          >
+            <Download className="h-4 w-4 text-slate-600" />
+            <span>Download PDF</span>
+          </button>
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-amber-500/20 transition-all cursor-pointer"
+          >
+            <Plus className="h-4 w-4 stroke-[2.5]" />
+            <span>+ Log Site Progress</span>
+          </button>
+        </div>
       </div>
 
       {/* KPI Cards */}

@@ -5,7 +5,7 @@ import { NewLaeFormModal } from '../../components/labour/NewLaeFormModal';
 import { ViewLaeFormModal } from '../../components/labour/ViewLaeFormModal';
 import { SubcontractPieceWorkView } from '../../components/labour/SubcontractPieceWorkView';
 import api from '../../services/api';
-import { generateLaeFormPDF } from '../../utils/pdfGenerator';
+import { generateLaeFormPDF, generateDailyLabourSummaryPDF } from '../../utils/pdfGenerator';
 import { getDayOfWeek, formatKES } from '../../utils/formatters';
 import {
   HardHat,
@@ -40,6 +40,7 @@ export const LabourPage = () => {
     laeForms,
     currentProject,
     selectedProjectId,
+    projects,
     deleteLaeForm,
     isStoreKeeper,
     isForeman,
@@ -235,6 +236,23 @@ export const LabourPage = () => {
     }
   };
 
+  const handleDownloadSiteDailyLabourPDF = () => {
+    try {
+      const activeProj = currentProject || (selectedProjectId !== 'all' ? (projects || []).find((p) => p.id === selectedProjectId) : null) || { name: 'All Sites Combined', code: 'ALL' };
+      const doc = generateDailyLabourSummaryPDF({
+        project: activeProj,
+        forms: filteredForms,
+        companySettings
+      });
+      const fileCode = (activeProj.code || activeProj.name || 'Site').replace(/[^a-zA-Z0-9_-]/g, '_');
+      doc.save(`Daily_Labour_Report_${fileCode}_${new Date().toISOString().split('T')[0]}.pdf`);
+      addToast && addToast('Daily Labour PDF report downloaded successfully!');
+    } catch (err) {
+      console.error('Failed to generate daily labour PDF:', err);
+      addToast && addToast('Failed to generate PDF: ' + err.message, 'error');
+    }
+  };
+
   // Storekeeper barrier: Storekeepers are strictly forbidden from Labour
   if (isStoreKeeper) {
     return (
@@ -360,27 +378,37 @@ export const LabourPage = () => {
               </p>
             </div>
 
-            {todayForm ? (
+            <div className="flex items-center gap-2 self-start sm:self-auto">
               <button
-                onClick={() => handleOpenEdit(todayForm)}
-                className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-amber-500/20 transition-all cursor-pointer self-start sm:self-auto"
-                title="Today's daily form has already been submitted. Click to edit and update."
+                onClick={handleDownloadSiteDailyLabourPDF}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3.5 py-2.5 text-xs font-semibold text-slate-700 shadow-2xs transition-colors cursor-pointer"
+                title="Download consolidated Daily Labour PDF report for this site"
               >
-                <Edit3 className="h-4 w-4 stroke-[2.5]" />
-                <span>Edit Today's Form ({todayForm.form_number})</span>
+                <Download className="h-4 w-4 text-slate-600" />
+                <span>Download PDF</span>
               </button>
-            ) : (
-              <button
-                onClick={() => {
-                  setEditingForm(null);
-                  setIsNewModalOpen(true);
-                }}
-                className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-amber-500/20 transition-all cursor-pointer self-start sm:self-auto"
-              >
-                <Plus className="h-4 w-4 stroke-[2.5]" />
-                <span>+ New Daily Labour Form</span>
-              </button>
-            )}
+              {todayForm ? (
+                <button
+                  onClick={() => handleOpenEdit(todayForm)}
+                  className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-amber-500/20 transition-all cursor-pointer"
+                  title="Today's daily form has already been submitted. Click to edit and update."
+                >
+                  <Edit3 className="h-4 w-4 stroke-[2.5]" />
+                  <span>Edit Today's Form ({todayForm.form_number})</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    setEditingForm(null);
+                    setIsNewModalOpen(true);
+                  }}
+                  className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-amber-500/20 transition-all cursor-pointer"
+                >
+                  <Plus className="h-4 w-4 stroke-[2.5]" />
+                  <span>+ New Daily Labour Form</span>
+                </button>
+              )}
+            </div>
           </div>
           {/* Notice if today's form already exists */}
           {todayForm && (

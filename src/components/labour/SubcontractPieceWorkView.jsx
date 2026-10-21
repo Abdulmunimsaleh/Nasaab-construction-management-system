@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { formatDate } from '../../utils/formatters';
+import { generateSubcontractReportPDF } from '../../utils/pdfGenerator';
 import {
   FileText,
   FileSpreadsheet,
@@ -67,7 +68,7 @@ const getInitials = (name) => {
 };
 
 export const SubcontractPieceWorkView = () => {
-  const { currentProject, selectedProjectId, projects, addToast } = useApp();
+  const { currentProject, selectedProjectId, projects, companySettings, addToast } = useApp();
 
   const isCombinedView = !selectedProjectId || selectedProjectId === 'all';
   const defaultProjectId = selectedProjectId && selectedProjectId !== 'all'
@@ -668,6 +669,30 @@ export const SubcontractPieceWorkView = () => {
     addToast('Subcontract agreements exported to CSV.');
   };
 
+  const handleDownloadPDF = () => {
+    try {
+      const activeProj = currentProject || (selectedProjectId !== 'all' ? projects.find((p) => p.id === selectedProjectId) : null) || { name: 'All Sites Combined', code: 'ALL' };
+      const doc = generateSubcontractReportPDF({
+        project: activeProj,
+        agreements: filteredAgreements,
+        payments: filteredPayments,
+        metrics: {
+          totalValue: stats.totalContractValue,
+          totalPaid: stats.totalPaid,
+          outstandingBalance: stats.outstandingBalance,
+          activeTeamsCount: stats.activeTeamsCount
+        },
+        companySettings
+      });
+      const fileCode = (activeProj.code || activeProj.name || 'Site').replace(/[^a-zA-Z0-9_-]/g, '_');
+      doc.save(`Subcontract_Report_${fileCode}_${new Date().toISOString().split('T')[0]}.pdf`);
+      addToast('Subcontract (PW) PDF report downloaded successfully!');
+    } catch (err) {
+      console.error('Failed to generate PDF:', err);
+      addToast('Failed to generate PDF: ' + err.message, 'error');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* ------------------------------------------------------------- */}
@@ -689,6 +714,14 @@ export const SubcontractPieceWorkView = () => {
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            onClick={handleDownloadPDF}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white px-3.5 py-2 text-xs font-bold shadow-2xs transition-colors cursor-pointer"
+            title="Download formatted Subcontract Piece Work PDF Report"
+          >
+            <Download className="h-4 w-4" />
+            <span>Download PDF</span>
+          </button>
           <button
             onClick={handleExportCSV}
             className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs transition-colors cursor-pointer"

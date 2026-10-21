@@ -24,8 +24,10 @@ import {
   Printer,
   Calendar,
   Layers,
-  Package
+  Package,
+  Download
 } from 'lucide-react';
+import { generateMaterialExpensesReportPDF } from '../utils/pdfGenerator';
 
 const FUNDS_STORAGE_KEY = 'nasaab_material_expenses_funds_master';
 const EXPENSES_STORAGE_KEY = 'nasaab_material_expenses_master';
@@ -47,6 +49,7 @@ export const MaterialExpensesPage = () => {
     projects,
     currentProject,
     selectedProjectId,
+    companySettings,
     addToast,
     isStoreKeeper
   } = useApp();
@@ -770,6 +773,25 @@ export const MaterialExpensesPage = () => {
     setDeletingExpense(null);
   };
 
+  const handleDownloadMaterialExpensesPDF = () => {
+    try {
+      const activeProj = currentProject || (selectedProjectId !== 'all' ? (projects || []).find((p) => p.id === selectedProjectId) : null) || { name: 'All Sites Combined', code: 'ALL' };
+      const doc = generateMaterialExpensesReportPDF({
+        project: activeProj,
+        funds: siteFunds,
+        expenses: filteredExpenses,
+        metrics,
+        companySettings
+      });
+      const fileCode = (activeProj.code || activeProj.name || 'Site').replace(/[^a-zA-Z0-9_-]/g, '_');
+      doc.save(`Material_Expenses_${fileCode}_${new Date().toISOString().split('T')[0]}.pdf`);
+      addToast && addToast('Material Expenses PDF report downloaded successfully!');
+    } catch (err) {
+      console.error('Failed to generate expenses PDF:', err);
+      addToast && addToast('Failed to generate PDF: ' + err.message, 'error');
+    }
+  };
+
   return (
     <div className="space-y-6 pb-12">
       {/* ------------------------------------------------------------- */}
@@ -800,14 +822,24 @@ export const MaterialExpensesPage = () => {
           </div>
         </div>
 
-        {/* Print Ledger Action */}
-        <button
-          onClick={() => window.print()}
-          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs transition-colors cursor-pointer self-start sm:self-auto"
-        >
-          <Printer className="h-3.5 w-3.5 text-slate-500" />
-          <span>Print Financial Sheet</span>
-        </button>
+        {/* Actions: Download PDF & Print Ledger */}
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            onClick={handleDownloadMaterialExpensesPDF}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white px-3.5 py-2 text-xs font-bold shadow-2xs transition-colors cursor-pointer"
+            title="Download formatted Material Expenses & Financial Audit PDF report"
+          >
+            <Download className="h-4 w-4" />
+            <span>Download PDF</span>
+          </button>
+          <button
+            onClick={() => window.print()}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs transition-colors cursor-pointer"
+          >
+            <Printer className="h-3.5 w-3.5 text-slate-500" />
+            <span>Print Financial Sheet</span>
+          </button>
+        </div>
       </div>
 
       {/* ------------------------------------------------------------- */}
