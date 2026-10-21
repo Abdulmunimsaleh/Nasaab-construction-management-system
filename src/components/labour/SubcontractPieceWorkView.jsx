@@ -33,17 +33,15 @@ export const SUBCONTRACT_TEAMS = [
   'Casting',
   'Deshuttering',
   'Electrical',
-  'Foreman',
   'Helpers',
-  'Operator',
+  'Operator/Welder/Mechanic',
   'Painting',
   'Plumbing',
   'Scalfolding',
   'Steelwork',
   'Shuttering',
   'Supervisor',
-  'Tiles',
-  'Unskilled'
+  'Tiles'
 ];
 
 const AGREEMENTS_STORAGE_KEY = 'nasaab_subcontract_agreements_master';
@@ -708,115 +706,6 @@ export const SubcontractPieceWorkView = () => {
         </div>
       </div>
 
-      {/* ------------------------------------------------------------- */}
-      {/* 2. TOP 4 STAT CARDS — Premium Design                          */}
-      {/* ------------------------------------------------------------- */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: TOTAL CONTRACT VALUE */}
-        <div className="relative overflow-hidden rounded-2xl border border-slate-200/60 bg-gradient-to-br from-slate-50 via-white to-slate-50 p-5 shadow-sm hover:shadow-md transition-shadow duration-300">
-          <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-slate-900/5"></div>
-          <div className="absolute -bottom-4 -right-4 w-14 h-14 rounded-full bg-slate-900/[0.03]"></div>
-          <div className="flex items-start justify-between relative z-10">
-            <div className="space-y-1.5">
-              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                Total Contract Value
-              </div>
-              <div className="text-[22px] leading-tight font-extrabold text-slate-900 font-mono">
-                {formatKSh(stats.totalContractValue)}
-              </div>
-              <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
-                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-slate-200/60">
-                  <Layers className="h-2.5 w-2.5 text-slate-500" />
-                </span>
-                <span>{stats.agreementCount} floor agreement{stats.agreementCount !== 1 ? 's' : ''}</span>
-              </div>
-            </div>
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center text-white shadow-sm shrink-0">
-              <FileText className="h-5 w-5" />
-            </div>
-          </div>
-        </div>
-
-        {/* Card 2: TOTAL PAID */}
-        <div className="relative overflow-hidden rounded-2xl border border-emerald-200/60 bg-gradient-to-br from-emerald-50/60 via-white to-emerald-50/30 p-5 shadow-sm hover:shadow-md transition-shadow duration-300">
-          <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-emerald-500/5"></div>
-          <div className="absolute -bottom-4 -right-4 w-14 h-14 rounded-full bg-emerald-500/[0.03]"></div>
-          <div className="flex items-start justify-between relative z-10">
-            <div className="space-y-1.5 flex-1 pr-3">
-              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                Total Paid
-              </div>
-              <div className="text-[22px] leading-tight font-extrabold text-emerald-600 font-mono">
-                {formatKSh(stats.totalPaid)}
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 max-w-[120px] bg-emerald-100 rounded-full h-[5px] overflow-hidden">
-                  <div
-                    className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-full rounded-full transition-all duration-500"
-                    style={{ width: `${Math.min(100, stats.pctPaid)}%` }}
-                  ></div>
-                </div>
-                <span className="text-[10px] text-emerald-700 font-bold whitespace-nowrap font-mono bg-emerald-100/80 px-1.5 py-0.5 rounded">
-                  {stats.pctPaid}%
-                </span>
-              </div>
-            </div>
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white shadow-sm shrink-0">
-              <Banknote className="h-5 w-5" />
-            </div>
-          </div>
-        </div>
-
-        {/* Card 3: OUTSTANDING BALANCE */}
-        <div className="relative overflow-hidden rounded-2xl border border-orange-200/60 bg-gradient-to-br from-orange-50/60 via-white to-amber-50/30 p-5 shadow-sm hover:shadow-md transition-shadow duration-300">
-          <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-orange-500/5"></div>
-          <div className="absolute -bottom-4 -right-4 w-14 h-14 rounded-full bg-orange-500/[0.03]"></div>
-          <div className="flex items-start justify-between relative z-10">
-            <div className="space-y-1.5">
-              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                Outstanding Balance
-              </div>
-              <div className="text-[22px] leading-tight font-extrabold text-orange-600 font-mono">
-                {formatKSh(stats.outstandingBalance)}
-              </div>
-              <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
-                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-orange-100">
-                  <Clock className="h-2.5 w-2.5 text-orange-500" />
-                </span>
-                <span>Remaining across active works</span>
-              </div>
-            </div>
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center text-white shadow-sm shrink-0">
-              <Scale className="h-5 w-5" />
-            </div>
-          </div>
-        </div>
-
-        {/* Card 4: ACTIVE SUBCONTRACT TEAMS */}
-        <div className="relative overflow-hidden rounded-2xl border border-amber-200/60 bg-gradient-to-br from-amber-50/60 via-white to-yellow-50/30 p-5 shadow-sm hover:shadow-md transition-shadow duration-300">
-          <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-amber-500/5"></div>
-          <div className="absolute -bottom-4 -right-4 w-14 h-14 rounded-full bg-amber-500/[0.03]"></div>
-          <div className="flex items-start justify-between relative z-10">
-            <div className="space-y-1.5">
-              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                Active Teams
-              </div>
-              <div className="text-[22px] leading-tight font-extrabold text-slate-900">
-                {stats.activeTeamsCount} <span className="text-sm font-bold text-slate-500">Teams</span>
-              </div>
-              <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
-                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-amber-100">
-                  <Building className="h-2.5 w-2.5 text-amber-600" />
-                </span>
-                <span>{stats.floorsDisplay}</span>
-              </div>
-            </div>
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500 to-yellow-500 flex items-center justify-center text-white shadow-sm shrink-0">
-              <Users className="h-5 w-5" />
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* ------------------------------------------------------------- */}
       {/* 3. SECTION 1: ADD SUBCONTRACT AGREEMENT (SPECIFICATION FORM)  */}

@@ -122,13 +122,12 @@ export const ViewLaeFormModal = ({ formId, isOpen, onClose, onEdit }) => {
                 <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-mono font-bold text-amber-800">
                   {formData?.project_code || 'SITE'}
                 </span>
-                <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                  formData?.status === 'approved'
-                    ? 'bg-emerald-100 text-emerald-800'
-                    : formData?.status === 'draft'
+                <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${formData?.status === 'approved'
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : formData?.status === 'draft'
                     ? 'bg-slate-100 text-slate-700'
                     : 'bg-amber-100 text-amber-800'
-                }`}>
+                  }`}>
                   {formData?.status || 'Submitted'}
                 </span>
               </div>
@@ -269,31 +268,6 @@ export const ViewLaeFormModal = ({ formId, isOpen, onClose, onEdit }) => {
                               <span className="text-[10px] text-slate-400 block font-mono">@ KES {uRate.toLocaleString()}/day</span>
                             </div>
                           </div>
-
-                          {/* Work Done Today & Work Plan Tomorrow */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
-                            {(trade.work_done_today || trade.notes) && (
-                              <div className="bg-emerald-50/40 p-2.5 rounded-lg border border-emerald-100">
-                                <span className="text-[10px] font-extrabold uppercase text-emerald-800 block mb-0.5">
-                                  Work Done Today
-                                </span>
-                                <p className="text-slate-700 leading-relaxed font-medium">
-                                  {trade.work_done_today || trade.notes}
-                                </p>
-                              </div>
-                            )}
-
-                            {trade.work_plan_tomorrow && (
-                              <div className="bg-blue-50/40 p-2.5 rounded-lg border border-blue-100">
-                                <span className="text-[10px] font-extrabold uppercase text-blue-800 block mb-0.5">
-                                  Work Plan Tomorrow
-                                </span>
-                                <p className="text-slate-700 leading-relaxed font-medium">
-                                  {trade.work_plan_tomorrow}
-                                </p>
-                              </div>
-                            )}
-                          </div>
                         </div>
                       );
                     })}
@@ -321,145 +295,6 @@ export const ViewLaeFormModal = ({ formId, isOpen, onClose, onEdit }) => {
                   </div>
                 </div>
               </div>
-
-              {/* SECTION 2: MACHINERY & EQUIPMENT */}
-              <div className="rounded-2xl border-2 border-slate-200 bg-slate-50/20 p-4 sm:p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-100 text-orange-700">
-                      <Truck className="h-4 w-4" />
-                    </div>
-                    <h3 className="text-xs font-extrabold uppercase tracking-wide text-slate-900">
-                      Machinery & Equipment ({equipmentItems.length} Units)
-                    </h3>
-                  </div>
-                </div>
-
-                {equipmentItems.length > 0 ? (
-                  <div className="space-y-3">
-                    {equipmentItems.map((eq, idx) => {
-                      const fuel = Number(eq.fuel_cost) || 0;
-                      const operator = Number(eq.operator_cost) || 0;
-                      const repair = Number(eq.repair_cost) || 0;
-                      const mechanic = Number(eq.mechanic_cost) || 0;
-                      const transport = Number(eq.transport_cost) || 0;
-                      const totalMachineExpense = eq.total_expense !== undefined && eq.total_expense !== null && Number(eq.total_expense) > 0
-                        ? Number(eq.total_expense)
-                        : (fuel + operator + repair + mechanic + transport);
-
-                      return (
-                        <div key={idx} className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 shadow-2xs">
-                          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                            <h4 className="text-xs font-bold text-slate-900">{eq.equipment_name}</h4>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-slate-800 font-mono">
-                                Total Expense: KES {totalMachineExpense.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </span>
-                              <span className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase ${
-                                (eq.operating_status || eq.status) === 'Active' || (eq.operating_status || eq.status) === 'operational'
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : 'bg-amber-100 text-amber-800'
-                              }`}>
-                                {eq.operating_status || eq.status || 'Active'}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Breakdown of costs */}
-                          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-xs font-mono">
-                            <div>
-                              <span className="text-[10px] text-slate-500 font-semibold block font-sans">Fuel</span>
-                              <span>KES {fuel.toLocaleString()}</span>
-                            </div>
-                            <div>
-                              <span className="text-[10px] text-slate-500 font-semibold block font-sans">Operator</span>
-                              <span>KES {operator.toLocaleString()}</span>
-                            </div>
-                            <div>
-                              <span className="text-[10px] text-slate-500 font-semibold block font-sans">Repair / Spares</span>
-                              <span>KES {repair.toLocaleString()}</span>
-                            </div>
-                            <div>
-                              <span className="text-[10px] text-slate-500 font-semibold block font-sans">Mechanic</span>
-                              <span>KES {mechanic.toLocaleString()}</span>
-                            </div>
-                            <div>
-                              <span className="text-[10px] text-slate-500 font-semibold block font-sans">Transport</span>
-                              <span>KES {transport.toLocaleString()}</span>
-                            </div>
-                          </div>
-
-                          {(eq.machine_notes || eq.remarks) && (
-                            <div className="text-xs text-slate-600 bg-slate-50/50 p-2 rounded-lg border border-slate-100">
-                              <span className="font-semibold text-slate-700">Notes & Working Hours: </span>
-                              {eq.machine_notes || eq.remarks}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-xs text-slate-500 italic py-2">No machinery or equipment deployed.</p>
-                )}
-              </div>
-
-              {/* SECTION 3: DELAYS, ISSUES & SAFETY INCIDENTS */}
-              {formData.delays_issues_incidents && (
-                <div className="rounded-xl border border-rose-200 bg-rose-50/30 p-4 space-y-1.5">
-                  <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase text-rose-800 tracking-wider">
-                    <AlertTriangle className="h-4 w-4 text-rose-600" />
-                    <span>Delays, Issues & Safety Incidents</span>
-                  </div>
-                  <p className="text-xs text-slate-800 leading-relaxed font-medium whitespace-pre-wrap">
-                    {formData.delays_issues_incidents}
-                  </p>
-                </div>
-              )}
-
-              {/* SECTION 4: SITE VISITORS & CLIENT REPS */}
-              {formData.site_visitors && (
-                <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 space-y-1">
-                  <div className="text-[10px] font-extrabold uppercase text-slate-600 tracking-wider">
-                    Site Visitors & Client Reps
-                  </div>
-                  <p className="text-xs text-slate-800 font-semibold">
-                    {formData.site_visitors}
-                  </p>
-                </div>
-              )}
-
-              {/* SECTION 5: SITE PHOTOS & FIELD EVIDENCE */}
-              {sitePhotos.length > 0 && (
-                <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 sm:p-5 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-100 text-purple-700">
-                        <ImageIcon className="h-4 w-4" />
-                      </div>
-                      <h3 className="text-xs font-extrabold uppercase tracking-wide text-slate-900">
-                        Site Photos & Evidence ({sitePhotos.length})
-                      </h3>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2.5">
-                    {sitePhotos.map((photo, pIdx) => (
-                      <button
-                        key={pIdx}
-                        type="button"
-                        onClick={() => setPreviewImage(photo.url)}
-                        className="group relative rounded-xl overflow-hidden border border-slate-200 aspect-square bg-slate-100 hover:opacity-90 cursor-pointer"
-                      >
-                        <img src={photo.url} alt={photo.name || 'Site Photo'} className="h-full w-full object-cover" />
-                        <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
-                          <ExternalLink className="h-4 w-4" />
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
             </>
           ) : null}
         </div>

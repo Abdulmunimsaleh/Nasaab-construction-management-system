@@ -663,34 +663,6 @@ export const NewLaeFormModal = ({
                       </p>
                     </div>
 
-                    {/* Work Done & Work Plan Tomorrow Textareas */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-600 uppercase block mb-1">
-                          WORK DONE TODAY
-                        </label>
-                        <textarea
-                          rows={2}
-                          placeholder={`Work completed today for ${tradeItem.trade || 'this trade'}...`}
-                          value={tradeItem.workDoneToday}
-                          onChange={(e) => handleUpdateTrade(idx, 'workDoneToday', e.target.value)}
-                          className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-amber-500 focus:outline-none"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-600 uppercase block mb-1">
-                          WORK PLAN TOMORROW
-                        </label>
-                        <textarea
-                          rows={2}
-                          placeholder={`Work planned tomorrow for ${tradeItem.trade || 'this trade'}...`}
-                          value={tradeItem.workPlanTomorrow}
-                          onChange={(e) => handleUpdateTrade(idx, 'workPlanTomorrow', e.target.value)}
-                          className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-amber-500 focus:outline-none"
-                        />
-                      </div>
-                    </div>
 
                     {/* Bottom Trade Summary Pill */}
                     <div className="flex justify-end pt-1">

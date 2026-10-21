@@ -1134,8 +1134,8 @@ export const MaterialExpensesPage = () => {
                     key={page}
                     onClick={() => setCurrentPage(page)}
                     className={`min-w-7 h-7 px-2 flex items-center justify-center rounded-lg text-xs font-semibold cursor-pointer transition-colors ${page === currentPage
-                        ? 'bg-amber-500 text-white shadow-2xs'
-                        : 'border border-slate-200 text-slate-700 hover:bg-slate-50'
+                      ? 'bg-amber-500 text-white shadow-2xs'
+                      : 'border border-slate-200 text-slate-700 hover:bg-slate-50'
                       }`}
                   >
                     {page}
@@ -1288,8 +1288,8 @@ export const MaterialExpensesPage = () => {
                     type="button"
                     onClick={() => setFundForm({ ...fundForm, fundType: 'initial' })}
                     className={`py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${fundForm.fundType === 'initial'
-                        ? 'border-amber-500 bg-amber-50 text-amber-800'
-                        : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                      ? 'border-amber-500 bg-amber-50 text-amber-800'
+                      : 'border-slate-200 text-slate-600 hover:bg-slate-50'
                       }`}
                   >
                     <Landmark className="h-3.5 w-3.5" />
@@ -1299,8 +1299,8 @@ export const MaterialExpensesPage = () => {
                     type="button"
                     onClick={() => setFundForm({ ...fundForm, fundType: 'additional' })}
                     className={`py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${fundForm.fundType === 'additional'
-                        ? 'border-amber-500 bg-amber-50 text-amber-800'
-                        : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                      ? 'border-amber-500 bg-amber-50 text-amber-800'
+                      : 'border-slate-200 text-slate-600 hover:bg-slate-50'
                       }`}
                   >
                     <Plus className="h-3.5 w-3.5" />
@@ -1442,8 +1442,8 @@ export const MaterialExpensesPage = () => {
                     type="button"
                     onClick={() => setFundForm({ ...fundForm, fundType: 'initial' })}
                     className={`py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer ${fundForm.fundType === 'initial'
-                        ? 'border-amber-500 bg-amber-50 text-amber-800'
-                        : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                      ? 'border-amber-500 bg-amber-50 text-amber-800'
+                      : 'border-slate-200 text-slate-600 hover:bg-slate-50'
                       }`}
                   >
                     <Landmark className="h-3.5 w-3.5" />
@@ -1453,8 +1453,8 @@ export const MaterialExpensesPage = () => {
                     type="button"
                     onClick={() => setFundForm({ ...fundForm, fundType: 'additional' })}
                     className={`py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer ${fundForm.fundType === 'additional'
-                        ? 'border-amber-500 bg-amber-50 text-amber-800'
-                        : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                      ? 'border-amber-500 bg-amber-50 text-amber-800'
+                      : 'border-slate-200 text-slate-600 hover:bg-slate-50'
                       }`}
                   >
                     <Plus className="h-3.5 w-3.5" />
@@ -1721,18 +1721,6 @@ export const MaterialExpensesPage = () => {
                   />
                 </div>
 
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Receipt / Invoice Ref
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. INV-MCL-8801"
-                    value={expenseForm.invoiceRef}
-                    onChange={(e) => setExpenseForm({ ...expenseForm, invoiceRef: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-mono text-slate-800 focus:border-amber-500 focus:outline-hidden"
-                  />
-                </div>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
@@ -1839,9 +1827,9 @@ export const MaterialExpensesPage = () => {
                     <option value="Reinforcement Steel">Reinforcement Steel</option>
                     <option value="Sand & Aggregates">Sand & Aggregates</option>
                     <option value="Building Blocks">Building Blocks</option>
-                    <option value="Plumbing">Plumbing</option>
-                    <option value="Electrical">Electrical</option>
-                    <option value="Formwork & Timber">Formwork & Timber</option>
+                    <option value="Plumbing">Plumbing Materials</option>
+                    <option value="Electrical">Electrical Materials</option>
+                    <option value="Formwork & Timber">Formwork Materials & Timber</option>
                     <option value="General">General Site Supplies</option>
                   </select>
                 </div>
