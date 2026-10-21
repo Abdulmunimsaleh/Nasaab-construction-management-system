@@ -62,8 +62,7 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
       children: [
         { label: 'Subcontract (PW)', path: '/labour/subcontract', icon: Briefcase },
         { label: 'Daily', path: '/labour/daily', icon: CalendarCheck },
-        { label: 'Equipments', path: '/equipment-report', icon: Truck },
-        { label: 'Equipment Expenses', path: '/equipment-report', icon: Coins },
+        { label: 'Equipment', path: '/equipment-report', icon: Truck },
         { label: 'Safety & Delays', path: '/safety-delays', icon: ShieldAlert }
       ]
     },
@@ -95,8 +94,7 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
       children: [
         { label: 'Subcontract (PW)', path: '/labour/subcontract', icon: Briefcase },
         { label: 'Daily', path: '/labour/daily', icon: CalendarCheck },
-        { label: 'Equipments', path: '/equipment-report', icon: Truck },
-        { label: 'Equipment Expenses', path: '/equipment-report', icon: Coins },
+        { label: 'Equipment', path: '/equipment-report', icon: Truck },
         { label: 'Safety & Delays', path: '/safety-delays', icon: ShieldAlert }
       ]
     },
@@ -127,8 +125,7 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
       children: [
         { label: 'Subcontract (PW)', path: '/labour/subcontract', icon: Briefcase },
         { label: 'Daily', path: '/labour/daily', icon: CalendarCheck },
-        { label: 'Equipments', path: '/equipment-report', icon: Truck },
-        { label: 'Equipment Expenses', path: '/equipment-report', icon: Coins },
+        { label: 'Equipment', path: '/equipment-report', icon: Truck },
         { label: 'Safety & Delays', path: '/safety-delays', icon: ShieldAlert }
       ]
     },
