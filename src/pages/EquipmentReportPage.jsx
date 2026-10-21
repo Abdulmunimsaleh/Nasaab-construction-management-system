@@ -20,10 +20,12 @@ import {
   Building2,
   MapPin,
   Check,
-  RotateCcw
+  RotateCcw,
+  Receipt
 } from 'lucide-react';
 
 const STORAGE_KEY = 'nasaab_equipment_ledger_v2';
+const EXPENSES_STORAGE_KEY = 'nasaab_equipment_expenses_ledger_v2';
 
 export const EquipmentReportPage = () => {
   const {
@@ -55,6 +57,51 @@ export const EquipmentReportPage = () => {
   // Unified custom equipment state
   const [customEquipment, setCustomEquipment] = useState([]);
 
+  // ==========================================
+  // EQUIPMENT EXPENSES STATE & HELPERS
+  // ==========================================
+  const createEmptyExpenseEntry = () => ({
+    id: `temp-exp-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+    equipmentName: '',
+    customName: '',
+    amount: '',
+    description: ''
+  });
+
+  const [isExpenseFormOpen, setIsExpenseFormOpen] = useState(true);
+  const [expenseEntries, setExpenseEntries] = useState([createEmptyExpenseEntry()]);
+  const [customExpenses, setCustomExpenses] = useState(() => {
+    try {
+      const saved = localStorage.getItem(EXPENSES_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return [
+      {
+        id: 'exp-demo-1',
+        equipmentName: 'CAT 320 Hydraulic Excavator',
+        amount: 45000,
+        description: 'Replaced hydraulic return line hose and refilled 40L Shell Tellus S2 hydraulic fluid.',
+        date: new Date().toISOString().split('T')[0],
+        projectId: 'prj-mma',
+        projectName: 'MMA'
+      },
+      {
+        id: 'exp-demo-2',
+        equipmentName: 'Concrete Mixer 400L (Hydraulic Hopper)',
+        amount: 18500,
+        description: 'Engine service: changed oil, fuel filter, cleaned carburetor and greased mixing drum bearings.',
+        date: new Date().toISOString().split('T')[0],
+        projectId: 'prj-mma',
+        projectName: 'MMA'
+      }
+    ];
+  });
+
   // Initialize and migrate any legacy equipment into unified store
   useEffect(() => {
     try {
@@ -71,7 +118,7 @@ export const EquipmentReportPage = () => {
       const migrated = [];
       const seenIds = new Set();
 
-      (projects || []).forEach((proj, pIdx) => {
+      (projects || []).forEach((proj) => {
         const legacyKey = `nasaab_equipment_${proj.id}`;
         const raw = localStorage.getItem(legacyKey);
         if (raw) {
@@ -79,7 +126,6 @@ export const EquipmentReportPage = () => {
             const list = JSON.parse(raw);
             if (Array.isArray(list)) {
               list.forEach((item, itemIdx) => {
-                // Ensure distinct IDs across projects so deleting in one site never affects another
                 const uniqueId = `migrated-${proj.id}-${item.id || itemIdx}`;
                 if (!seenIds.has(uniqueId)) {
                   seenIds.add(uniqueId);
@@ -154,7 +200,6 @@ export const EquipmentReportPage = () => {
   // Open modal and pre-select project
   const handleOpenAddModal = () => {
     setEquipmentEntries([createEmptyEquipmentEntry()]);
-    // Pre-select active site if specific site chosen, otherwise default to first project
     const defaultPId = selectedProjectId !== 'all' ? selectedProjectId : (projects?.[0]?.id || '');
     setModalProjectId(defaultPId);
     setIsAddModalOpen(true);
@@ -274,7 +319,6 @@ export const EquipmentReportPage = () => {
     const list = [...scopedCustomEquipment];
 
     (laeForms || []).forEach((form) => {
-      // Exclude forms from other sites when a specific site is active
       if (
         selectedProjectId !== 'all' &&
         form.project_id &&
@@ -310,7 +354,6 @@ export const EquipmentReportPage = () => {
       counts[p.id] = 0;
     });
 
-    // Count custom equipment
     customEquipment.forEach((eq) => {
       counts.all = (counts.all || 0) + 1;
       if (eq.projectId && counts[eq.projectId] !== undefined) {
@@ -318,7 +361,6 @@ export const EquipmentReportPage = () => {
       }
     });
 
-    // Count LAE forms equipment
     (laeForms || []).forEach((form) => {
       if (Array.isArray(form.equipmentItems)) {
         form.equipmentItems.forEach(() => {
@@ -360,6 +402,107 @@ export const EquipmentReportPage = () => {
       return matchesSearch;
     });
   }, [allEquipment, searchTerm]);
+
+  // Available machine names for the expense dropdown
+  const machineOptions = useMemo(() => {
+    const names = new Set();
+    allEquipment.forEach((eq) => {
+      if (eq.equipmentName && eq.equipmentName.trim()) {
+        names.add(eq.equipmentName.trim());
+      }
+    });
+    return Array.from(names);
+  }, [allEquipment]);
+
+  // ==========================================
+  // EXPENSES HANDLERS
+  // ==========================================
+  const handleAddExpenseEntry = () => {
+    setExpenseEntries((prev) => [...prev, createEmptyExpenseEntry()]);
+  };
+
+  const handleRemoveExpenseEntry = (index) => {
+    if (expenseEntries.length === 1) {
+      setExpenseEntries([createEmptyExpenseEntry()]);
+      return;
+    }
+    setExpenseEntries((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateExpenseEntry = (index, field, value) => {
+    setExpenseEntries((prev) => {
+      const copy = [...prev];
+      copy[index] = { ...copy[index], [field]: value };
+      return copy;
+    });
+  };
+
+  const handleSaveExpenses = (e) => {
+    e.preventDefault();
+    const validEntries = expenseEntries.filter((exp) => {
+      const name = exp.equipmentName === 'custom' ? exp.customName : exp.equipmentName;
+      return name && name.trim() && exp.amount && parseFloat(exp.amount) > 0;
+    });
+
+    if (validEntries.length === 0) {
+      addToast && addToast('Please select/enter a machine name and valid expense amount.', 'error');
+      return;
+    }
+
+    const assignedPId = selectedProjectId !== 'all' ? selectedProjectId : (projects?.[0]?.id || 'default');
+    const targetProjObj = (projects || []).find((p) => p.id === assignedPId);
+    const assignedPName = targetProjObj?.name || currentProject?.name || 'Site Workspace';
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    const newItems = validEntries.map((exp, i) => {
+      const resolvedName = exp.equipmentName === 'custom' ? exp.customName.trim() : exp.equipmentName.trim();
+      return {
+        id: `exp-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 6)}`,
+        equipmentName: resolvedName,
+        amount: parseFloat(exp.amount) || 0,
+        description: (exp.description || '').trim(),
+        date: todayStr,
+        projectId: assignedPId,
+        projectName: assignedPName
+      };
+    });
+
+    const updated = [...newItems, ...customExpenses];
+    setCustomExpenses(updated);
+    try {
+      localStorage.setItem(EXPENSES_STORAGE_KEY, JSON.stringify(updated));
+    } catch (err) {
+      console.error(err);
+    }
+
+    addToast && addToast(
+      `Logged ${newItems.length} equipment expense ${newItems.length === 1 ? 'record' : 'records'} for ${assignedPName} successfully!`
+    );
+    setExpenseEntries([createEmptyExpenseEntry()]);
+  };
+
+  const handleDeleteExpense = (id) => {
+    const updated = customExpenses.filter((e) => e.id !== id);
+    setCustomExpenses(updated);
+    try {
+      localStorage.setItem(EXPENSES_STORAGE_KEY, JSON.stringify(updated));
+    } catch (err) {
+      console.error(err);
+    }
+    addToast && addToast('Equipment expense record removed.', 'info');
+  };
+
+  // Filter expenses strictly by selected project
+  const scopedExpenses = useMemo(() => {
+    if (selectedProjectId === 'all') {
+      return customExpenses;
+    }
+    return customExpenses.filter((e) => e.projectId === selectedProjectId);
+  }, [customExpenses, selectedProjectId]);
+
+  const totalExpenseAmount = useMemo(() => {
+    return scopedExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  }, [scopedExpenses]);
 
   return (
     <div className="space-y-6">
@@ -645,6 +788,251 @@ export const EquipmentReportPage = () => {
             </table>
           </div>
         )}
+      </div>
+
+      {/* ============================================================== */}
+      {/* EQUIPMENT EXPENSES SECTION (EXACTLY AS IN USER'S IMAGE) */}
+      {/* ============================================================== */}
+      <div className="space-y-4 pt-2">
+        {/* Trigger button & descriptive label */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <button
+            onClick={() => setIsExpenseFormOpen((prev) => !prev)}
+            className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-amber-500/20 transition-all cursor-pointer self-start sm:self-auto"
+          >
+            <Plus className="h-4 w-4 stroke-[2.5]" />
+            <span>+ Add Equipment Expenses</span>
+          </button>
+          <span className="text-xs text-slate-500">
+            Record servicing, repairs, spare parts & fuel costs
+          </span>
+        </div>
+
+        {/* Expenses Log Form Card */}
+        {isExpenseFormOpen && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+              <div>
+                <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                  <Receipt className="h-5 w-5 text-amber-500" />
+                  <span>Equipment Expenses Log</span>
+                </h2>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Enter operational maintenance and running expenses for machinery deployed at{' '}
+                  <strong className="text-slate-800">{currentProject?.name || 'All Sites Combined'}</strong> workspace.
+                </p>
+              </div>
+              <div className="px-3 py-1.5 rounded-xl border border-amber-200 bg-amber-50 text-xs font-bold text-amber-800 font-mono self-start sm:self-auto">
+                Workspace: {currentProject?.name || 'All Sites Combined'}
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveExpenses} className="space-y-4">
+              {expenseEntries.map((entry, idx) => (
+                <div
+                  key={entry.id || idx}
+                  className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 space-y-4 shadow-2xs"
+                >
+                  <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+                    <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider bg-amber-100/70 px-2.5 py-1 rounded-md">
+                      MACHINE ENTRY #{idx + 1}
+                    </span>
+                    {expenseEntries.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveExpenseEntry(idx)}
+                        className="p-1 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                        title="Remove Machine Entry"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">
+                        EQUIPMENT / MACHINE NAME <span className="text-rose-500">*</span>
+                      </label>
+                      <select
+                        value={entry.equipmentName}
+                        onChange={(e) => handleUpdateExpenseEntry(idx, 'equipmentName', e.target.value)}
+                        required
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-900 focus:border-amber-500 focus:outline-hidden cursor-pointer"
+                      >
+                        <option value="">Select machine...</option>
+                        {machineOptions.map((name, mIdx) => (
+                          <option key={mIdx} value={name}>
+                            {name}
+                          </option>
+                        ))}
+                        <option value="custom">+ Other / Custom Machine</option>
+                      </select>
+
+                      {entry.equipmentName === 'custom' && (
+                        <input
+                          type="text"
+                          placeholder="Enter machine name..."
+                          value={entry.customName || ''}
+                          onChange={(e) => handleUpdateExpenseEntry(idx, 'customName', e.target.value)}
+                          required
+                          className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                        />
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">
+                        TOTAL EXPENSE AMOUNT (KSH) <span className="text-rose-500">*</span>
+                      </label>
+                      <div className="relative flex items-center">
+                        <span className="absolute left-3.5 text-xs font-bold text-slate-400 pointer-events-none">
+                          KSh
+                        </span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          required
+                          placeholder="e.g. 45,000"
+                          value={entry.amount}
+                          onChange={(e) => handleUpdateExpenseEntry(idx, 'amount', e.target.value)}
+                          className="w-full rounded-xl border border-slate-200 bg-white pl-12 pr-4 py-2.5 text-xs font-mono font-bold text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">
+                      DESCRIPTION / NOTES
+                    </label>
+                    <textarea
+                      rows="3"
+                      placeholder="Describe expense details: repairs, fuel consumption, spare parts replaced, servicing, operational hours, technician notes..."
+                      value={entry.description}
+                      onChange={(e) => handleUpdateExpenseEntry(idx, 'description', e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                    />
+                  </div>
+                </div>
+              ))}
+
+              <button
+                type="button"
+                onClick={handleAddExpenseEntry}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50/70 hover:bg-amber-100/70 px-4 py-2 text-xs font-bold text-amber-800 transition-colors cursor-pointer shadow-2xs"
+              >
+                <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
+                <span>+ Add Another Machine</span>
+              </button>
+
+              <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="submit"
+                  className="rounded-xl bg-amber-500 hover:bg-amber-400 px-6 py-2.5 text-xs font-bold text-slate-950 shadow-xs cursor-pointer transition-all"
+                >
+                  Save Expenses
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsExpenseFormOpen(false)}
+                  className="rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-5 py-2.5 text-xs font-semibold text-slate-600 cursor-pointer transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Recorded Equipment Expenses Table */}
+        <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border-b border-slate-100 bg-slate-50/50">
+            <div>
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <Receipt className="h-4 w-4 text-amber-500" />
+                <span>Logged Equipment Maintenance & Operating Expenses</span>
+              </h3>
+              <p className="mt-0.5 text-[11px] text-slate-500">
+                Ledger of repairs, servicing, and spare parts expenses for {currentProject?.name || 'All Sites'}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-slate-500">Total Expenses:</span>
+              <span className="rounded-lg bg-amber-100 px-2.5 py-1 font-mono text-xs font-extrabold text-amber-900 border border-amber-200">
+                {formatKES(totalExpenseAmount)}
+              </span>
+            </div>
+          </div>
+
+          {scopedExpenses.length === 0 ? (
+            <div className="py-10 text-center">
+              <Receipt className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+              <p className="text-xs text-slate-500">
+                No equipment expenses recorded yet for {currentProject?.name || 'this workspace'}. Use the form above to log expenses.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-slate-500 border-b border-slate-200 font-semibold uppercase tracking-wider text-[10px]">
+                  <tr>
+                    <th className="py-3 px-4 w-12 text-center">#</th>
+                    <th className="py-3 px-4">Equipment / Machine</th>
+                    <th className="py-3 px-4 w-40">Site / Workspace</th>
+                    <th className="py-3 px-4 w-36">Expense Amount</th>
+                    <th className="py-3 px-4 w-32">Date Logged</th>
+                    <th className="py-3 px-4">Expense Details & Remarks</th>
+                    <th className="py-3 px-4 w-16 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {scopedExpenses.map((exp, idx) => (
+                    <tr key={exp.id || idx} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-3.5 px-4 text-center text-slate-400 font-mono text-[11px]">
+                        {idx + 1}
+                      </td>
+                      <td className="py-3.5 px-4 font-bold text-slate-900">
+                        <div className="flex items-center gap-2">
+                          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-100 text-amber-700 shrink-0">
+                            <Wrench className="h-3 w-3" />
+                          </div>
+                          <span>{exp.equipmentName}</span>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-100 text-[11px] font-semibold text-slate-700">
+                          <Building2 className="h-3 w-3 text-slate-400" />
+                          <span>{exp.projectName || currentProject?.name || 'Site'}</span>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 font-mono font-extrabold text-slate-900">
+                        {formatKES(exp.amount)}
+                      </td>
+                      <td className="py-3.5 px-4 text-slate-500 font-mono text-[11px]">
+                        {exp.date || '—'}
+                      </td>
+                      <td className="py-3.5 px-4 text-slate-600 leading-relaxed">
+                        {exp.description || <span className="text-slate-400 italic">No notes provided</span>}
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteExpense(exp.id)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          title="Remove Expense Record"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Modal: Log Equipment */}
