@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { NewLaeFormModal } from '../../components/labour/NewLaeFormModal';
 import { ViewLaeFormModal } from '../../components/labour/ViewLaeFormModal';
+import { SubcontractPieceWorkView } from '../../components/labour/SubcontractPieceWorkView';
 import api from '../../services/api';
 import { generateLaeFormPDF } from '../../utils/pdfGenerator';
 import { getDayOfWeek, formatKES } from '../../utils/formatters';
@@ -295,56 +296,6 @@ export const LabourPage = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="rounded-md bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-500 uppercase tracking-wider">
-              Site Workforce
-            </span>
-            <span className="text-xs text-slate-400">• Trade Operations</span>
-          </div>
-          <h1 className="mt-1 text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
-            <HardHat className="h-7 w-7 text-amber-500" />
-            <span>Labour & Workforce Management</span>
-          </h1>
-          <p className="mt-1 text-xs text-slate-500">
-            Comprehensive control of daily casual trade labour, headcounts, rates, and subcontract piece-work (PW) contracts for{' '}
-            <strong className="text-slate-800">{currentProject?.name}</strong>
-          </p>
-        </div>
-
-        {activeTab === 'subcontract' ? (
-          <button
-            onClick={() => setIsNewSubcontractModalOpen(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-amber-500/20 transition-all cursor-pointer self-start sm:self-auto"
-          >
-            <Plus className="h-4 w-4 stroke-[2.5]" />
-            <span>+ Add Subcontract (PW) Agreement</span>
-          </button>
-        ) : todayForm ? (
-          <button
-            onClick={() => handleOpenEdit(todayForm)}
-            className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-amber-500/20 transition-all cursor-pointer self-start sm:self-auto"
-            title="Today's daily form has already been submitted. Click to edit and update."
-          >
-            <Edit3 className="h-4 w-4 stroke-[2.5]" />
-            <span>Edit Today's Form ({todayForm.form_number})</span>
-          </button>
-        ) : (
-          <button
-            onClick={() => {
-              setEditingForm(null);
-              setIsNewModalOpen(true);
-            }}
-            className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-amber-500/20 transition-all cursor-pointer self-start sm:self-auto"
-          >
-            <Plus className="h-4 w-4 stroke-[2.5]" />
-            <span>+ New Daily Labour Form</span>
-          </button>
-        )}
-      </div>
-
       {/* Mode Navigation Tabs (Subcontract PW vs Daily) */}
       <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
         <button
@@ -352,14 +303,14 @@ export const LabourPage = () => {
             setActiveTab('subcontract');
             navigate('/labour/subcontract');
           }}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer ${
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
             activeTab === 'subcontract'
               ? 'bg-amber-500 text-slate-950 shadow-xs'
               : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
           }`}
         >
           <Briefcase className="h-4 w-4" />
-          <span>Subcontract (PW) — Piece Work ({subcontracts.length})</span>
+          <span>Subcontract (Piece Work)</span>
         </button>
 
         <button
@@ -367,7 +318,7 @@ export const LabourPage = () => {
             setActiveTab('daily');
             navigate('/labour/daily');
           }}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer ${
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
             activeTab === 'daily'
               ? 'bg-amber-500 text-slate-950 shadow-xs'
               : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
@@ -382,158 +333,7 @@ export const LabourPage = () => {
       {/* MODE 1: SUBCONTRACT (PW) VIEW                            */}
       {/* ======================================================== */}
       {activeTab === 'subcontract' && (
-        <div className="space-y-6">
-          {/* KPI Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active Subcontracts</span>
-                <Briefcase className="h-4 w-4 text-amber-500" />
-              </div>
-              <div className="mt-2 text-2xl font-extrabold text-slate-900 font-mono">
-                {pwStats.totalCount} Agreements
-              </div>
-              <p className="mt-1 text-[11px] text-slate-400">Carpentry, steel, masonry & electrical</p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">PW Workforce on Site</span>
-                <Users className="h-4 w-4 text-indigo-500" />
-              </div>
-              <div className="mt-2 text-2xl font-extrabold text-indigo-600 font-mono">
-                {pwStats.totalWorkers} Operatives
-              </div>
-              <p className="mt-1 text-[11px] text-slate-400">Total piece-work crew headcounts</p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Committed Sum</span>
-                <Coins className="h-4 w-4 text-amber-500" />
-              </div>
-              <div className="mt-2 text-2xl font-extrabold text-amber-600 font-mono">
-                {formatKES(pwStats.totalCommitted)}
-              </div>
-              <p className="mt-1 text-[11px] text-slate-400">Contractual piece-work value</p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Paid to Date</span>
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-              </div>
-              <div className="mt-2 text-2xl font-extrabold text-emerald-600 font-mono">
-                {formatKES(pwStats.totalPaid)}
-              </div>
-              <p className="mt-1 text-[11px] text-slate-400">
-                Balance: {formatKES(pwStats.totalCommitted - pwStats.totalPaid)}
-              </p>
-            </div>
-          </div>
-
-          {/* Search Bar */}
-          <div className="flex items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search by trade, subcontractor, or scope description..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-4 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-amber-500 focus:bg-white focus:outline-hidden"
-              />
-            </div>
-            <div className="text-xs text-slate-500 font-medium">
-              Showing {filteredSubcontracts.length} of {subcontracts.length} agreements
-            </div>
-          </div>
-
-          {/* Subcontract Cards / Table */}
-          <div className="space-y-3">
-            {filteredSubcontracts.length === 0 ? (
-              <div className="rounded-2xl border border-slate-200 bg-white py-16 text-center shadow-xs">
-                <Briefcase className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-                <h3 className="text-sm font-bold text-slate-900 mb-1">No Subcontract Agreements Found</h3>
-                <p className="text-xs text-slate-500 max-w-md mx-auto mb-4">
-                  Add piece-work crews, contract rates, and milestone scopes to manage Subcontract (PW) labour.
-                </p>
-                <button
-                  onClick={() => setIsNewSubcontractModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-amber-400 cursor-pointer shadow-xs"
-                >
-                  <Plus className="h-4 w-4" />
-                  <span>Create Subcontract (PW) Agreement</span>
-                </button>
-              </div>
-            ) : (
-              filteredSubcontracts.map((pw) => (
-                <div
-                  key={pw.id}
-                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs hover:border-slate-300 transition-all space-y-3"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="rounded-md bg-amber-100 text-amber-900 border border-amber-200 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">
-                          {pw.trade}
-                        </span>
-                        <span
-                          className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                            pw.status === 'Completed'
-                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                              : 'bg-blue-100 text-blue-800 border border-blue-200'
-                          }`}
-                        >
-                          {pw.status}
-                        </span>
-                        <span className="text-xs text-slate-400 font-mono">
-                          Crew: {pw.workersOnSite} on site
-                        </span>
-                      </div>
-                      <h3 className="text-base font-extrabold text-slate-900 mt-1">
-                        {pw.subcontractor}
-                      </h3>
-                      <div className="text-xs text-slate-500">
-                        Lead: <strong className="text-slate-700">{pw.leadPerson}</strong> • Scope: {pw.measurement}
-                      </div>
-                    </div>
-
-                    <div className="text-left sm:text-right">
-                      <div className="text-xs text-slate-400 font-medium">Agreed Contract Sum</div>
-                      <div className="text-lg font-extrabold text-slate-900 font-mono">
-                        {formatKES(pw.agreedSum)}
-                      </div>
-                      <div className="text-[11px] text-emerald-600 font-mono font-semibold">
-                        Paid: {formatKES(pw.amountPaid)} • Balance: {formatKES(pw.agreedSum - pw.amountPaid)}
-                      </div>
-                    </div>
-                  </div>
-
-                  <p className="text-xs text-slate-700 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100">
-                    <strong className="text-slate-900">Task Scope: </strong>
-                    {pw.scopeDescription}
-                  </p>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                    {pw.workDoneToday && (
-                      <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-2.5">
-                        <div className="font-bold text-emerald-900">Work Accomplished:</div>
-                        <div className="text-emerald-800 mt-0.5">{pw.workDoneToday}</div>
-                      </div>
-                    )}
-                    {pw.workPlanTomorrow && (
-                      <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-2.5">
-                        <div className="font-bold text-amber-900">Tomorrow's Milestone:</div>
-                        <div className="text-amber-800 mt-0.5">{pw.workPlanTomorrow}</div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+        <SubcontractPieceWorkView />
       )}
 
       {/* ======================================================== */}
@@ -541,6 +341,47 @@ export const LabourPage = () => {
       {/* ======================================================== */}
       {activeTab === 'daily' && (
         <div className="space-y-6">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="rounded-md bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-500 uppercase tracking-wider">
+                  Site Workforce
+                </span>
+                <span className="text-xs text-slate-400">• Trade Operations</span>
+              </div>
+              <h1 className="mt-1 text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
+                <HardHat className="h-7 w-7 text-amber-500" />
+                <span>Daily Labour & Workforce Management</span>
+              </h1>
+              <p className="mt-1 text-xs text-slate-500">
+                Comprehensive control of daily casual trade labour, shift headcounts, and verified rates for{' '}
+                <strong className="text-slate-800">{currentProject?.name}</strong>
+              </p>
+            </div>
+
+            {todayForm ? (
+              <button
+                onClick={() => handleOpenEdit(todayForm)}
+                className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-amber-500/20 transition-all cursor-pointer self-start sm:self-auto"
+                title="Today's daily form has already been submitted. Click to edit and update."
+              >
+                <Edit3 className="h-4 w-4 stroke-[2.5]" />
+                <span>Edit Today's Form ({todayForm.form_number})</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setEditingForm(null);
+                  setIsNewModalOpen(true);
+                }}
+                className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-amber-500/20 transition-all cursor-pointer self-start sm:self-auto"
+              >
+                <Plus className="h-4 w-4 stroke-[2.5]" />
+                <span>+ New Daily Labour Form</span>
+              </button>
+            )}
+          </div>
           {/* Notice if today's form already exists */}
           {todayForm && (
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50/90 p-4 shadow-xs">

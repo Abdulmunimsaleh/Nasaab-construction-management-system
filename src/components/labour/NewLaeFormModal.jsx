@@ -616,8 +616,8 @@ export const NewLaeFormModal = ({
                             disabled={!canEditRate}
                             onChange={(e) => handleUpdateTrade(idx, 'foremanRate', e.target.value)}
                             className={`w-full rounded-lg border px-3 py-1.5 text-xs font-semibold ${!canEditRate
-                                ? 'bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed select-none'
-                                : 'bg-white text-slate-800 border-slate-200 focus:border-amber-500 focus:outline-none'
+                              ? 'bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed select-none'
+                              : 'bg-white text-slate-800 border-slate-200 focus:border-amber-500 focus:outline-none'
                               }`}
                           />
                         </div>
@@ -634,8 +634,8 @@ export const NewLaeFormModal = ({
                             disabled={!canEditRate}
                             onChange={(e) => handleUpdateTrade(idx, 'skilledRate', e.target.value)}
                             className={`w-full rounded-lg border px-3 py-1.5 text-xs font-semibold ${!canEditRate
-                                ? 'bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed select-none'
-                                : 'bg-white text-slate-800 border-slate-200 focus:border-amber-500 focus:outline-none'
+                              ? 'bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed select-none'
+                              : 'bg-white text-slate-800 border-slate-200 focus:border-amber-500 focus:outline-none'
                               }`}
                           />
                         </div>
@@ -652,8 +652,8 @@ export const NewLaeFormModal = ({
                             disabled={!canEditRate}
                             onChange={(e) => handleUpdateTrade(idx, 'unskilledRate', e.target.value)}
                             className={`w-full rounded-lg border px-3 py-1.5 text-xs font-semibold ${!canEditRate
-                                ? 'bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed select-none'
-                                : 'bg-white text-slate-800 border-slate-200 focus:border-amber-500 focus:outline-none'
+                              ? 'bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed select-none'
+                              : 'bg-white text-slate-800 border-slate-200 focus:border-amber-500 focus:outline-none'
                               }`}
                           />
                         </div>
