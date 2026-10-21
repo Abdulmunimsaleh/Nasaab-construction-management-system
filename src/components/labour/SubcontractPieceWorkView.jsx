@@ -514,11 +514,100 @@ export const SubcontractPieceWorkView = () => {
   };
 
   // -------------------------------------------------------------
-  // 8. VIEW & EDIT MODALS FOR AGREEMENTS
+  // 8. VIEW & EDIT MODALS FOR AGREEMENTS & PAYMENTS
   // -------------------------------------------------------------
   const [viewingAgreement, setViewingAgreement] = useState(null);
   const [editingAgreement, setEditingAgreement] = useState(null);
   const [deletingAgreement, setDeletingAgreement] = useState(null);
+
+  const [editingPayment, setEditingPayment] = useState(null);
+  const [deletingPayment, setDeletingPayment] = useState(null);
+
+  const handleSaveEditPayment = (e) => {
+    e.preventDefault();
+    if (!editingPayment) return;
+    const newAmt = Number(editingPayment.paidThisWeek);
+    if (isNaN(newAmt) || newAmt <= 0) {
+      addToast('Please enter a valid disbursement amount.', 'warning');
+      return;
+    }
+
+    const oldPayment = payments.find((p) => p.id === editingPayment.id);
+    if (!oldPayment) return;
+
+    const targetAgreement = agreements.find((a) => a.contractId === editingPayment.agreementId);
+    if (!targetAgreement) {
+      addToast('Selected agreement not found.', 'error');
+      return;
+    }
+
+    const updatedPayment = {
+      ...oldPayment,
+      agreementId: targetAgreement.contractId,
+      projectId: targetAgreement.projectId,
+      projectName: targetAgreement.projectName,
+      teamName: targetAgreement.teamName,
+      floor: targetAgreement.floor,
+      contractAmount: targetAgreement.agreedAmount,
+      weekPeriod: editingPayment.weekPeriod,
+      paidThisWeek: newAmt,
+      date: editingPayment.date || oldPayment.date,
+      notes: editingPayment.notes || ''
+    };
+
+    const updatedPayments = payments.map((p) => (p.id === editingPayment.id ? updatedPayment : p));
+    setPayments(updatedPayments);
+
+    // Synchronize agreements
+    const affectedAgreementIds = new Set([oldPayment.agreementId, targetAgreement.contractId]);
+    setAgreements((prevAgreements) =>
+      prevAgreements.map((ag) => {
+        if (!affectedAgreementIds.has(ag.contractId)) return ag;
+        const agPayments = updatedPayments.filter((p) => p.agreementId === ag.contractId);
+        const sumPaid = agPayments.reduce((s, p) => s + (Number(p.paidThisWeek) || 0), 0);
+        const count = agPayments.length;
+        const rem = Math.max(0, ag.agreedAmount - sumPaid);
+        const st = rem <= 0 ? 'Fully Paid' : sumPaid > 0 ? 'Partially Paid' : 'Active (Unpaid)';
+        return {
+          ...ag,
+          totalPaid: sumPaid,
+          paymentsCount: count,
+          status: st
+        };
+      })
+    );
+
+    setEditingPayment(null);
+    addToast(`Payment ${editingPayment.paymentRef} updated successfully.`, 'success');
+  };
+
+  const handleDeletePayment = () => {
+    if (!deletingPayment) return;
+
+    const updatedPayments = payments.filter((p) => p.id !== deletingPayment.id);
+    setPayments(updatedPayments);
+
+    // Synchronize target agreement
+    setAgreements((prevAgreements) =>
+      prevAgreements.map((ag) => {
+        if (ag.contractId !== deletingPayment.agreementId) return ag;
+        const agPayments = updatedPayments.filter((p) => p.agreementId === ag.contractId);
+        const sumPaid = agPayments.reduce((s, p) => s + (Number(p.paidThisWeek) || 0), 0);
+        const count = agPayments.length;
+        const rem = Math.max(0, ag.agreedAmount - sumPaid);
+        const st = rem <= 0 ? 'Fully Paid' : sumPaid > 0 ? 'Partially Paid' : 'Active (Unpaid)';
+        return {
+          ...ag,
+          totalPaid: sumPaid,
+          paymentsCount: count,
+          status: st
+        };
+      })
+    );
+
+    setDeletingPayment(null);
+    addToast(`Payment ${deletingPayment.paymentRef} deleted.`, 'info');
+  };
 
   const handleSaveEditAgreement = (e) => {
     e.preventDefault();
@@ -1203,12 +1292,13 @@ export const SubcontractPieceWorkView = () => {
                   <th className="py-3 px-4">Paid This Week</th>
                   <th className="py-3 px-4">Cumulative Paid</th>
                   <th className="py-3 px-4">Remaining Balance</th>
+                  <th className="py-3 px-4 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredPayments.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-10 text-center text-slate-400">
+                    <td colSpan={9} className="py-10 text-center text-slate-400">
                       No weekly payments recorded for the selected filter period.
                     </td>
                   </tr>
@@ -1241,6 +1331,36 @@ export const SubcontractPieceWorkView = () => {
                       <td className="py-3.5 px-4 font-mono font-bold text-orange-600">
                         {formatKSh(p.remainingBalance)}
                       </td>
+                      <td className="py-3.5 px-4 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() =>
+                              setEditingPayment({
+                                id: p.id,
+                                paymentRef: p.paymentRef,
+                                agreementId: p.agreementId,
+                                teamName: p.teamName,
+                                floor: p.floor,
+                                weekPeriod: p.weekPeriod,
+                                paidThisWeek: p.paidThisWeek,
+                                date: p.date || getTodayStr(),
+                                notes: p.notes || ''
+                              })
+                            }
+                            title="Edit Payment"
+                            className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:text-amber-600 hover:border-amber-200 hover:bg-amber-50 transition-colors cursor-pointer"
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setDeletingPayment(p)}
+                            title="Delete Payment"
+                            className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -1256,6 +1376,7 @@ export const SubcontractPieceWorkView = () => {
                     </td>
                     <td className="py-3 px-4 text-slate-400">—</td>
                     <td className="py-3 px-4 text-slate-400">—</td>
+                    <td className="py-3 px-4"></td>
                   </tr>
                 )}
               </tbody>
@@ -1668,7 +1789,7 @@ export const SubcontractPieceWorkView = () => {
       )}
 
       {/* ------------------------------------------------------------- */}
-      {/* MODAL: DELETE CONFIRMATION                                    */}
+      {/* MODAL: DELETE CONFIRMATION (AGREEMENT)                         */}
       {/* ------------------------------------------------------------- */}
       {deletingAgreement && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
@@ -1689,6 +1810,174 @@ export const SubcontractPieceWorkView = () => {
               </button>
               <button
                 onClick={handleDeleteAgreement}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-xs font-semibold text-white shadow-xs cursor-pointer"
+              >
+                Confirm Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* MODAL: EDIT WEEKLY PAYMENT                                     */}
+      {/* ------------------------------------------------------------- */}
+      {editingPayment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 bg-slate-900">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                  <Edit2 className="h-5 w-5 text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">Edit Subcontract Payment</h3>
+                  <p className="text-[11px] text-slate-400 font-mono">{editingPayment.paymentRef}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setEditingPayment(null)}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditPayment} className="p-6 space-y-4 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1.5">
+                  Allocated Contract / Agreement <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={editingPayment.agreementId}
+                  onChange={(e) => {
+                    const targetAg = agreements.find((a) => a.contractId === e.target.value);
+                    if (targetAg) {
+                      setEditingPayment({
+                        ...editingPayment,
+                        agreementId: targetAg.contractId,
+                        teamName: targetAg.teamName,
+                        floor: targetAg.floor
+                      });
+                    }
+                  }}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-medium text-slate-800 focus:border-amber-500 focus:outline-hidden cursor-pointer"
+                >
+                  {siteAgreements.map((a) => (
+                    <option key={a.id} value={a.contractId}>
+                      {a.teamName} – {a.floor} ({a.contractId})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1.5">
+                    Week Period <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editingPayment.weekPeriod}
+                    onChange={(e) => setEditingPayment({ ...editingPayment, weekPeriod: e.target.value })}
+                    placeholder="e.g. 19th Apr 2026 to 26th Apr 2026"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-800 focus:border-amber-500 focus:outline-hidden"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1.5">
+                    Payment Date <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={editingPayment.date}
+                    onChange={(e) => setEditingPayment({ ...editingPayment, date: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-800 focus:border-amber-500 focus:outline-hidden"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1.5">
+                  Amount Paid (KSh) <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+                    KSh
+                  </span>
+                  <input
+                    type="number"
+                    min="1"
+                    step="any"
+                    required
+                    value={editingPayment.paidThisWeek}
+                    onChange={(e) => setEditingPayment({ ...editingPayment, paidThisWeek: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 bg-white pl-11 pr-3 py-2.5 text-xs font-mono font-bold text-slate-800 focus:border-amber-500 focus:outline-hidden"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1.5">
+                  Payment Notes <span className="text-slate-400 font-normal">Optional</span>
+                </label>
+                <textarea
+                  rows={2}
+                  value={editingPayment.notes || ''}
+                  onChange={(e) => setEditingPayment({ ...editingPayment, notes: e.target.value })}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-800 focus:border-amber-500 focus:outline-hidden resize-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setEditingPayment(null)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer font-semibold transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold shadow-xs cursor-pointer transition-colors"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>Save Changes</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* MODAL: DELETE PAYMENT CONFIRMATION                            */}
+      {/* ------------------------------------------------------------- */}
+      {deletingPayment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl border border-slate-200 p-6 text-center">
+            <div className="mx-auto w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 mb-3">
+              <Trash2 className="h-6 w-6" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-900">Delete Payment Record?</h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Are you sure you want to delete payment <strong className="text-slate-800 font-mono">{deletingPayment.paymentRef}</strong> of <strong className="text-emerald-600">{formatKSh(deletingPayment.paidThisWeek)}</strong> for <strong className="text-slate-800">{deletingPayment.teamName}</strong> ({deletingPayment.floor})?
+            </p>
+            <p className="text-[11px] text-amber-700 bg-amber-50 rounded-lg p-2 mt-3 border border-amber-200/70 text-left">
+              The agreement's total paid and outstanding balance will automatically update.
+            </p>
+            <div className="flex items-center justify-center gap-2 mt-5">
+              <button
+                onClick={() => setDeletingPayment(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeletePayment}
                 className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-xs font-semibold text-white shadow-xs cursor-pointer"
               >
                 Confirm Delete
