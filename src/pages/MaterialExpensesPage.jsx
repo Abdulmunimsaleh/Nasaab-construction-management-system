@@ -620,15 +620,15 @@ export const MaterialExpensesPage = () => {
       prev.map((f) =>
         f.id === editingFund.id
           ? {
-              ...f,
-              projectId: fundForm.projectId,
-              projectName: assignedProj?.name || f.projectName,
-              reference: fundForm.reference.trim(),
-              date: fundForm.date,
-              description: fundForm.description.trim(),
-              amount: Number(fundForm.amount),
-              fundType: fundForm.fundType
-            }
+            ...f,
+            projectId: fundForm.projectId,
+            projectName: assignedProj?.name || f.projectName,
+            reference: fundForm.reference.trim(),
+            date: fundForm.date,
+            description: fundForm.description.trim(),
+            amount: Number(fundForm.amount),
+            fundType: fundForm.fundType
+          }
           : f
       )
     );
@@ -726,18 +726,18 @@ export const MaterialExpensesPage = () => {
       prev.map((e) =>
         e.id === editingExpense.id
           ? {
-              ...e,
-              projectId: expenseForm.projectId,
-              projectName: assignedProj?.name || e.projectName,
-              expenseId: expenseForm.expenseId,
-              date: expenseForm.date,
-              description: expenseForm.description.trim(),
-              supplier: expenseForm.supplier.trim(),
-              quantity: expenseForm.quantity.trim(),
-              amount: Number(expenseForm.amount),
-              category: expenseForm.category,
-              invoiceRef: expenseForm.invoiceRef.trim()
-            }
+            ...e,
+            projectId: expenseForm.projectId,
+            projectName: assignedProj?.name || e.projectName,
+            expenseId: expenseForm.expenseId,
+            date: expenseForm.date,
+            description: expenseForm.description.trim(),
+            supplier: expenseForm.supplier.trim(),
+            quantity: expenseForm.quantity.trim(),
+            amount: Number(expenseForm.amount),
+            category: expenseForm.category,
+            invoiceRef: expenseForm.invoiceRef.trim()
+          }
           : e
       )
     );
@@ -1114,9 +1114,9 @@ export const MaterialExpensesPage = () => {
               {filteredExpenses.length === 0
                 ? 'Showing 0 transactions'
                 : `Showing ${(currentPage - 1) * itemsPerPage + 1} - ${Math.min(
-                    currentPage * itemsPerPage,
-                    filteredExpenses.length
-                  )} of ${filteredExpenses.length} transactions`}
+                  currentPage * itemsPerPage,
+                  filteredExpenses.length
+                )} of ${filteredExpenses.length} transactions`}
             </div>
 
             {totalPages > 1 && (
@@ -1133,11 +1133,10 @@ export const MaterialExpensesPage = () => {
                   <button
                     key={page}
                     onClick={() => setCurrentPage(page)}
-                    className={`min-w-7 h-7 px-2 flex items-center justify-center rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
-                      page === currentPage
+                    className={`min-w-7 h-7 px-2 flex items-center justify-center rounded-lg text-xs font-semibold cursor-pointer transition-colors ${page === currentPage
                         ? 'bg-amber-500 text-white shadow-2xs'
                         : 'border border-slate-200 text-slate-700 hover:bg-slate-50'
-                    }`}
+                      }`}
                   >
                     {page}
                   </button>
@@ -1288,11 +1287,10 @@ export const MaterialExpensesPage = () => {
                   <button
                     type="button"
                     onClick={() => setFundForm({ ...fundForm, fundType: 'initial' })}
-                    className={`py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
-                      fundForm.fundType === 'initial'
+                    className={`py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${fundForm.fundType === 'initial'
                         ? 'border-amber-500 bg-amber-50 text-amber-800'
                         : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-                    }`}
+                      }`}
                   >
                     <Landmark className="h-3.5 w-3.5" />
                     <span>Initial Funding</span>
@@ -1300,11 +1298,10 @@ export const MaterialExpensesPage = () => {
                   <button
                     type="button"
                     onClick={() => setFundForm({ ...fundForm, fundType: 'additional' })}
-                    className={`py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
-                      fundForm.fundType === 'additional'
+                    className={`py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${fundForm.fundType === 'additional'
                         ? 'border-amber-500 bg-amber-50 text-amber-800'
                         : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-                    }`}
+                      }`}
                   >
                     <Plus className="h-3.5 w-3.5" />
                     <span>Additional Deposit</span>
@@ -1444,11 +1441,10 @@ export const MaterialExpensesPage = () => {
                   <button
                     type="button"
                     onClick={() => setFundForm({ ...fundForm, fundType: 'initial' })}
-                    className={`py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer ${
-                      fundForm.fundType === 'initial'
+                    className={`py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer ${fundForm.fundType === 'initial'
                         ? 'border-amber-500 bg-amber-50 text-amber-800'
                         : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-                    }`}
+                      }`}
                   >
                     <Landmark className="h-3.5 w-3.5" />
                     <span>Initial Funding</span>
@@ -1456,11 +1452,10 @@ export const MaterialExpensesPage = () => {
                   <button
                     type="button"
                     onClick={() => setFundForm({ ...fundForm, fundType: 'additional' })}
-                    className={`py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer ${
-                      fundForm.fundType === 'additional'
+                    className={`py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer ${fundForm.fundType === 'additional'
                         ? 'border-amber-500 bg-amber-50 text-amber-800'
                         : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-                    }`}
+                      }`}
                   >
                     <Plus className="h-3.5 w-3.5" />
                     <span>Additional Deposit</span>
