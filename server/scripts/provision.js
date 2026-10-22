@@ -109,13 +109,12 @@ async function provision() {
 
       // Majestic Palms Personnel
       { id: 'usr-mohamed-amoody', name: 'Mohamed Alamoody', userId: 'mohamed.alamoody', role: 'Partner' },
-      { id: 'usr-mohamed-majeed', name: 'Mohamed Majeed', userId: 'mohamed.majeed', role: 'Foreman' },
+      { id: 'usr-mohamed-majeed', name: 'Mohamed Majeed', userId: 'mohamed.majeed', role: 'Storekeeper' },
       { id: 'usr-daniel-arap', name: 'Daniel Nzuki', userId: 'daniel.nzuki', role: 'Foreman' },
       { id: 'usr-salah-amir', name: 'Salah Amir', userId: 'salah.amir', role: 'Storekeeper' },
       { id: 'usr-ali-amir', name: 'Ali Amir', userId: 'ali.amir', role: 'Storekeeper' },
       { id: 'usr-talal-amir', name: 'Talal Amir', userId: 'talal.amir', role: 'Storekeeper' },
       { id: 'usr-mohamed-ainen', name: 'Mohamed Ainen', userId: 'mohamed.ainen', role: 'Storekeeper' },
-      { id: 'usr-brian-koome', name: 'Brian Koome', userId: 'brian.koome', role: 'Storekeeper' },
 
       // MMA Personnel
       { id: 'usr-abdulfatah-sabir', name: 'Abdulfatah Sabir', userId: 'abdulfatah.sabir', role: 'Partner' },
@@ -177,13 +176,12 @@ async function provision() {
       // Majestic Palms
       { projectId: 'prj-majestic-palms', userId: 'usr-mohamed-amoody', role: 'Partner' },
       { projectId: 'prj-majestic-palms', userId: 'usr-abdulfatah-sabir', role: 'Partner' },
-      { projectId: 'prj-majestic-palms', userId: 'usr-mohamed-majeed', role: 'Foreman' },
+      { projectId: 'prj-majestic-palms', userId: 'usr-mohamed-majeed', role: 'Storekeeper' },
       { projectId: 'prj-majestic-palms', userId: 'usr-daniel-arap', role: 'Foreman' },
       { projectId: 'prj-majestic-palms', userId: 'usr-salah-amir', role: 'Storekeeper' },
       { projectId: 'prj-majestic-palms', userId: 'usr-ali-amir', role: 'Storekeeper' },
       { projectId: 'prj-majestic-palms', userId: 'usr-talal-amir', role: 'Storekeeper' },
       { projectId: 'prj-majestic-palms', userId: 'usr-mohamed-ainen', role: 'Storekeeper' },
-      { projectId: 'prj-majestic-palms', userId: 'usr-brian-koome', role: 'Storekeeper' },
 
       // MMA
       { projectId: 'prj-mma', userId: 'usr-mohamed-amoody', role: 'Partner' },
