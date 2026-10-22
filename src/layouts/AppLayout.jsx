@@ -39,8 +39,8 @@ export const AppLayout = () => {
 
     const allowed = isRouteAllowedForRole(currentUser.role, location.pathname, assignedSiteId, currentUser, currentProject || selectedProjectId);
     if (!allowed) {
-      if (isLabourRestricted && location.pathname.startsWith('/labour')) {
-        addToast('Access restricted: Mohamed Hussein and Abdi Mahad do not have access to the labour section on SeaCrest.', 'warning');
+      if (isLabourRestricted && (location.pathname.startsWith('/labour') || location.pathname === '/equipment-report' || location.pathname === '/safety-delays')) {
+        addToast('Access restricted: Mohamed Hussein and Abdi Mahad do not have access to Labour, Equipment, or Safety & Delays on SeaCrest.', 'warning');
         navigate('/dashboard', { replace: true });
       } else if (isForeman) {
         addToast('Access restricted: Foremen can access Labour, Activity & Equipment, and PDF reports.', 'warning');

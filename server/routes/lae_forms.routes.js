@@ -45,6 +45,10 @@ const safeParseJson = (val, defaultVal = []) => {
 router.get('/', requireProjectAccess, async (req, res) => {
   const projectId = req.authorizedProjectId;
 
+  if (isLabourRestrictedUser(req.session.user, projectId)) {
+    return res.json([]);
+  }
+
   try {
     let query = `
       SELECT f.id, f.project_id, f.date, f.form_number, f.prepared_by_id, f.prepared_by_name,
@@ -131,6 +135,12 @@ router.get('/:id', async (req, res) => {
     // Check project authorization for non-global users
     const userRole = (req.session.user.role || '').toLowerCase();
     if (!['admin', 'director'].includes(userRole)) {
+      if (isLabourRestrictedUser(req.session.user, form.project_id)) {
+        return res.status(403).json({
+          error: 'Access restricted',
+          message: 'Mohamed Hussein and Abdi Mahad do not have access to the Labour, Equipment, or Safety section on SeaCrest.'
+        });
+      }
       const [assignments] = await pool.query(
         'SELECT id FROM project_user_assignments WHERE user_id = ? AND project_id = ?',
         [req.session.user.id, form.project_id]
@@ -609,10 +619,19 @@ router.delete('/:id', async (req, res) => {
   }
 
   try {
-    const [result] = await pool.query('DELETE FROM labour_activity_equipment_forms WHERE id = ?', [formId]);
-    if (result.affectedRows === 0) {
+    const [existing] = await pool.query('SELECT project_id FROM labour_activity_equipment_forms WHERE id = ?', [formId]);
+    if (existing.length === 0) {
       return res.status(404).json({ error: 'Form not found' });
     }
+
+    if (isLabourRestrictedUser(req.session.user, existing[0].project_id)) {
+      return res.status(403).json({
+        error: 'Access restricted',
+        message: 'Mohamed Hussein and Abdi Mahad do not have permission to delete forms on SeaCrest.'
+      });
+    }
+
+    const [result] = await pool.query('DELETE FROM labour_activity_equipment_forms WHERE id = ?', [formId]);
 
     await logAuditEvent(req, 'DELETE_LAE_FORM', 'lae_form', formId);
     res.json({ success: true, message: 'Form deleted successfully.' });

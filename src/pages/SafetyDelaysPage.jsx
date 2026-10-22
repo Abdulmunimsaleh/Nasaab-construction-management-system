@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import {
   ShieldAlert,
@@ -19,13 +20,15 @@ import {
   DollarSign,
   Download,
   Pencil,
-  Trash2
+  Trash2,
+  Lock
 } from 'lucide-react';
 import { formatKES } from '../utils/formatters';
 import { generateSafetyDelaysReportPDF } from '../utils/pdfGenerator';
 import api from '../services/api';
 
 export const SafetyDelaysPage = () => {
+  const navigate = useNavigate();
   const {
     laeForms,
     currentProject,
@@ -36,8 +39,29 @@ export const SafetyDelaysPage = () => {
     isAdmin,
     isDirector,
     isPartner,
+    isLabourRestricted,
     addToast
   } = useApp();
+
+  if (isLabourRestricted) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-100 text-rose-600 mb-4 shadow-sm">
+          <Lock className="h-8 w-8" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-900 tracking-tight">Safety & Delays Section Restricted</h2>
+        <p className="mt-2 text-sm text-slate-500 max-w-md">
+          Access to Safety, Delays & Site Visitors on the SeaCrest project site is restricted for your partner account.
+        </p>
+        <button
+          onClick={() => navigate('/dashboard')}
+          className="mt-6 inline-flex items-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 text-xs font-bold text-slate-950 hover:bg-amber-400 transition-colors shadow-sm cursor-pointer"
+        >
+          Return to Dashboard
+        </button>
+      </div>
+    );
+  }
 
   const [activeTab, setActiveTab] = useState('delays'); // 'delays' | 'safety' | 'visitors'
   const [searchTerm, setSearchTerm] = useState('');

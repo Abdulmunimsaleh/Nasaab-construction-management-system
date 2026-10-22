@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { formatKES } from '../utils/formatters';
 import { generateEquipmentReportPDF } from '../utils/pdfGenerator';
@@ -23,10 +24,12 @@ import {
   MapPin,
   Check,
   RotateCcw,
-  Receipt
+  Receipt,
+  Lock
 } from 'lucide-react';
 
 export const EquipmentReportPage = () => {
+  const navigate = useNavigate();
   const {
     laeForms,
     currentProject,
@@ -35,8 +38,29 @@ export const EquipmentReportPage = () => {
     projects,
     isDataLoading,
     companySettings,
+    isLabourRestricted,
     addToast
   } = useApp();
+
+  if (isLabourRestricted) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-100 text-rose-600 mb-4 shadow-sm">
+          <Lock className="h-8 w-8" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-900 tracking-tight">Equipment Section Restricted</h2>
+        <p className="mt-2 text-sm text-slate-500 max-w-md">
+          Access to the equipment and plant section on the SeaCrest project site is restricted for your partner account.
+        </p>
+        <button
+          onClick={() => navigate('/dashboard')}
+          className="mt-6 inline-flex items-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 text-xs font-bold text-slate-950 hover:bg-amber-400 transition-colors shadow-sm cursor-pointer"
+        >
+          Return to Dashboard
+        </button>
+      </div>
+    );
+  }
 
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);

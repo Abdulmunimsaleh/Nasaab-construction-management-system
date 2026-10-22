@@ -82,24 +82,12 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
     { type: 'link', label: 'Settings & Users', path: '/settings', icon: Settings },
   ];
 
-  // Partner navigation items (full project access, but restricted from Labour on SeaCrest)
+  // Partner navigation items (full project access, but restricted from entire Labour section on SeaCrest)
   const partnerNavItems = [
     { type: 'link', label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { type: 'link', label: 'My Projects', path: '/projects', icon: FolderKanban },
-    ...(isLabourRestricted
+    ...(!isLabourRestricted
       ? [
-          {
-            type: 'group',
-            label: 'Site Operations',
-            icon: Truck,
-            badge: 'Active',
-            children: [
-              { label: 'Equipment', path: '/equipment-report', icon: Truck },
-              { label: 'Safety & Delays', path: '/safety-delays', icon: ShieldAlert }
-            ]
-          }
-        ]
-      : [
           {
             type: 'group',
             label: 'Labour',
@@ -112,7 +100,8 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
               { label: 'Safety & Delays', path: '/safety-delays', icon: ShieldAlert }
             ]
           }
-        ]),
+        ]
+      : []),
     { type: 'link', label: 'Site Progress', path: '/activities', icon: TrendingUp },
     {
       type: 'group',

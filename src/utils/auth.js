@@ -142,9 +142,13 @@ export const canAccessAnyWeeklyReport = (role) => {
 
 // Helper: Check if user/role can access a specific route path
 export const isRouteAllowedForRole = (role, pathname, assignedProjectId = 'PRJ-001', user = null, currentProject = null) => {
-  // Check if Mohamed Hussein or Abdi Mahad accessing labour routes on SeaCrest
+  // Check if Mohamed Hussein or Abdi Mahad accessing labour, equipment, or safety routes on SeaCrest
   if (isUserRestrictedFromLabour(user, currentProject || assignedProjectId)) {
-    if (pathname.startsWith('/labour')) {
+    if (
+      pathname.startsWith('/labour') ||
+      pathname === '/equipment-report' ||
+      pathname === '/safety-delays'
+    ) {
       return false;
     }
   }
