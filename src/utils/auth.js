@@ -71,6 +71,11 @@ export const hasFullAccess = (role) => {
   return isAdminRole(role) || isDirectorRole(role);
 };
 
+// Helper: Check if role has multi-site switcher capability (Admin, Director, and Partner)
+export const canSwitchSites = (role) => {
+  return isAdminRole(role) || isDirectorRole(role) || isPartnerRole(role);
+};
+
 // Helper: Check if user/role can access or view financial costs
 // Only Admin, Director, and Partner can view costs.
 // Foremen and Storekeepers are strictly forbidden.

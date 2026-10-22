@@ -334,14 +334,15 @@ router.post('/switch-project', requireAuth, async (req, res) => {
   }
 
   const user = req.session.user;
-  const isGlobalRole = ['admin', 'director'].includes(user.role.toLowerCase());
+  const userRole = (user.role || '').toLowerCase();
+  const canSwitchToAll = ['admin', 'director', 'partner'].includes(userRole);
 
   try {
     if (projectId === 'all') {
-      if (!isGlobalRole) {
+      if (!canSwitchToAll) {
         return res.status(403).json({
           error: 'Forbidden',
-          message: 'Only Administrator and Director roles can switch to all projects combined view.'
+          message: 'Only Administrator, Director, and Partner roles can switch to all projects combined view.'
         });
       }
 
@@ -434,12 +435,14 @@ router.get('/me', requireAuth, async (req, res) => {
         FROM project_user_assignments pua
         JOIN projects p ON pua.project_id = p.id
         WHERE pua.user_id = ?
+        ORDER BY p.name ASC
       `, [dbUser.id]);
       accessibleProjects = assigned;
     }
 
     let activeProject = null;
-    if (req.session.activeProjectId === 'all' && isGlobal) {
+    const canViewAll = ['admin', 'director', 'partner'].includes(dbUser.role.toLowerCase());
+    if (req.session.activeProjectId === 'all' && canViewAll) {
       activeProject = { id: 'all', name: 'All Projects Combined', code: 'ALL', location: 'All Sites' };
     } else if (req.session.activeProjectId) {
       const [pRows] = await pool.query('SELECT id, name, code, location, status FROM projects WHERE id = ?', [req.session.activeProjectId]);

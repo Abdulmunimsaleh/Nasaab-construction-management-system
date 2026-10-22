@@ -36,6 +36,7 @@ export const Dashboard = () => {
     isStoreKeeper,
     isAdmin,
     isDirector,
+    isPartner,
     isDataLoading
   } = useApp();
 
@@ -68,8 +69,8 @@ export const Dashboard = () => {
 
       </div>
 
-      {/* Swift Site Switcher (Admin & Director) */}
-      {(isAdmin || isDirector) && (
+      {/* Swift Site Switcher (Admin, Director & Partner) */}
+      {(isAdmin || isDirector || isPartner) && (
         <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3.5 pb-3 border-b border-slate-100">
             <div className="flex items-center gap-2.5">

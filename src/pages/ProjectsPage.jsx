@@ -27,6 +27,7 @@ export const ProjectsPage = () => {
     isStoreKeeper,
     isAdmin,
     isDirector,
+    isPartner,
     hasFullAccess,
     laeForms,
     materialRequests,
@@ -86,8 +87,8 @@ export const ProjectsPage = () => {
         )}
       </div>
 
-      {/* Swift Site Switcher Bar (Admin & Director) */}
-      {(isAdmin || isDirector) && (
+      {/* Swift Site Switcher Bar (Admin, Director & Partner) */}
+      {(isAdmin || isDirector || isPartner) && (
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3 pb-2.5 border-b border-slate-100">
             <div className="flex items-center gap-2">
@@ -285,7 +286,7 @@ export const ProjectsPage = () => {
                   </div>
 
                   {/* Swift Site Switch Action */}
-                  {(isAdmin || isDirector || hasFullAccess) && (
+                  {(isAdmin || isDirector || isPartner || hasFullAccess) && (
                     <div>
                       {!isSelected ? (
                         <button

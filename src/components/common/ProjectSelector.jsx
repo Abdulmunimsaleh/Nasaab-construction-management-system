@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { hasFullAccess } from '../../utils/auth';
+import { hasFullAccess, canSwitchSites } from '../../utils/auth';
 import { Building2, ChevronDown, Check, Plus, FolderKanban } from 'lucide-react';
 
 export const ProjectSelector = ({ onOpenCreateProject }) => {
@@ -28,8 +28,9 @@ export const ProjectSelector = ({ onOpenCreateProject }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const canSwitchToAll = canSwitchSites(currentUser?.role);
   const isGlobalUser = hasFullAccess(currentUser?.role);
-  const availableProjects = isGlobalUser ? projects : (accessibleProjects.length > 0 ? accessibleProjects : projects);
+  const availableProjects = canSwitchToAll ? projects : (accessibleProjects.length > 0 ? accessibleProjects : projects);
 
   const assignedSiteId = isForeman ? (currentUser?.assignedProjectId || 'PRJ-001') : selectedProjectId;
   const currentProject = projects.find((p) => p.id === (isForeman ? assignedSiteId : selectedProjectId));
@@ -103,8 +104,8 @@ export const ProjectSelector = ({ onOpenCreateProject }) => {
           </div>
 
           <div className="mt-1 space-y-1 max-h-64 overflow-y-auto">
-            {/* All Projects Option — Admin & Director only */}
-            {isGlobalUser && (
+            {/* All Projects Option — Admin, Director & Partner */}
+            {canSwitchToAll && (
               <button
                 onClick={() => handleSelect('all')}
                 disabled={switchingId !== null}

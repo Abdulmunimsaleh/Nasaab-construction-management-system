@@ -9,6 +9,7 @@ import {
   isAdminRole,
   canAccessCosts,
   hasFullAccess,
+  canSwitchSites,
   normalizeRole
 } from '../utils/auth';
 
@@ -161,7 +162,7 @@ export const AppProvider = ({ children }) => {
           setCurrentUser(mappedUser);
           setAccessibleProjects(sessionData.accessibleProjects || []);
 
-          const initialPId = !hasFullAccess(normRole)
+          const initialPId = !canSwitchSites(normRole)
             ? (sessionData.activeProjectId || sessionData.accessibleProjects?.[0]?.id)
             : (sessionData.activeProjectId || 'all');
 
@@ -197,7 +198,7 @@ export const AppProvider = ({ children }) => {
     setCurrentUser(mappedUser);
     setAccessibleProjects(accessibleProjs);
 
-    const activePId = !hasFullAccess(normRole)
+    const activePId = !canSwitchSites(normRole)
       ? (activeProject?.id || accessibleProjs[0]?.id)
       : (activeProject?.id || 'all');
 
@@ -230,8 +231,8 @@ export const AppProvider = ({ children }) => {
       return;
     }
 
-    if (!hasFullAccess(currentUser?.role) && pId === 'all') {
-      addToast('Cross-project view is restricted to Administrators & Directors.', 'warning');
+    if (!canSwitchSites(currentUser?.role) && pId === 'all') {
+      addToast('Cross-project view is restricted to Administrators, Directors & Partners.', 'warning');
       return;
     }
 
@@ -239,6 +240,7 @@ export const AppProvider = ({ children }) => {
       setIsDataLoading(true);
       await api.auth.switchProject(pId);
       setSelectedProjectId(pId);
+      setCurrentUser((prev) => (prev ? { ...prev, assignedProjectId: pId } : null));
       await loadProjectData(pId, currentUser?.role);
 
       const targetProj = pId === 'all' ? null : projects.find((p) => p.id === pId);

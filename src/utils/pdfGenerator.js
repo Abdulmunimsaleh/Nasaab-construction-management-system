@@ -91,7 +91,7 @@ export const generateLaeFormPDF = ({
   doc.setTextColor(203, 213, 225);
   doc.text(companySettings?.ncaRegistration || 'NCA 1 - Building & Civil Engineering Works', 14, 21);
   doc.text(`${companySettings?.address || 'Mombasa, Kenya'} | Tel: ${companySettings?.phone || '+254 700 000 000'}`, 14, 26);
-  doc.text(`Official Daily Site Diary • Labour, Activity & Equipment Record`, 14, 31);
+  doc.text(`Official Daily Site Diary • Daily Labour Record`, 14, 31);
 
   currentY = 46;
 
@@ -99,7 +99,7 @@ export const generateLaeFormPDF = ({
   doc.setTextColor(...PRIMARY_COLOR);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
-  doc.text('LABOUR, ACTIVITY & EQUIPMENT FIELD REPORT', 14, currentY);
+  doc.text('LABOUR DAILY REPORT', 14, currentY);
 
   currentY += 6;
   doc.setFont('helvetica', 'normal');
@@ -118,10 +118,9 @@ export const generateLaeFormPDF = ({
   doc.setFontSize(7.5);
   doc.setTextColor(...MUTED_COLOR);
   doc.text('FORM REFERENCE', 18, currentY + 6);
-  doc.text('REPORT DATE & DAY', 58, currentY + 6);
-  doc.text('SITE PROGRESS', 106, currentY + 6);
-  doc.text('PREPARED BY', 142, currentY + 6);
-  doc.text('STATUS', 174, currentY + 6);
+  doc.text('REPORT DATE & DAY', 65, currentY + 6);
+  doc.text('PREPARED BY', 122, currentY + 6);
+  doc.text('STATUS', 172, currentY + 6);
 
   const rawLaeDate = form.date || form.reportDate || formatDate(new Date());
   const laeDay = getDayOfWeek(rawLaeDate);
@@ -130,13 +129,9 @@ export const generateLaeFormPDF = ({
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...PRIMARY_COLOR);
   doc.text(form.form_number || 'LAE-RECORD', 18, currentY + 12);
-  doc.text(displayLaeDate, 58, currentY + 12);
-  const progressVal = form.estimated_site_progress !== undefined ? form.estimated_site_progress : (form.estimatedSiteProgress || 0);
-  doc.setTextColor(5, 150, 105); // Emerald-600
-  doc.text(`${progressVal}% Completed`, 106, currentY + 12);
-  doc.setTextColor(...PRIMARY_COLOR);
-  doc.text(form.prepared_by_name || author?.name || 'Site Foreman', 142, currentY + 12);
-  doc.text(String(form.status || 'Submitted').toUpperCase(), 174, currentY + 12);
+  doc.text(displayLaeDate, 65, currentY + 12);
+  doc.text(form.prepared_by_name || author?.name || 'Site Foreman', 122, currentY + 12);
+  doc.text(String(form.status || 'Submitted').toUpperCase(), 172, currentY + 12);
 
   currentY += 25;
 
@@ -230,146 +225,7 @@ export const generateLaeFormPDF = ({
 
   currentY += 19;
 
-  // SECTION 2: WORK ACTIVITIES & PROGRESS (DEDICATED TABLE)
-  if (currentY > 220) {
-    doc.addPage();
-    currentY = 20;
-  }
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(...ACCENT_COLOR);
-  doc.text('2. SITE WORK ACTIVITIES & DAILY PROGRESS', 14, currentY);
-  currentY += 3;
-
-  const activityRows = [];
-  labourItems.forEach((item) => {
-    const workDone = (item.work_done_today || item.workDoneToday || item.notes || '').trim();
-    const workPlan = (item.work_plan_tomorrow || item.workPlanTomorrow || '').trim();
-    const fCount = Number(item.foreman_count !== undefined ? item.foreman_count : item.foremanCount) || 0;
-    const sCount = Number(item.skilled_count !== undefined ? item.skilled_count : item.skilledCount) || 0;
-    const uCount = Number(item.unskilled_count !== undefined ? item.unskilled_count : item.unskilledCount) || 0;
-    const headcount = fCount + sCount + uCount || Number(item.number_of_workers) || 0;
-
-    if (workDone || workPlan) {
-      activityRows.push([
-        item.trade || 'General Trade',
-        `${headcount} Workers`,
-        workDone || 'Work executed according to daily schedule',
-        workPlan || 'Continuing planned trade scope'
-      ]);
-    }
-  });
-
-  if (Array.isArray(form.activityItems) && form.activityItems.length > 0) {
-    form.activityItems.forEach((act) => {
-      activityRows.push([
-        act.activity_description || 'Site Milestone',
-        act.location_or_zone || 'Site Zone',
-        `${act.progress_percentage || 0}% Completed • ${act.status || 'In Progress'}`,
-        act.remarks || '—'
-      ]);
-    });
-  }
-
-  autoTable(doc, {
-    startY: currentY,
-    head: [['Trade / Section', 'Assigned Crew', 'Work Completed Today', 'Work Plan Tomorrow']],
-    body: activityRows.length > 0 ? activityRows : [['All Active Trades', `${totalWorkers} Workers`, 'Daily work carried out across active site zones', 'Progress continuation per site plan']],
-    theme: 'grid',
-    styles: { fontSize: 7.5, cellPadding: 2.5, overflow: 'linebreak' },
-    headStyles: { fillColor: PRIMARY_COLOR, textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
-    columnStyles: {
-      0: { cellWidth: 38, fontStyle: 'bold' },
-      1: { cellWidth: 22, halign: 'center' },
-      2: { cellWidth: 62 },
-      3: { cellWidth: 60 }
-    },
-    margin: { left: 14, right: 14 }
-  });
-
-  currentY = doc.lastAutoTable.finalY + 8;
-
-  // SECTION 3: MACHINERY & EQUIPMENT
-  if (currentY > 225) {
-    doc.addPage();
-    currentY = 20;
-  }
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(...ACCENT_COLOR);
-  doc.text('3. MACHINERY & EQUIPMENT EXPENSES', 14, currentY);
-  currentY += 3;
-
-  const equipmentItems = form.equipmentItems || [];
-  let totalEquipmentExpense = 0;
-
-  const equipmentRows = equipmentItems.map((eq) => {
-    const fuel = Number(eq.fuel_cost !== undefined ? eq.fuel_cost : eq.fuelCost) || 0;
-    const operator = Number(eq.operator_cost !== undefined ? eq.operator_cost : eq.operatorCost) || 0;
-    const repair = Number(eq.repair_cost !== undefined ? eq.repair_cost : eq.repairCost) || 0;
-    const mechanic = Number(eq.mechanic_cost !== undefined ? eq.mechanic_cost : eq.mechanicCost) || 0;
-    const transport = Number(eq.transport_cost !== undefined ? eq.transport_cost : eq.transportCost) || 0;
-    const totalExp = eq.total_expense !== undefined && eq.total_expense !== null && Number(eq.total_expense) > 0
-      ? Number(eq.total_expense)
-      : (fuel + operator + repair + mechanic + transport);
-
-    totalEquipmentExpense += totalExp;
-
-    const status = eq.operating_status || eq.operatingStatus || eq.status || 'Active';
-    const notes = eq.machine_notes || eq.machineNotes || eq.remarks || '—';
-
-    return [
-      eq.equipment_name || eq.equipmentName || 'Equipment Item',
-      String(status).toUpperCase(),
-      fuel ? `KES ${fuel.toLocaleString()}` : '0',
-      operator ? `KES ${operator.toLocaleString()}` : '0',
-      repair ? `KES ${repair.toLocaleString()}` : '0',
-      mechanic ? `KES ${mechanic.toLocaleString()}` : '0',
-      transport ? `KES ${transport.toLocaleString()}` : '0',
-      `KES ${totalExp.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      notes
-    ];
-  });
-
-  autoTable(doc, {
-    startY: currentY,
-    head: [['Equipment Item', 'Status', 'Fuel', 'Operator', 'Repair/Spares', 'Mechanic', 'Transport', 'Total Expense', 'Notes / Hours']],
-    body: equipmentRows.length > 0 ? equipmentRows : [['No machinery or equipment recorded', '—', '0', '0', '0', '0', '0', 'KES 0.00', '—']],
-    theme: 'grid',
-    styles: { fontSize: 7, cellPadding: 2, overflow: 'linebreak' },
-    headStyles: { fillColor: PRIMARY_COLOR, textColor: 255, fontStyle: 'bold', fontSize: 6.8 },
-    columnStyles: {
-      0: { cellWidth: 32, fontStyle: 'bold' },
-      1: { cellWidth: 16, halign: 'center' },
-      2: { cellWidth: 15, halign: 'right' },
-      3: { cellWidth: 15, halign: 'right' },
-      4: { cellWidth: 17, halign: 'right' },
-      5: { cellWidth: 15, halign: 'right' },
-      6: { cellWidth: 15, halign: 'right' },
-      7: { cellWidth: 24, halign: 'right', fontStyle: 'bold' },
-      8: { cellWidth: 33 }
-    },
-    margin: { left: 14, right: 14 }
-  });
-
-  currentY = doc.lastAutoTable.finalY + 3;
-
-  // Equipment total bar
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(14, currentY, 182, 8, 1, 1, 'F');
-  doc.setDrawColor(...BORDER_COLOR);
-  doc.roundedRect(14, currentY, 182, 8, 1, 1, 'D');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(...PRIMARY_COLOR);
-  doc.text(`TOTAL EQUIPMENT UNITS: ${equipmentItems.length}`, 18, currentY + 5.5);
-  doc.text(`TOTAL MACHINERY & EQUIPMENT EXPENSE: KES ${totalEquipmentExpense.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 192, currentY + 5.5, { align: 'right' });
-
-  currentY += 14;
-
-  // SECTION 4: DELAYS, INCIDENTS, VISITORS
+  // SECTION 2: DELAYS, INCIDENTS, VISITORS
   const delays = form.delays_issues_incidents || form.delaysIssuesIncidents;
   const visitors = form.site_visitors || form.siteVisitors;
   const notes = form.general_notes || form.generalNotes;
@@ -383,7 +239,7 @@ export const generateLaeFormPDF = ({
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
     doc.setTextColor(...ACCENT_COLOR);
-    doc.text('4. SITE OBSERVATIONS, INCIDENTS & VISITORS', 14, currentY);
+    doc.text('2. SITE OBSERVATIONS, INCIDENTS & VISITORS', 14, currentY);
     currentY += 5;
 
     if (delays) {
@@ -446,7 +302,7 @@ export const generateLaeFormPDF = ({
     }
   }
 
-  // SECTION 5: SITE PHOTOS & FIELD EVIDENCE
+  // SECTION 3: SITE PHOTOS & FIELD EVIDENCE
   const rawPhotos = Array.isArray(form.site_photos)
     ? form.site_photos
     : (typeof form.site_photos === 'string' ? JSON.parse(form.site_photos || '[]') : (form.sitePhotos || []));
@@ -461,7 +317,7 @@ export const generateLaeFormPDF = ({
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
     doc.setTextColor(...ACCENT_COLOR);
-    doc.text(`5. SITE FIELD PHOTOS & VISUAL EVIDENCE (${validPhotos.length})`, 14, currentY);
+    doc.text(`3. SITE FIELD PHOTOS & VISUAL EVIDENCE (${validPhotos.length})`, 14, currentY);
     currentY += 5;
 
     const imgWidth = 87;

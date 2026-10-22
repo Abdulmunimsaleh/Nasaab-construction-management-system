@@ -50,6 +50,7 @@ export const ReportsPage = () => {
     isAdmin,
     isDirector,
     isPartner,
+    selectedProjectId: globalProjectId,
     addToast
   } = useApp();
 
@@ -61,8 +62,14 @@ export const ReportsPage = () => {
 
   // 2. Project Site Selection
   const [selectedProjectId, setSelectedProjectId] = useState(
-    currentUser?.assignedProjectId || projects[0]?.id || ''
+    (globalProjectId && globalProjectId !== 'all' ? globalProjectId : (currentUser?.assignedProjectId || projects[0]?.id || ''))
   );
+
+  useEffect(() => {
+    if (globalProjectId && globalProjectId !== 'all') {
+      setSelectedProjectId(globalProjectId);
+    }
+  }, [globalProjectId]);
 
   // 3. Weekly Report Categories:
   // - 'full': Admin, Director, Partner only

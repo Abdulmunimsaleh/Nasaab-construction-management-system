@@ -279,7 +279,7 @@ export const ProjectDetailPage = () => {
 
         <div className="flex flex-wrap items-center gap-2">
           {/* Swift Site Workspace Status & Action */}
-          {(isAdmin || isDirector || hasFullAccess) && (
+          {(isAdmin || isDirector || isPartner || hasFullAccess) && (
             selectedProjectId === project.id ? (
               <div className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-bold text-emerald-800">
                 <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
