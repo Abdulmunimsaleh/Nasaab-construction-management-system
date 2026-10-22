@@ -89,6 +89,7 @@ export const ProjectFinancialOverview = () => {
   const [safetyList, setSafetyList] = useState([]);
 
   useEffect(() => {
+    if (isForeman || isStoreKeeper) return;
     let isMounted = true;
     const loadFinancials = async () => {
       try {
@@ -123,7 +124,12 @@ export const ProjectFinancialOverview = () => {
 
     loadFinancials();
     return () => { isMounted = false; };
-  }, [selectedProjectId]);
+  }, [selectedProjectId, isForeman, isStoreKeeper]);
+
+  // If foreman or storekeeper, do not render this overview
+  if (isForeman || isStoreKeeper) {
+    return null;
+  }
 
   // Scoped funds for the active project
   const scopedFunds = useMemo(() => {
@@ -160,21 +166,50 @@ export const ProjectFinancialOverview = () => {
 
   // Stream 1: Subcontract Piece Work Expenses (from DB payments & agreements)
   const subcontractExpense = useMemo(() => {
-    let total = 0;
-    // Calculate from payments first
-    if (Array.isArray(subPayments) && subPayments.length > 0) {
-      subPayments.forEach((pay) => {
-        if (selectedProjectId === 'all' || pay.projectId === selectedProjectId || pay.project_id === selectedProjectId) {
-          total += Number(pay.amount) || 0;
-        }
+    const projectFilter = (item) => {
+      if (!selectedProjectId || selectedProjectId === 'all') return true;
+      const pId = item.projectId || item.project_id;
+      return String(pId) === String(selectedProjectId);
+    };
+
+    const agreementsForProject = Array.isArray(subAgreements) ? subAgreements.filter(projectFilter) : [];
+    const paymentsForProject = Array.isArray(subPayments) ? subPayments.filter(projectFilter) : [];
+
+    // Map payments by agreement id / contract id
+    const paymentSumsByAgreement = {};
+    let unlinkedPaymentsSum = 0;
+
+    paymentsForProject.forEach((pay) => {
+      // payment records store paidThisWeek / paid_this_week / amount
+      const amt = Number(pay.paidThisWeek ?? pay.paid_this_week ?? pay.amount ?? 0);
+      const agId = pay.agreementId || pay.agreement_id;
+      if (agId) {
+        paymentSumsByAgreement[agId] = (paymentSumsByAgreement[agId] || 0) + amt;
+      } else {
+        unlinkedPaymentsSum += amt;
+      }
+    });
+
+    let total = unlinkedPaymentsSum;
+
+    if (agreementsForProject.length > 0) {
+      agreementsForProject.forEach((ag) => {
+        const agKey1 = ag.id;
+        const agKey2 = ag.contractId || ag.contract_id;
+        const paymentsTotal = (paymentSumsByAgreement[agKey1] || 0) + (agKey2 && agKey2 !== agKey1 ? (paymentSumsByAgreement[agKey2] || 0) : 0);
+        const agreementPaid = Number(ag.totalPaid ?? ag.total_paid ?? 0);
+        // Take the highest accurate logged disbursement for each agreement
+        total += Math.max(paymentsTotal, agreementPaid);
       });
-    } else if (Array.isArray(subAgreements) && subAgreements.length > 0) {
-      subAgreements.forEach((ag) => {
-        if (selectedProjectId === 'all' || ag.projectId === selectedProjectId || ag.project_id === selectedProjectId) {
-          total += Number(ag.totalPaid || ag.total_paid) || 0;
-        }
+    } else {
+      // Fallback if no agreements are in memory but payment records exist
+      let sumPayments = 0;
+      paymentsForProject.forEach((pay) => {
+        sumPayments += Number(pay.paidThisWeek ?? pay.paid_this_week ?? pay.amount ?? 0);
       });
+      total = sumPayments;
     }
+
     return total;
   }, [selectedProjectId, subPayments, subAgreements]);
 

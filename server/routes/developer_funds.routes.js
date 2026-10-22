@@ -12,9 +12,19 @@ import crypto from 'crypto';
 import pool from '../db.js';
 import { requireAuth, requireProjectAccess, logAuditEvent } from '../middleware/auth.js';
 
-const router = express.Router();
-
 router.use(requireAuth);
+
+// Security: Foremen and Storekeepers are strictly forbidden from developer funds
+router.use((req, res, next) => {
+  const role = (req.session?.user?.role || '').toLowerCase();
+  if (['foreman', 'storekeeper'].includes(role)) {
+    return res.status(403).json({
+      error: 'Module restricted',
+      message: 'Foremen and storekeepers are not authorized to access developer funds.'
+    });
+  }
+  next();
+});
 
 /**
  * GET /api/developer-funds

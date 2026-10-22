@@ -34,21 +34,32 @@ router.get('/', requireProjectAccess, async (req, res) => {
 
     const [rows] = await pool.query(query, params);
 
-    res.json(rows.map(r => ({
-      id: r.id,
-      expenseId: r.expense_id,
-      projectId: r.project_id,
-      projectName: r.project_name,
-      date: r.date,
-      description: r.description,
-      supplier: r.supplier,
-      quantity: r.quantity,
-      amount: Number(r.amount || 0),
-      category: r.category,
-      invoiceRef: r.invoice_ref,
-      status: r.status,
-      createdAt: r.created_at
-    })));
+    res.json(rows.map(r => {
+      let receiptPhotos = [];
+      if (r.receipt_photos) {
+        try {
+          receiptPhotos = typeof r.receipt_photos === 'string' ? JSON.parse(r.receipt_photos) : r.receipt_photos;
+        } catch (e) {
+          receiptPhotos = [];
+        }
+      }
+      return {
+        id: r.id,
+        expenseId: r.expense_id,
+        projectId: r.project_id,
+        projectName: r.project_name,
+        date: r.date,
+        description: r.description,
+        supplier: r.supplier,
+        quantity: r.quantity,
+        amount: Number(r.amount || 0),
+        category: r.category,
+        invoiceRef: r.invoice_ref,
+        status: r.status,
+        receiptPhotos: Array.isArray(receiptPhotos) ? receiptPhotos : [],
+        createdAt: r.created_at
+      };
+    }));
   } catch (err) {
     console.error('Failed to get material expenses:', err);
     res.status(500).json({ error: 'Failed to retrieve material expenses', detail: err.message });
@@ -79,15 +90,17 @@ router.post('/', requireProjectAccess, async (req, res) => {
       const category = exp.category || 'General Materials';
       const invoiceRef = exp.invoiceRef || `INV-${Math.floor(1000 + Math.random() * 9000)}`;
       const status = exp.status || 'Verified';
+      const receiptPhotos = exp.receiptPhotos || exp.photos || [];
+      const receiptPhotosStr = Array.isArray(receiptPhotos) ? JSON.stringify(receiptPhotos) : (typeof receiptPhotos === 'string' ? receiptPhotos : '[]');
 
       await pool.query(`
         INSERT INTO material_expenses (
           id, expense_id, project_id, date, description, supplier,
-          quantity, amount, category, invoice_ref, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          quantity, amount, category, invoice_ref, status, receipt_photos
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
         id, expenseId, targetProjectId, date, description, supplier,
-        quantity, amount, category, invoiceRef, status
+        quantity, amount, category, invoiceRef, status, receiptPhotosStr
       ]);
 
       inserted.push({
@@ -101,7 +114,8 @@ router.post('/', requireProjectAccess, async (req, res) => {
         amount,
         category,
         invoiceRef,
-        status
+        status,
+        receiptPhotos: Array.isArray(receiptPhotos) ? receiptPhotos : []
       });
     }
 
@@ -120,6 +134,10 @@ router.put('/:id', requireProjectAccess, async (req, res) => {
   const { id } = req.params;
   const b = req.body;
   try {
+    const receiptPhotosStr = b.receiptPhotos !== undefined
+      ? (Array.isArray(b.receiptPhotos) ? JSON.stringify(b.receiptPhotos) : String(b.receiptPhotos))
+      : null;
+
     await pool.query(`
       UPDATE material_expenses SET
         date = COALESCE(?, date),
@@ -129,7 +147,8 @@ router.put('/:id', requireProjectAccess, async (req, res) => {
         amount = COALESCE(?, amount),
         category = COALESCE(?, category),
         invoice_ref = COALESCE(?, invoice_ref),
-        status = COALESCE(?, status)
+        status = COALESCE(?, status),
+        receipt_photos = COALESCE(?, receipt_photos)
       WHERE id = ?
     `, [
       b.date,
@@ -140,6 +159,7 @@ router.put('/:id', requireProjectAccess, async (req, res) => {
       b.category,
       b.invoiceRef,
       b.status,
+      receiptPhotosStr,
       id
     ]);
 

@@ -410,9 +410,16 @@ export async function initPostgresSchema(pool) {
       category VARCHAR(100) DEFAULT NULL,
       invoice_ref VARCHAR(100) DEFAULT NULL,
       status VARCHAR(50) DEFAULT 'Verified',
+      receipt_photos TEXT DEFAULT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
   `);
+
+  try {
+    await pool.query('ALTER TABLE material_expenses ADD COLUMN IF NOT EXISTS receipt_photos TEXT DEFAULT NULL');
+  } catch (err) {
+    // ignore if already added
+  }
 
   console.log('✅ PostgreSQL tables verified.');
 

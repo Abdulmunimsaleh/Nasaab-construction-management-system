@@ -25,7 +25,10 @@ import {
   Calendar,
   Layers,
   Package,
-  Download
+  Download,
+  Camera,
+  Upload,
+  Image as ImageIcon
 } from 'lucide-react';
 import { generateMaterialExpensesReportPDF } from '../utils/pdfGenerator';
 import api from '../services/api';
@@ -90,10 +93,13 @@ export const MaterialExpensesPage = () => {
   // Load live funds and material expenses from database
   const loadDatabaseExpenses = async () => {
     try {
-      const [funds, expenses] = await Promise.all([
-        api.developerFunds.getAll(selectedProjectId),
-        api.materialExpenses.getAll(selectedProjectId)
-      ]);
+      const promises = [api.materialExpenses.getAll(selectedProjectId)];
+      if (!isStoreKeeper) {
+        promises.push(api.developerFunds.getAll(selectedProjectId).catch(() => []));
+      }
+      const results = await Promise.all(promises);
+      const expenses = results[0];
+      const funds = results[1] || [];
       setFundsList(Array.isArray(funds) ? funds : []);
       setExpensesList(Array.isArray(expenses) ? expenses : []);
     } catch (err) {
@@ -220,6 +226,17 @@ export const MaterialExpensesPage = () => {
   const [editingExpense, setEditingExpense] = useState(null);
   const [deletingExpense, setDeletingExpense] = useState(null);
   const [viewingReceipt, setViewingReceipt] = useState(null);
+  const [previewPhoto, setPreviewPhoto] = useState(null);
+
+  // File to Base64 utility
+  const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = (error) => reject(error);
+    });
+  };
 
   // Forms State
   const defaultTargetProjectId =
@@ -245,8 +262,44 @@ export const MaterialExpensesPage = () => {
     quantity: '',
     amount: '',
     category: 'Casting Materials',
-    invoiceRef: ''
+    invoiceRef: '',
+    receiptPhotos: []
   });
+
+  // Handle Receipt/Delivery Note photo uploads
+  const handleReceiptPhotoUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    try {
+      const newPhotos = await Promise.all(
+        files.map(async (file) => {
+          const dataUrl = await fileToBase64(file);
+          return {
+            id: `rec-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            name: file.name,
+            url: dataUrl
+          };
+        })
+      );
+
+      setExpenseForm((prev) => ({
+        ...prev,
+        receiptPhotos: [...(prev.receiptPhotos || []), ...newPhotos]
+      }));
+      addToast && addToast(`${newPhotos.length} photo(s) attached!`, 'success');
+    } catch (err) {
+      addToast && addToast('Failed to process image attachment', 'error');
+    }
+    e.target.value = '';
+  };
+
+  const handleRemoveReceiptPhoto = (photoIndex) => {
+    setExpenseForm((prev) => ({
+      ...prev,
+      receiptPhotos: (prev.receiptPhotos || []).filter((_, idx) => idx !== photoIndex)
+    }));
+  };
 
   // Sync modal default target project with selectedProjectId
   useEffect(() => {
@@ -397,7 +450,8 @@ export const MaterialExpensesPage = () => {
       quantity: '',
       amount: '',
       category: 'Casting Materials',
-      invoiceRef: `INV-${Math.floor(1000 + Math.random() * 9000)}`
+      invoiceRef: `INV-${Math.floor(1000 + Math.random() * 9000)}`,
+      receiptPhotos: []
     });
     setIsAddExpenseOpen(true);
   };
@@ -422,6 +476,7 @@ export const MaterialExpensesPage = () => {
       amount: Number(expenseForm.amount),
       category: expenseForm.category || 'General',
       invoiceRef: expenseForm.invoiceRef.trim() || 'INV-DIRECT',
+      receiptPhotos: expenseForm.receiptPhotos || [],
       status: 'Verified'
     };
 
@@ -453,7 +508,8 @@ export const MaterialExpensesPage = () => {
       quantity: expense.quantity,
       amount: expense.amount,
       category: cat || 'Casting Materials',
-      invoiceRef: expense.invoiceRef
+      invoiceRef: expense.invoiceRef || '',
+      receiptPhotos: Array.isArray(expense.receiptPhotos) ? [...expense.receiptPhotos] : []
     });
   };
 
@@ -465,31 +521,29 @@ export const MaterialExpensesPage = () => {
       return;
     }
 
+    const assignedProj = projects.find((p) => p.id === expenseForm.projectId);
+    const updatedData = {
+      projectId: expenseForm.projectId,
+      projectName: assignedProj?.name || editingExpense.projectName,
+      date: expenseForm.date,
+      description: expenseForm.description.trim(),
+      supplier: expenseForm.supplier.trim(),
+      quantity: expenseForm.quantity.trim(),
+      amount: Number(expenseForm.amount),
+      category: expenseForm.category,
+      invoiceRef: expenseForm.invoiceRef.trim(),
+      receiptPhotos: expenseForm.receiptPhotos || []
+    };
+
     try {
-      await api.materialExpenses.update(editingExpense.id, {
-        date: expenseForm.date,
-        description: expenseForm.description.trim(),
-        supplier: expenseForm.supplier.trim(),
-        quantity: expenseForm.quantity.trim(),
-        amount: Number(expenseForm.amount),
-        category: expenseForm.category,
-        invoiceRef: expenseForm.invoiceRef.trim()
-      });
+      await api.materialExpenses.update(editingExpense.id, updatedData);
       setExpensesList((prev) =>
         prev.map((e) =>
           e.id === editingExpense.id
             ? {
               ...e,
-              projectId: expenseForm.projectId,
-              projectName: assignedProj?.name || e.projectName,
-              expenseId: expenseForm.expenseId,
-              date: expenseForm.date,
-              description: expenseForm.description.trim(),
-              supplier: expenseForm.supplier.trim(),
-              quantity: expenseForm.quantity.trim(),
-              amount: Number(expenseForm.amount),
-              category: expenseForm.category,
-              invoiceRef: expenseForm.invoiceRef.trim()
+              ...updatedData,
+              expenseId: expenseForm.expenseId
             }
             : e
         )
@@ -585,86 +639,152 @@ export const MaterialExpensesPage = () => {
       </div>
 
       {/* ------------------------------------------------------------- */}
-      {/* 2. TOP STATS CARDS (GRID OF 4)                                */}
+      {/* 2. TOP STATS CARDS                                            */}
       {/* ------------------------------------------------------------- */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Funds Received */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-4.5 shadow-2xs flex items-center gap-4 transition-all hover:shadow-xs">
-          <div className="h-12 w-12 rounded-xl bg-amber-50 border border-amber-100/80 flex items-center justify-center text-amber-500 shrink-0">
-            <Coins className="h-6 w-6" />
-          </div>
-          <div>
-            <div className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">
-              Total Funds Received
+      {isStoreKeeper ? (
+        /* Storekeeper Scope: Material purchases & stores inventory tracking metrics only (Developer funds hidden) */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-4.5 shadow-2xs flex items-center gap-4 transition-all hover:shadow-xs">
+            <div className="h-12 w-12 rounded-xl bg-amber-50 border border-amber-100/80 flex items-center justify-center text-amber-500 shrink-0">
+              <ShoppingCart className="h-6 w-6" />
             </div>
-            <div className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-0.5 font-mono">
-              {formatKSh(metrics.totalFundsReceived)}
+            <div>
+              <div className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">
+                Total Material Expenses
+              </div>
+              <div className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-0.5 font-mono">
+                {formatKSh(metrics.totalMaterialExpenses)}
+              </div>
+              <div className="text-[11px] text-slate-400 mt-0.5">Purchases spent</div>
             </div>
-            <div className="text-[11px] text-slate-400 mt-0.5">Initial + Additional</div>
           </div>
-        </div>
 
-        {/* Total Material Expenses */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-4.5 shadow-2xs flex items-center gap-4 transition-all hover:shadow-xs">
-          <div className="h-12 w-12 rounded-xl bg-amber-50 border border-amber-100/80 flex items-center justify-center text-amber-500 shrink-0">
-            <ShoppingCart className="h-6 w-6" />
-          </div>
-          <div>
-            <div className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">
-              Total Material Expenses
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-4.5 shadow-2xs flex items-center gap-4 transition-all hover:shadow-xs">
+            <div className="h-12 w-12 rounded-xl bg-indigo-50 border border-indigo-100/80 flex items-center justify-center text-indigo-500 shrink-0">
+              <Receipt className="h-6 w-6" />
             </div>
-            <div className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-0.5 font-mono">
-              {formatKSh(metrics.totalMaterialExpenses)}
+            <div>
+              <div className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">
+                Transactions Logged
+              </div>
+              <div className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-0.5 font-mono">
+                {siteExpenses.length}
+              </div>
+              <div className="text-[11px] text-slate-400 mt-0.5">Purchases recorded</div>
             </div>
-            <div className="text-[11px] text-slate-400 mt-0.5">Spent on materials</div>
           </div>
-        </div>
 
-        {/* Available Balance */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-4.5 shadow-2xs flex items-center gap-4 transition-all hover:shadow-xs">
-          <div className="h-12 w-12 rounded-xl bg-emerald-50 border border-emerald-100/80 flex items-center justify-center text-emerald-500 shrink-0">
-            <Banknote className="h-6 w-6" />
-          </div>
-          <div>
-            <div className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">
-              Available Balance
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-4.5 shadow-2xs flex items-center gap-4 transition-all hover:shadow-xs">
+            <div className="h-12 w-12 rounded-xl bg-emerald-50 border border-emerald-100/80 flex items-center justify-center text-emerald-500 shrink-0">
+              <Check className="h-6 w-6 stroke-[2.5]" />
             </div>
-            <div className="text-xl sm:text-2xl font-extrabold text-emerald-600 mt-0.5 font-mono">
-              {formatKSh(metrics.availableBalance)}
+            <div>
+              <div className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">
+                Verified Deliveries
+              </div>
+              <div className="text-xl sm:text-2xl font-extrabold text-emerald-600 mt-0.5 font-mono">
+                {siteExpenses.filter(e => e.status === 'Verified').length}
+              </div>
+              <div className="text-[11px] text-slate-400 mt-0.5">Invoices & delivery notes</div>
             </div>
-            <div className="text-[11px] text-slate-400 mt-0.5">Remaining funds</div>
           </div>
-        </div>
 
-        {/* Initial Funds Received */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-4.5 shadow-2xs flex items-center gap-4 transition-all hover:shadow-xs">
-          <div className="h-12 w-12 rounded-xl bg-amber-50 border border-amber-100/80 flex items-center justify-center text-amber-500 shrink-0">
-            <Landmark className="h-6 w-6" />
-          </div>
-          <div>
-            <div className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">
-              Initial Funds Received
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-4.5 shadow-2xs flex items-center gap-4 transition-all hover:shadow-xs">
+            <div className="h-12 w-12 rounded-xl bg-amber-50 border border-amber-100/80 flex items-center justify-center text-amber-500 shrink-0">
+              <Layers className="h-6 w-6" />
             </div>
-            <div className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-0.5 font-mono">
-              {formatKSh(metrics.initialFunds)}
+            <div>
+              <div className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">
+                Material Categories
+              </div>
+              <div className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-0.5 font-mono">
+                {categories.length}
+              </div>
+              <div className="text-[11px] text-slate-400 mt-0.5">Procurement types</div>
             </div>
-            <div className="text-[11px] text-slate-400 mt-0.5">From developer</div>
           </div>
         </div>
-      </div>
+      ) : (
+        /* Full Financial Overview: Developer Funds & Balance for Admin, Director, and Partners */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Total Funds Received */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-4.5 shadow-2xs flex items-center gap-4 transition-all hover:shadow-xs">
+            <div className="h-12 w-12 rounded-xl bg-amber-50 border border-amber-100/80 flex items-center justify-center text-amber-500 shrink-0">
+              <Coins className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">
+                Total Funds Received
+              </div>
+              <div className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-0.5 font-mono">
+                {formatKSh(metrics.totalFundsReceived)}
+              </div>
+              <div className="text-[11px] text-slate-400 mt-0.5">Initial + Additional</div>
+            </div>
+          </div>
+
+          {/* Total Material Expenses */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-4.5 shadow-2xs flex items-center gap-4 transition-all hover:shadow-xs">
+            <div className="h-12 w-12 rounded-xl bg-amber-50 border border-amber-100/80 flex items-center justify-center text-amber-500 shrink-0">
+              <ShoppingCart className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">
+                Total Material Expenses
+              </div>
+              <div className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-0.5 font-mono">
+                {formatKSh(metrics.totalMaterialExpenses)}
+              </div>
+              <div className="text-[11px] text-slate-400 mt-0.5">Spent on materials</div>
+            </div>
+          </div>
+
+          {/* Available Balance */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-4.5 shadow-2xs flex items-center gap-4 transition-all hover:shadow-xs">
+            <div className="h-12 w-12 rounded-xl bg-emerald-50 border border-emerald-100/80 flex items-center justify-center text-emerald-500 shrink-0">
+              <Banknote className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">
+                Available Balance
+              </div>
+              <div className="text-xl sm:text-2xl font-extrabold text-emerald-600 mt-0.5 font-mono">
+                {formatKSh(metrics.availableBalance)}
+              </div>
+              <div className="text-[11px] text-slate-400 mt-0.5">Remaining funds</div>
+            </div>
+          </div>
+
+          {/* Initial Funds Received */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-4.5 shadow-2xs flex items-center gap-4 transition-all hover:shadow-xs">
+            <div className="h-12 w-12 rounded-xl bg-amber-50 border border-amber-100/80 flex items-center justify-center text-amber-500 shrink-0">
+              <Landmark className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">
+                Initial Funds Received
+              </div>
+              <div className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-0.5 font-mono">
+                {formatKSh(metrics.initialFunds)}
+              </div>
+              <div className="text-[11px] text-slate-400 mt-0.5">From developer</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ------------------------------------------------------------- */}
-      {/* 3. FUNDS RECEIVED SECTION                                     */}
+      {/* 3. FUNDS RECEIVED SECTION (Admin, Director & Partner Only)    */}
       {/* ------------------------------------------------------------- */}
-      <div className="space-y-3">
-        {/* Header row */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Wallet className="h-5 w-5 text-amber-600" />
-            <h2 className="text-base font-bold text-slate-900">Funds Received</h2>
-          </div>
+      {!isStoreKeeper && (
+        <div className="space-y-3">
+          {/* Header row */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-amber-600" />
+              <h2 className="text-base font-bold text-slate-900">Funds Received</h2>
+            </div>
 
-          {!isStoreKeeper && (
             <button
               onClick={handleOpenAddFunds}
               className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
@@ -672,54 +792,50 @@ export const MaterialExpensesPage = () => {
               <Plus className="h-4 w-4" />
               <span>Add Funds</span>
             </button>
-          )}
-        </div>
+          </div>
 
-        {/* Table Container */}
-        <div className="rounded-2xl border border-slate-200/80 bg-white shadow-2xs overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50/70 border-b border-slate-200/80 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                <tr>
-                  <th className="py-3 px-4">Receipt / Reference</th>
-                  <th className="py-3 px-4">Date Received</th>
-                  <th className="py-3 px-4">Description</th>
-                  <th className="py-3 px-4">Amount Received</th>
-                  {!isStoreKeeper && <th className="py-3 px-4 text-center">Actions</th>}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {siteFunds.length === 0 ? (
+          {/* Table Container */}
+          <div className="rounded-2xl border border-slate-200/80 bg-white shadow-2xs overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50/70 border-b border-slate-200/80 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                   <tr>
-                    <td colSpan={isStoreKeeper ? 4 : 5} className="py-8 text-center text-slate-400">
-                      {isStoreKeeper
-                        ? 'No funds recorded for this site workspace.'
-                        : 'No funds recorded for this site workspace. Click \u201cAdd Funds\u201d to record deposit.'}
-                    </td>
+                    <th className="py-3 px-4">Receipt / Reference</th>
+                    <th className="py-3 px-4">Date Received</th>
+                    <th className="py-3 px-4">Description</th>
+                    <th className="py-3 px-4">Amount Received</th>
+                    <th className="py-3 px-4 text-center">Actions</th>
                   </tr>
-                ) : (
-                  siteFunds.map((fund) => (
-                    <tr key={fund.id} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="py-3.5 px-4 font-bold text-slate-900">
-                        <div className="flex items-center gap-2">
-                          <span>{fund.reference}</span>
-                          {isCombinedView && fund.projectName && (
-                            <span className="text-[10px] font-medium bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
-                              {fund.projectName}
-                            </span>
-                          )}
-                        </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {siteFunds.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center text-slate-400">
+                        No funds recorded for this site workspace. Click &ldquo;Add Funds&rdquo; to record deposit.
                       </td>
-                      <td className="py-3.5 px-4 text-slate-600 font-medium">
-                        {formatDate(fund.date)}
-                      </td>
-                      <td className="py-3.5 px-4 text-slate-600">
-                        {fund.description}
-                      </td>
-                      <td className="py-3.5 px-4 font-extrabold text-slate-900 font-mono">
-                        {formatKSh(fund.amount)}
-                      </td>
-                      {!isStoreKeeper && (
+                    </tr>
+                  ) : (
+                    siteFunds.map((fund) => (
+                      <tr key={fund.id} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="py-3.5 px-4 font-bold text-slate-900">
+                          <div className="flex items-center gap-2">
+                            <span>{fund.reference}</span>
+                            {isCombinedView && fund.projectName && (
+                              <span className="text-[10px] font-medium bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
+                                {fund.projectName}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4 text-slate-600 font-medium">
+                          {formatDate(fund.date)}
+                        </td>
+                        <td className="py-3.5 px-4 text-slate-600">
+                          {fund.description}
+                        </td>
+                        <td className="py-3.5 px-4 font-extrabold text-slate-900 font-mono">
+                          {formatKSh(fund.amount)}
+                        </td>
                         <td className="py-3.5 px-4 text-center">
                           <div className="flex items-center justify-center gap-1.5">
                             <button
@@ -738,30 +854,30 @@ export const MaterialExpensesPage = () => {
                             </button>
                           </div>
                         </td>
-                      )}
-                    </tr>
-                  ))
-                )}
+                      </tr>
+                    ))
+                  )}
 
-                {/* Total Row */}
-                {siteFunds.length > 0 && (
-                  <tr className="bg-slate-50/40 font-bold border-t border-slate-200">
-                    <td className="py-3.5 px-4 text-slate-900 font-extrabold text-xs">
-                      Total Funds Received
-                    </td>
-                    <td className="py-3.5 px-4"></td>
-                    <td className="py-3.5 px-4"></td>
-                    <td className="py-3.5 px-4 font-mono font-extrabold text-slate-900 text-xs">
-                      {formatKSh(metrics.totalFundsReceived)}
-                    </td>
-                    {!isStoreKeeper && <td className="py-3.5 px-4"></td>}
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  {/* Total Row */}
+                  {siteFunds.length > 0 && (
+                    <tr className="bg-slate-50/40 font-bold border-t border-slate-200">
+                      <td className="py-3.5 px-4 text-slate-900 font-extrabold text-xs">
+                        Total Funds Received
+                      </td>
+                      <td className="py-3.5 px-4"></td>
+                      <td className="py-3.5 px-4"></td>
+                      <td className="py-3.5 px-4 font-mono font-extrabold text-slate-900 text-xs">
+                        {formatKSh(metrics.totalFundsReceived)}
+                      </td>
+                      <td className="py-3.5 px-4"></td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* ------------------------------------------------------------- */}
       {/* 4. MATERIAL EXPENSE TRANSACTIONS SECTION                      */}
@@ -866,13 +982,25 @@ export const MaterialExpensesPage = () => {
                         {formatAmtOnly(exp.amount)}
                       </td>
                       <td className="py-3.5 px-4">
-                        <button
-                          onClick={() => setViewingReceipt(exp)}
-                          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline font-semibold cursor-pointer"
-                        >
-                          <FileText className="h-3.5 w-3.5 text-blue-500" />
-                          <span>View</span>
-                        </button>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <button
+                            onClick={() => setViewingReceipt(exp)}
+                            className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline font-semibold cursor-pointer"
+                          >
+                            <FileText className="h-3.5 w-3.5 text-blue-500" />
+                            <span>View</span>
+                          </button>
+                          {exp.receiptPhotos && exp.receiptPhotos.length > 0 && (
+                            <button
+                              onClick={() => setViewingReceipt(exp)}
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200/80 text-[10px] font-bold cursor-pointer transition-colors"
+                              title={`${exp.receiptPhotos.length} photo receipt(s) attached`}
+                            >
+                              <Camera className="h-3 w-3 text-purple-600" />
+                              <span>{exp.receiptPhotos.length}</span>
+                            </button>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3.5 px-4 text-center">
                         <div className="flex items-center justify-center gap-1.5">
@@ -1505,6 +1633,90 @@ export const MaterialExpensesPage = () => {
                   />
                 </div>
 
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Receipt / Invoice Ref
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. INV-5821 or DN-491"
+                    value={expenseForm.invoiceRef}
+                    onChange={(e) => setExpenseForm({ ...expenseForm, invoiceRef: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-mono text-slate-800 focus:border-amber-500 focus:outline-hidden"
+                  />
+                </div>
+              </div>
+
+              {/* Receipts / Delivery Notes Photos Attachment */}
+              <div className="pt-2 border-t border-slate-100 space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                    <ImageIcon className="h-3.5 w-3.5 text-amber-600" />
+                    <span>Receipts / Delivery Notes Photos</span>
+                  </label>
+
+                  {expenseForm.receiptPhotos && expenseForm.receiptPhotos.length > 0 && (
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <Check className="h-3 w-3 stroke-[3]" />
+                      <span>{expenseForm.receiptPhotos.length} photo{expenseForm.receiptPhotos.length > 1 ? 's' : ''} attached</span>
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {/* Take Photo */}
+                  <label className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-3.5 py-2 text-xs font-semibold text-slate-700 cursor-pointer transition-colors shadow-2xs">
+                    <Camera className="h-3.5 w-3.5 text-amber-600" />
+                    <span>Take Photo</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handleReceiptPhotoUpload}
+                      className="hidden"
+                    />
+                  </label>
+
+                  {/* Choose from Gallery */}
+                  <label className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-3.5 py-2 text-xs font-semibold text-slate-700 cursor-pointer transition-colors shadow-2xs">
+                    <Upload className="h-3.5 w-3.5 text-amber-600" />
+                    <span>Choose from Gallery</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleReceiptPhotoUpload}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+
+                {/* Thumbnails preview */}
+                {expenseForm.receiptPhotos && expenseForm.receiptPhotos.length > 0 && (
+                  <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 pt-1.5">
+                    {expenseForm.receiptPhotos.map((photo, pIdx) => (
+                      <div
+                        key={pIdx}
+                        className="relative group rounded-xl overflow-hidden border border-slate-200 aspect-square bg-slate-100"
+                      >
+                        <img
+                          src={photo.url}
+                          alt={photo.name || 'Receipt'}
+                          className="h-full w-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                          onClick={() => setPreviewPhoto(photo.url)}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveReceiptPhoto(pIdx)}
+                          className="absolute top-1 right-1 h-5 w-5 rounded-full bg-slate-900/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-rose-600 cursor-pointer"
+                          title="Remove photo"
+                        >
+                          <X className="h-3 w-3 stroke-[2.5]" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
@@ -1673,6 +1885,78 @@ export const MaterialExpensesPage = () => {
                 </div>
               </div>
 
+              {/* Receipts / Delivery Notes Photos Attachment */}
+              <div className="pt-2 border-t border-slate-100 space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                    <ImageIcon className="h-3.5 w-3.5 text-amber-600" />
+                    <span>Receipts / Delivery Notes Photos</span>
+                  </label>
+
+                  {expenseForm.receiptPhotos && expenseForm.receiptPhotos.length > 0 && (
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <Check className="h-3 w-3 stroke-[3]" />
+                      <span>{expenseForm.receiptPhotos.length} photo{expenseForm.receiptPhotos.length > 1 ? 's' : ''} attached</span>
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {/* Take Photo */}
+                  <label className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-3.5 py-2 text-xs font-semibold text-slate-700 cursor-pointer transition-colors shadow-2xs">
+                    <Camera className="h-3.5 w-3.5 text-amber-600" />
+                    <span>Take Photo</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handleReceiptPhotoUpload}
+                      className="hidden"
+                    />
+                  </label>
+
+                  {/* Choose from Gallery */}
+                  <label className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-3.5 py-2 text-xs font-semibold text-slate-700 cursor-pointer transition-colors shadow-2xs">
+                    <Upload className="h-3.5 w-3.5 text-amber-600" />
+                    <span>Choose from Gallery</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleReceiptPhotoUpload}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+
+                {/* Thumbnails preview */}
+                {expenseForm.receiptPhotos && expenseForm.receiptPhotos.length > 0 && (
+                  <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 pt-1.5">
+                    {expenseForm.receiptPhotos.map((photo, pIdx) => (
+                      <div
+                        key={pIdx}
+                        className="relative group rounded-xl overflow-hidden border border-slate-200 aspect-square bg-slate-100"
+                      >
+                        <img
+                          src={photo.url}
+                          alt={photo.name || 'Receipt'}
+                          className="h-full w-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                          onClick={() => setPreviewPhoto(photo.url)}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveReceiptPhoto(pIdx)}
+                          className="absolute top-1 right-1 h-5 w-5 rounded-full bg-slate-900/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-rose-600 cursor-pointer"
+                          title="Remove photo"
+                        >
+                          <X className="h-3 w-3 stroke-[2.5]" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
@@ -1788,6 +2072,37 @@ export const MaterialExpensesPage = () => {
                 </div>
               </div>
 
+              {/* Attached Receipts / Delivery Notes Photos in Voucher */}
+              {Array.isArray(viewingReceipt.receiptPhotos) && viewingReceipt.receiptPhotos.length > 0 && (
+                <div className="border border-slate-200 rounded-xl p-3 space-y-2">
+                  <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                    <span>Attached Receipts & Delivery Notes</span>
+                    <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded font-mono font-bold">
+                      {viewingReceipt.receiptPhotos.length} photo{viewingReceipt.receiptPhotos.length > 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {viewingReceipt.receiptPhotos.map((photo, pIdx) => (
+                      <div
+                        key={pIdx}
+                        className="relative group rounded-xl overflow-hidden border border-slate-200 aspect-square bg-slate-100 cursor-pointer shadow-2xs"
+                        onClick={() => setPreviewPhoto(photo.url)}
+                        title="Click to view full photo"
+                      >
+                        <img
+                          src={photo.url}
+                          alt={photo.name || `Receipt photo ${pIdx + 1}`}
+                          className="h-full w-full object-cover group-hover:scale-105 transition-transform"
+                        />
+                        <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold">
+                          View Full
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-center justify-between text-[11px] text-slate-500 px-1">
                 <span>Verification Status:</span>
                 <span className="font-bold text-emerald-700 bg-emerald-100/70 border border-emerald-200 px-2 py-0.5 rounded-full">
@@ -1812,6 +2127,49 @@ export const MaterialExpensesPage = () => {
                   Done
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* FULL-SIZE PHOTO PREVIEW LIGHTBOX MODAL                         */}
+      {/* ------------------------------------------------------------- */}
+      {previewPhoto && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm animate-in fade-in duration-150"
+          onClick={() => setPreviewPhoto(null)}
+        >
+          <div
+            className="relative max-w-4xl max-h-[90vh] bg-white rounded-2xl overflow-hidden shadow-2xl border border-slate-700 flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-2.5 bg-slate-900 text-white border-b border-slate-800">
+              <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                <Camera className="h-4 w-4 text-amber-400" />
+                <span>Receipt / Delivery Note Preview</span>
+              </span>
+              <button
+                onClick={() => setPreviewPhoto(null)}
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-2 overflow-auto max-h-[80vh] flex items-center justify-center bg-slate-950">
+              <img
+                src={previewPhoto}
+                alt="Receipt Preview"
+                className="max-h-[75vh] w-auto max-w-full rounded-lg object-contain shadow-md"
+              />
+            </div>
+            <div className="p-3 bg-slate-900 flex justify-end">
+              <button
+                onClick={() => setPreviewPhoto(null)}
+                className="px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold cursor-pointer"
+              >
+                Close Preview
+              </button>
             </div>
           </div>
         </div>
