@@ -12,6 +12,8 @@ import crypto from 'crypto';
 import pool from '../db.js';
 import { requireAuth, requireProjectAccess, logAuditEvent } from '../middleware/auth.js';
 
+const router = express.Router();
+
 router.use(requireAuth);
 
 // Security: Foremen and Storekeepers are strictly forbidden from developer funds
