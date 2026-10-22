@@ -2600,61 +2600,74 @@ export const generateMaterialExpensesReportPDF = ({
   expenses = [],
   metrics = {},
   companySettings,
-  author
+  author,
+  isStoreKeeper = false
 }) => {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const projName = project?.name || 'All Sites Combined';
-  const subtitle = `Project Site: ${projName} (${project?.code || 'SITE'}) • Financial Audit, Developer Funding & Purchases`;
-  let currentY = renderReportHeader(doc, companySettings, 'Material Expenses & Financial Audit Dossier', subtitle, 'Material Procurement Expenditure & Working Capital Audit');
+  const subtitle = isStoreKeeper
+    ? `Project Site: ${projName} (${project?.code || 'SITE'}) • Material Purchases & Inward Deliveries`
+    : `Project Site: ${projName} (${project?.code || 'SITE'}) • Financial Audit, Developer Funding & Purchases`;
+  const reportTitle = isStoreKeeper
+    ? 'Material Expense & Procurement Register'
+    : 'Material Expenses & Financial Audit Dossier';
+  const bannerTag = isStoreKeeper
+    ? 'Official Material Purchases & Deliveries Log'
+    : 'Material Procurement Expenditure & Working Capital Audit';
 
-  const totalFunds = metrics.totalFundsReceived !== undefined
-    ? metrics.totalFundsReceived
-    : funds.reduce((s, f) => s + (Number(f.amount) || 0), 0);
-  const totalExp = metrics.totalMaterialExpenses !== undefined
-    ? metrics.totalMaterialExpenses
-    : expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
-  const balance = totalFunds - totalExp;
+  let currentY = renderReportHeader(doc, companySettings, reportTitle, subtitle, bannerTag);
 
-  currentY = renderMetricCards(doc, currentY, [
-    { label: 'Total Funds Received', value: `KSh ${Number(totalFunds).toLocaleString()}`, color: [5, 150, 105] },
-    { label: 'Material Expenses', value: `KSh ${Number(totalExp).toLocaleString()}`, color: [225, 29, 72] },
-    { label: 'Available Balance', value: `KSh ${Number(balance).toLocaleString()}`, color: balance >= 0 ? [5, 150, 105] : [225, 29, 72] },
-    { label: 'Transactions', value: `${expenses.length} Entries`, color: ACCENT_COLOR }
-  ]);
+  // For storekeepers: STRICTLY hide all financial KPIs and Developer funds
+  if (!isStoreKeeper) {
+    const totalFunds = metrics.totalFundsReceived !== undefined
+      ? metrics.totalFundsReceived
+      : funds.reduce((s, f) => s + (Number(f.amount) || 0), 0);
+    const totalExp = metrics.totalMaterialExpenses !== undefined
+      ? metrics.totalMaterialExpenses
+      : expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    const balance = totalFunds - totalExp;
 
-  // Section 1: Developer Funds Received
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(...PRIMARY_COLOR);
-  doc.text(`1. FUNDS RECEIVED AUDIT (${funds.length} Deposits)`, 14, currentY);
-  currentY += 4;
+    currentY = renderMetricCards(doc, currentY, [
+      { label: 'Total Funds Received', value: `KSh ${Number(totalFunds).toLocaleString()}`, color: [5, 150, 105] },
+      { label: 'Material Expenses', value: `KSh ${Number(totalExp).toLocaleString()}`, color: [225, 29, 72] },
+      { label: 'Available Balance', value: `KSh ${Number(balance).toLocaleString()}`, color: balance >= 0 ? [5, 150, 105] : [225, 29, 72] },
+      { label: 'Transactions', value: `${expenses.length} Entries`, color: ACCENT_COLOR }
+    ]);
 
-  const fundRows = funds.map((f) => [
-    f.reference || f.id || 'DEP-REF',
-    f.date || '—',
-    f.description || 'Project material funding',
-    `KSh ${(Number(f.amount) || 0).toLocaleString()}`
-  ]);
+    // Section 1: Developer Funds Received
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(...PRIMARY_COLOR);
+    doc.text(`1. FUNDS RECEIVED AUDIT (${funds.length} Deposits)`, 14, currentY);
+    currentY += 4;
 
-  autoTable(doc, {
-    startY: currentY,
-    head: [['Receipt / Reference', 'Date Received', 'Description / Purpose', 'Amount Received (KSh)']],
-    body: fundRows.length > 0 ? fundRows : [['No developer funds recorded for this site', '—', '—', 'KSh 0']],
-    theme: 'grid',
-    styles: { fontSize: 7.5, cellPadding: 2 },
-    headStyles: { fillColor: PRIMARY_COLOR, textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
-    columnStyles: {
-      0: { cellWidth: 35, fontStyle: 'bold' },
-      1: { cellWidth: 28 },
-      2: { cellWidth: 85 },
-      3: { cellWidth: 34, halign: 'right', fontStyle: 'bold' }
-    },
-    margin: { left: 14, right: 14 }
-  });
+    const fundRows = funds.map((f) => [
+      f.reference || f.id || 'DEP-REF',
+      f.date || '—',
+      f.description || 'Project material funding',
+      `KSh ${(Number(f.amount) || 0).toLocaleString()}`
+    ]);
 
-  currentY = doc.lastAutoTable.finalY + 6;
+    autoTable(doc, {
+      startY: currentY,
+      head: [['Receipt / Reference', 'Date Received', 'Description / Purpose', 'Amount Received (KSh)']],
+      body: fundRows.length > 0 ? fundRows : [['No developer funds recorded for this site', '—', '—', 'KSh 0']],
+      theme: 'grid',
+      styles: { fontSize: 7.5, cellPadding: 2 },
+      headStyles: { fillColor: PRIMARY_COLOR, textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+      columnStyles: {
+        0: { cellWidth: 35, fontStyle: 'bold' },
+        1: { cellWidth: 28 },
+        2: { cellWidth: 85 },
+        3: { cellWidth: 34, halign: 'right', fontStyle: 'bold' }
+      },
+      margin: { left: 14, right: 14 }
+    });
 
-  // Section 2: Material Expenses Transactions
+    currentY = doc.lastAutoTable.finalY + 6;
+  }
+
+  // Material Expenses Transactions
   if (expenses && expenses.length > 0) {
     if (currentY + 40 > 270) {
       doc.addPage();
@@ -2664,7 +2677,10 @@ export const generateMaterialExpensesReportPDF = ({
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
     doc.setTextColor(...PRIMARY_COLOR);
-    doc.text(`2. MATERIAL EXPENSE TRANSACTIONS (${expenses.length})`, 14, currentY);
+    const sectionTitle = isStoreKeeper
+      ? `MATERIAL EXPENSE TRANSACTIONS (${expenses.length})`
+      : `2. MATERIAL EXPENSE TRANSACTIONS (${expenses.length})`;
+    doc.text(sectionTitle, 14, currentY);
     currentY += 4;
 
     const expRows = expenses.map((e) => [

@@ -577,7 +577,8 @@ export const MaterialExpensesPage = () => {
         funds: siteFunds,
         expenses: filteredExpenses,
         metrics,
-        companySettings
+        companySettings,
+        isStoreKeeper: Boolean(isStoreKeeper)
       });
       const fileCode = (activeProj.code || activeProj.name || 'Site').replace(/[^a-zA-Z0-9_-]/g, '_');
       doc.save(`Material_Expenses_${fileCode}_${new Date().toISOString().split('T')[0]}.pdf`);
@@ -639,72 +640,9 @@ export const MaterialExpensesPage = () => {
       </div>
 
       {/* ------------------------------------------------------------- */}
-      {/* 2. TOP STATS CARDS                                            */}
+      {/* 2. TOP STATS CARDS (Admin, Director & Partner Only)           */}
       {/* ------------------------------------------------------------- */}
-      {isStoreKeeper ? (
-        /* Storekeeper Scope: Material purchases & stores inventory tracking metrics only (Developer funds hidden) */
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-4.5 shadow-2xs flex items-center gap-4 transition-all hover:shadow-xs">
-            <div className="h-12 w-12 rounded-xl bg-amber-50 border border-amber-100/80 flex items-center justify-center text-amber-500 shrink-0">
-              <ShoppingCart className="h-6 w-6" />
-            </div>
-            <div>
-              <div className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">
-                Total Material Expenses
-              </div>
-              <div className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-0.5 font-mono">
-                {formatKSh(metrics.totalMaterialExpenses)}
-              </div>
-              <div className="text-[11px] text-slate-400 mt-0.5">Purchases spent</div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-4.5 shadow-2xs flex items-center gap-4 transition-all hover:shadow-xs">
-            <div className="h-12 w-12 rounded-xl bg-indigo-50 border border-indigo-100/80 flex items-center justify-center text-indigo-500 shrink-0">
-              <Receipt className="h-6 w-6" />
-            </div>
-            <div>
-              <div className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">
-                Transactions Logged
-              </div>
-              <div className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-0.5 font-mono">
-                {siteExpenses.length}
-              </div>
-              <div className="text-[11px] text-slate-400 mt-0.5">Purchases recorded</div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-4.5 shadow-2xs flex items-center gap-4 transition-all hover:shadow-xs">
-            <div className="h-12 w-12 rounded-xl bg-emerald-50 border border-emerald-100/80 flex items-center justify-center text-emerald-500 shrink-0">
-              <Check className="h-6 w-6 stroke-[2.5]" />
-            </div>
-            <div>
-              <div className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">
-                Verified Deliveries
-              </div>
-              <div className="text-xl sm:text-2xl font-extrabold text-emerald-600 mt-0.5 font-mono">
-                {siteExpenses.filter(e => e.status === 'Verified').length}
-              </div>
-              <div className="text-[11px] text-slate-400 mt-0.5">Invoices & delivery notes</div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-4.5 shadow-2xs flex items-center gap-4 transition-all hover:shadow-xs">
-            <div className="h-12 w-12 rounded-xl bg-amber-50 border border-amber-100/80 flex items-center justify-center text-amber-500 shrink-0">
-              <Layers className="h-6 w-6" />
-            </div>
-            <div>
-              <div className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">
-                Material Categories
-              </div>
-              <div className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-0.5 font-mono">
-                {categories.length}
-              </div>
-              <div className="text-[11px] text-slate-400 mt-0.5">Procurement types</div>
-            </div>
-          </div>
-        </div>
-      ) : (
+      {!isStoreKeeper && (
         /* Full Financial Overview: Developer Funds & Balance for Admin, Director, and Partners */
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Total Funds Received */}
@@ -1082,84 +1020,86 @@ export const MaterialExpensesPage = () => {
       </div>
 
       {/* ------------------------------------------------------------- */}
-      {/* 5. BOTTOM SUMMARY CARDS (ROW OF 5)                            */}
+      {/* 5. BOTTOM SUMMARY CARDS (ROW OF 5) (Admin, Director & Partner)*/}
       {/* ------------------------------------------------------------- */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 pt-3">
-        {/* Card 1: Initial Funds Received */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-2xs flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-500 shrink-0">
-            <Coins className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="text-[11px] font-medium text-slate-500">
-              Initial Funds Received
+      {!isStoreKeeper && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 pt-3">
+          {/* Card 1: Initial Funds Received */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-2xs flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-500 shrink-0">
+              <Coins className="h-5 w-5" />
             </div>
-            <div className="text-base sm:text-lg font-bold text-slate-900 font-mono mt-0.5">
-              {formatKSh(metrics.initialFunds)}
+            <div>
+              <div className="text-[11px] font-medium text-slate-500">
+                Initial Funds Received
+              </div>
+              <div className="text-base sm:text-lg font-bold text-slate-900 font-mono mt-0.5">
+                {formatKSh(metrics.initialFunds)}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Card 2: Additional Funds Received */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-2xs flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-500 shrink-0">
-            <Plus className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="text-[11px] font-medium text-slate-500">
-              Additional Funds Received
+          {/* Card 2: Additional Funds Received */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-2xs flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-500 shrink-0">
+              <Plus className="h-5 w-5" />
             </div>
-            <div className="text-base sm:text-lg font-bold text-slate-900 font-mono mt-0.5">
-              {formatKSh(metrics.additionalFunds)}
+            <div>
+              <div className="text-[11px] font-medium text-slate-500">
+                Additional Funds Received
+              </div>
+              <div className="text-base sm:text-lg font-bold text-slate-900 font-mono mt-0.5">
+                {formatKSh(metrics.additionalFunds)}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Card 3: Total Funds Available */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-2xs flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-500 shrink-0">
-            <Banknote className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="text-[11px] font-medium text-slate-500">
-              Total Funds Available
+          {/* Card 3: Total Funds Available */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-2xs flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-500 shrink-0">
+              <Banknote className="h-5 w-5" />
             </div>
-            <div className="text-base sm:text-lg font-bold text-slate-900 font-mono mt-0.5">
-              {formatKSh(metrics.totalFundsReceived)}
+            <div>
+              <div className="text-[11px] font-medium text-slate-500">
+                Total Funds Available
+              </div>
+              <div className="text-base sm:text-lg font-bold text-slate-900 font-mono mt-0.5">
+                {formatKSh(metrics.totalFundsReceived)}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Card 4: Total Material Expenses */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-2xs flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-500 shrink-0">
-            <ShoppingCart className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="text-[11px] font-medium text-slate-500">
-              Total Material Expenses
+          {/* Card 4: Total Material Expenses */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-2xs flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-500 shrink-0">
+              <ShoppingCart className="h-5 w-5" />
             </div>
-            <div className="text-base sm:text-lg font-bold text-slate-900 font-mono mt-0.5">
-              {formatKSh(metrics.totalMaterialExpenses)}
+            <div>
+              <div className="text-[11px] font-medium text-slate-500">
+                Total Material Expenses
+              </div>
+              <div className="text-base sm:text-lg font-bold text-slate-900 font-mono mt-0.5">
+                {formatKSh(metrics.totalMaterialExpenses)}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Card 5: Remaining Balance (Highlighted) */}
-        <div className="bg-emerald-50/70 rounded-2xl border border-emerald-200/90 p-4 shadow-2xs flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold text-base shadow-xs shrink-0">
-            $
-          </div>
-          <div>
-            <div className="text-[11px] font-semibold text-emerald-800">
-              Remaining Balance
+          {/* Card 5: Remaining Balance (Highlighted) */}
+          <div className="bg-emerald-50/70 rounded-2xl border border-emerald-200/90 p-4 shadow-2xs flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold text-base shadow-xs shrink-0">
+              $
             </div>
-            <div className="text-base sm:text-lg font-extrabold text-emerald-700 font-mono mt-0.5">
-              {formatKSh(metrics.availableBalance)}
+            <div>
+              <div className="text-[11px] font-semibold text-emerald-800">
+                Remaining Balance
+              </div>
+              <div className="text-base sm:text-lg font-extrabold text-emerald-700 font-mono mt-0.5">
+                {formatKSh(metrics.availableBalance)}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* ------------------------------------------------------------- */}
       {/* MODAL 1: ADD FUNDS                                            */}
