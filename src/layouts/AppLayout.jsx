@@ -13,7 +13,7 @@ import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import { Loader2 } from 'lucide-react';
 
 export const AppLayout = () => {
-  const { currentUser, isForeman, isStoreKeeper, addToast, isLoadingAuth, laeForms, selectedProjectId, projects } = useApp();
+  const { currentUser, isForeman, isStoreKeeper, addToast, isLoadingAuth, laeForms, selectedProjectId, projects, isLabourRestricted, currentProject } = useApp();
   const location = useLocation();
   const navigate = useNavigate();
   const assignedSiteId = currentUser?.assignedProjectId || 'PRJ-001';
@@ -37,9 +37,12 @@ export const AppLayout = () => {
       return;
     }
 
-    const allowed = isRouteAllowedForRole(currentUser.role, location.pathname, assignedSiteId);
+    const allowed = isRouteAllowedForRole(currentUser.role, location.pathname, assignedSiteId, currentUser, currentProject || selectedProjectId);
     if (!allowed) {
-      if (isForeman) {
+      if (isLabourRestricted && location.pathname.startsWith('/labour')) {
+        addToast('Access restricted: Mohamed Hussein and Abdi Mahad do not have access to the labour section on SeaCrest.', 'warning');
+        navigate('/dashboard', { replace: true });
+      } else if (isForeman) {
         addToast('Access restricted: Foremen can access Labour, Activity & Equipment, and PDF reports.', 'warning');
         navigate('/labour', { replace: true });
       } else if (isStoreKeeper) {
@@ -49,7 +52,7 @@ export const AppLayout = () => {
         navigate('/dashboard', { replace: true });
       }
     }
-  }, [isLoadingAuth, currentUser, isForeman, isStoreKeeper, location.pathname, assignedSiteId, navigate, addToast]);
+  }, [isLoadingAuth, currentUser, isForeman, isStoreKeeper, isLabourRestricted, currentProject, selectedProjectId, location.pathname, assignedSiteId, navigate, addToast]);
 
   const todayStr = (() => {
     const d = new Date();
@@ -59,6 +62,10 @@ export const AppLayout = () => {
   const handleSelectQuickAction = (actionId) => {
     switch (actionId) {
       case 'labour-shift': {
+        if (isLabourRestricted) {
+          addToast('Access restricted: Mohamed Hussein and Abdi Mahad cannot log labour shifts on SeaCrest.', 'warning');
+          return;
+        }
         const activeProjectId = selectedProjectId !== 'all' ? selectedProjectId : (projects[0]?.id || assignedSiteId);
         const existingToday = (laeForms || []).find((f) => {
           if (f.projectId !== activeProjectId && f.project_id !== activeProjectId) return false;

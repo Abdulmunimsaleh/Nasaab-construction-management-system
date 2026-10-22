@@ -17,7 +17,7 @@
 import express from 'express';
 import crypto from 'crypto';
 import pool from '../db.js';
-import { requireAuth, requireProjectAccess, requireModule, logAuditEvent } from '../middleware/auth.js';
+import { requireAuth, requireProjectAccess, requireModule, logAuditEvent, isLabourRestrictedUser } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -156,10 +156,12 @@ router.get('/:id', async (req, res) => {
       [formId]
     );
 
+    const isLabourRestricted = isLabourRestrictedUser(req.session.user, form.project_id);
+
     res.json({
       ...form,
       site_photos: safeParseJson(form.site_photos, []),
-      labourItems,
+      labourItems: isLabourRestricted ? [] : labourItems,
       activityItems,
       equipmentItems
     });
@@ -193,6 +195,13 @@ router.post('/', requireProjectAccess, async (req, res) => {
 
   const targetProjectId = projectId || req.authorizedProjectId;
   const targetDate = date || reportDate;
+
+  if (isLabourRestrictedUser(req.session.user, targetProjectId)) {
+    return res.status(403).json({
+      error: 'Access restricted',
+      message: 'Mohamed Hussein and Abdi Mahad do not have access to create Labour forms on SeaCrest.'
+    });
+  }
 
   if (!targetProjectId || !targetDate) {
     return res.status(400).json({
@@ -396,6 +405,14 @@ router.put('/:id', async (req, res) => {
     if (existing.length === 0) {
       await connection.rollback();
       return res.status(404).json({ error: 'Form not found' });
+    }
+
+    if (isLabourRestrictedUser(req.session.user, existing[0].project_id)) {
+      await connection.rollback();
+      return res.status(403).json({
+        error: 'Access restricted',
+        message: 'Mohamed Hussein and Abdi Mahad do not have access to modify Labour forms on SeaCrest.'
+      });
     }
 
     const currentForm = existing[0];

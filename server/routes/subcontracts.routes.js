@@ -7,11 +7,23 @@
 import express from 'express';
 import crypto from 'crypto';
 import pool from '../db.js';
-import { requireAuth, requireProjectAccess, logAuditEvent } from '../middleware/auth.js';
+import { requireAuth, requireProjectAccess, logAuditEvent, isLabourRestrictedUser } from '../middleware/auth.js';
 
 const router = express.Router();
 
 router.use(requireAuth);
+
+// Block Mohamed Hussein and Abdi Mahad from accessing subcontract records on SeaCrest
+router.use((req, res, next) => {
+  const pId = req.query.projectId || req.body?.projectId || req.params?.projectId || req.session?.activeProjectId;
+  if (isLabourRestrictedUser(req.session?.user, pId)) {
+    return res.status(403).json({
+      error: 'Access restricted',
+      message: 'Mohamed Hussein and Abdi Mahad do not have access to the labour or subcontract section on SeaCrest.'
+    });
+  }
+  next();
+});
 
 /**
  * GET /api/subcontracts/agreements

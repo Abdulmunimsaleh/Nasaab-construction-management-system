@@ -28,6 +28,7 @@ import { ViewMaterialRequestModal } from '../components/materials/ViewMaterialRe
 import { NewLaeFormModal } from '../components/labour/NewLaeFormModal';
 import { NewMaterialRequestModal } from '../components/materials/NewMaterialRequestModal';
 import { getDayOfWeek } from '../utils/formatters';
+import { isUserRestrictedFromLabour } from '../utils/auth';
 
 export const ProjectDetailPage = () => {
   const { id } = useParams();
@@ -86,6 +87,13 @@ export const ProjectDetailPage = () => {
   const [isCreatingUser, setIsCreatingUser] = useState(false);
 
   const project = projects.find((p) => p.id === id);
+  const isLabourBlocked = isUserRestrictedFromLabour(currentUser, project || id);
+
+  useEffect(() => {
+    if (isLabourBlocked && activeTab === 'lae-forms') {
+      setActiveTab('overview');
+    }
+  }, [isLabourBlocked, activeTab]);
 
   // Verify project access
   const isGlobalUser = hasFullAccess;
@@ -307,7 +315,7 @@ export const ProjectDetailPage = () => {
             </button>
           )}
 
-          {!isStoreKeeper && (
+          {!isStoreKeeper && !isLabourBlocked && (
             <button
               onClick={() => setIsNewLaeOpen(true)}
               className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-3.5 py-2 text-xs font-bold text-slate-950 hover:bg-amber-400 cursor-pointer shadow-md shadow-amber-500/20"
@@ -354,7 +362,7 @@ export const ProjectDetailPage = () => {
           <span>Assigned Team ({assignedUsers.length})</span>
         </button>
 
-        {!isStoreKeeper && (
+        {!isStoreKeeper && !isLabourBlocked && (
           <button
             onClick={() => setActiveTab('lae-forms')}
             className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 cursor-pointer ${
@@ -528,7 +536,7 @@ export const ProjectDetailPage = () => {
       )}
 
       {/* TAB 3: LAE FORMS */}
-      {activeTab === 'lae-forms' && !isStoreKeeper && (
+      {activeTab === 'lae-forms' && !isStoreKeeper && !isLabourBlocked && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-slate-900">Submitted Labour, Activity & Equipment Forms</h3>

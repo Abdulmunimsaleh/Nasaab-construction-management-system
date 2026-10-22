@@ -23,14 +23,14 @@ import {
 } from 'lucide-react';
 
 export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen }) => {
-  const { currentUser, currentProject, selectedProjectId, isForeman, isStoreKeeper, isAdmin, isDirector } = useApp();
+  const { currentUser, currentProject, selectedProjectId, isForeman, isStoreKeeper, isAdmin, isDirector, isLabourRestricted } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
 
   // Accordion state for group dropdown wings
   const isLabourCurrent = location.pathname.startsWith('/labour') || location.pathname === '/equipment-report' || location.pathname === '/safety-delays';
   const isMaterialCurrent = location.pathname === '/materials' || location.pathname === '/materials-received' || location.pathname === '/material-expenses';
-  const [expandedGroups, setExpandedGroups] = useState({ Labour: true, Material: true });
+  const [expandedGroups, setExpandedGroups] = useState({ Labour: true, Material: true, 'Site Operations': true });
   const [flyoutGroup, setFlyoutGroup] = useState(null);
 
   const toggleGroup = (groupLabel) => {
@@ -40,7 +40,7 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
   // Automatically keep groups expanded when navigating to their routes
   useEffect(() => {
     if (isLabourCurrent) {
-      setExpandedGroups((prev) => ({ ...prev, Labour: true }));
+      setExpandedGroups((prev) => ({ ...prev, Labour: true, 'Site Operations': true }));
     }
   }, [isLabourCurrent]);
 
@@ -82,22 +82,37 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
     { type: 'link', label: 'Settings & Users', path: '/settings', icon: Settings },
   ];
 
-  // Partner navigation items (full project access)
+  // Partner navigation items (full project access, but restricted from Labour on SeaCrest)
   const partnerNavItems = [
     { type: 'link', label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { type: 'link', label: 'My Projects', path: '/projects', icon: FolderKanban },
-    {
-      type: 'group',
-      label: 'Labour',
-      icon: HardHat,
-      badge: 'Workforce',
-      children: [
-        { label: 'Subcontract (PW)', path: '/labour/subcontract', icon: Briefcase },
-        { label: 'Daily', path: '/labour/daily', icon: CalendarCheck },
-        { label: 'Equipment', path: '/equipment-report', icon: Truck },
-        { label: 'Safety & Delays', path: '/safety-delays', icon: ShieldAlert }
-      ]
-    },
+    ...(isLabourRestricted
+      ? [
+          {
+            type: 'group',
+            label: 'Site Operations',
+            icon: Truck,
+            badge: 'Active',
+            children: [
+              { label: 'Equipment', path: '/equipment-report', icon: Truck },
+              { label: 'Safety & Delays', path: '/safety-delays', icon: ShieldAlert }
+            ]
+          }
+        ]
+      : [
+          {
+            type: 'group',
+            label: 'Labour',
+            icon: HardHat,
+            badge: 'Workforce',
+            children: [
+              { label: 'Subcontract (PW)', path: '/labour/subcontract', icon: Briefcase },
+              { label: 'Daily', path: '/labour/daily', icon: CalendarCheck },
+              { label: 'Equipment', path: '/equipment-report', icon: Truck },
+              { label: 'Safety & Delays', path: '/safety-delays', icon: ShieldAlert }
+            ]
+          }
+        ]),
     { type: 'link', label: 'Site Progress', path: '/activities', icon: TrendingUp },
     {
       type: 'group',

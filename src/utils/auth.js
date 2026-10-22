@@ -89,17 +89,46 @@ export const canEditRates = (role) => {
   return isAdminRole(role) || isDirectorRole(role) || isPartnerRole(role);
 };
 
+// Helper: Check if a user is Mohamed Hussein or Abdi Mahad on SeaCrest project
+// They are partners restricted from accessing the labour section on SeaCrest
+export const isUserRestrictedFromLabour = (user, projectOrId) => {
+  if (!user) return false;
+  const username = String(user.userId || user.user_id || '').trim().toLowerCase();
+  const userId = String(user.id || '').trim().toLowerCase();
+  const name = String(user.name || '').trim().toLowerCase();
+
+  const isTarget =
+    username === 'mohamed.hussein' ||
+    username === 'abdi.mahad' ||
+    userId === 'usr-mohamed-hussein' ||
+    userId === 'usr-abdi-mahad' ||
+    name === 'mohamed hussein' ||
+    name === 'abdi mahad';
+
+  if (!isTarget) return false;
+
+  if (!projectOrId) return true; // Default assigned to SeaCrest
+
+  const pStr = typeof projectOrId === 'string'
+    ? projectOrId.toLowerCase()
+    : String(projectOrId.id || projectOrId.code || projectOrId.name || '').toLowerCase();
+
+  return pStr.includes('seacrest') || pStr === 'prj-seacrest' || pStr === 'sc-01' || pStr === 'all';
+};
+
 // ============================================================================
 // WEEKLY REPORTS PERMISSIONS
 // 1. Full weekly report: Admin, Director, Partner only
 // 2. Labour, activity & equipment weekly report: Admin, Director, Partner, Foreman only (Storekeeper forbidden)
 // 3. Material weekly report: Admin, Director, Partner, Storekeeper only (Foreman forbidden)
 // ============================================================================
-export const canAccessFullWeeklyReport = (role) => {
+export const canAccessFullWeeklyReport = (role, user = null, project = null) => {
+  if (isUserRestrictedFromLabour(user, project)) return false;
   return isAdminRole(role) || isDirectorRole(role) || isPartnerRole(role);
 };
 
-export const canAccessLaeWeeklyReport = (role) => {
+export const canAccessLaeWeeklyReport = (role, user = null, project = null) => {
+  if (isUserRestrictedFromLabour(user, project)) return false;
   return isAdminRole(role) || isDirectorRole(role) || isPartnerRole(role) || isForemanRole(role);
 };
 
@@ -112,7 +141,14 @@ export const canAccessAnyWeeklyReport = (role) => {
 };
 
 // Helper: Check if user/role can access a specific route path
-export const isRouteAllowedForRole = (role, pathname, assignedProjectId = 'PRJ-001') => {
+export const isRouteAllowedForRole = (role, pathname, assignedProjectId = 'PRJ-001', user = null, currentProject = null) => {
+  // Check if Mohamed Hussein or Abdi Mahad accessing labour routes on SeaCrest
+  if (isUserRestrictedFromLabour(user, currentProject || assignedProjectId)) {
+    if (pathname.startsWith('/labour')) {
+      return false;
+    }
+  }
+
   // Admin and Director have access to all routes
   if (hasFullAccess(role)) return true;
 

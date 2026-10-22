@@ -16,7 +16,7 @@
 import express from 'express';
 import crypto from 'crypto';
 import pool from '../db.js';
-import { requireAuth, requireProjectAccess, logAuditEvent } from '../middleware/auth.js';
+import { requireAuth, requireProjectAccess, logAuditEvent, isLabourRestrictedUser } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -29,9 +29,19 @@ router.use(requireProjectAccess);
  * 2. LAE Weekly Report: Admin, Director, Partner, Foreman only (Storekeeper forbidden)
  * 3. Material Weekly Report: Admin, Director, Partner, Storekeeper only (Foreman forbidden)
  */
-function verifyWeeklyReportAccess(userRole, reportType) {
+function verifyWeeklyReportAccess(userRole, reportType, user = null, projectId = null) {
   const role = String(userRole || '').trim().toLowerCase();
   const type = String(reportType || '').trim().toLowerCase();
+
+  // If partner is restricted from labour on SeaCrest (Mohamed Hussein & Abdi Mahad)
+  if (isLabourRestrictedUser(user, projectId)) {
+    if (type === 'lae' || type === 'full') {
+      return {
+        allowed: false,
+        message: 'Access restricted: Mohamed Hussein and Abdi Mahad do not have access to Labour reports on SeaCrest.'
+      };
+    }
+  }
 
   // 1. Full Weekly Report: Admin, Director, Partner only
   if (type === 'full') {
@@ -101,7 +111,7 @@ router.get('/', async (req, res) => {
 
   // Validate if specific reportType requested is allowed
   if (reportType) {
-    const check = verifyWeeklyReportAccess(userRole, reportType);
+    const check = verifyWeeklyReportAccess(userRole, reportType, req.session?.user, projectId);
     if (!check.allowed) {
       return res.status(403).json({ error: 'Access denied', message: check.message });
     }
@@ -235,7 +245,7 @@ router.get('/data', async (req, res) => {
   const { reportType = 'full', startDate, endDate, weekNumber, year } = req.query;
 
   // Authorization check for this category
-  const authCheck = verifyWeeklyReportAccess(userRole, reportType);
+  const authCheck = verifyWeeklyReportAccess(userRole, reportType, req.session?.user, projectId);
   if (!authCheck.allowed) {
     return res.status(403).json({ error: 'Forbidden', message: authCheck.message });
   }
@@ -573,7 +583,7 @@ router.post('/save', async (req, res) => {
   } = req.body;
 
   // Authorization check
-  const authCheck = verifyWeeklyReportAccess(user.role, reportType);
+  const authCheck = verifyWeeklyReportAccess(user.role, reportType, user, projectId);
   if (!authCheck.allowed) {
     return res.status(403).json({ error: 'Forbidden', message: authCheck.message });
   }

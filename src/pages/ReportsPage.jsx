@@ -50,6 +50,7 @@ export const ReportsPage = () => {
     isAdmin,
     isDirector,
     isPartner,
+    isLabourRestricted,
     selectedProjectId: globalProjectId,
     addToast
   } = useApp();
@@ -75,14 +76,22 @@ export const ReportsPage = () => {
   // - 'full': Admin, Director, Partner only
   // - 'lae': Admin, Director, Partner, Foreman only
   // - 'materials': Admin, Director, Partner, Storekeeper only
-  const hasFullAccessToReport = canAccessFullWeeklyReport(userRole);
+  const hasFullAccessToReport = canAccessFullWeeklyReport(userRole, currentUser, selectedProjectId);
+  const hasLaeAccessToReport = canAccessLaeWeeklyReport(userRole, currentUser, selectedProjectId);
   const [weeklyCategory, setWeeklyCategory] = useState(
     hasFullAccessToReport
       ? 'full'
-      : canAccessLaeWeeklyReport(userRole)
+      : hasLaeAccessToReport
       ? 'lae'
       : 'materials'
   );
+
+  // Sync category if restrictions apply
+  useEffect(() => {
+    if (isLabourRestricted) {
+      if (weeklyCategory !== 'materials') setWeeklyCategory('materials');
+    }
+  }, [isLabourRestricted, weeklyCategory]);
 
   // 4. Available Weeks for the Selected Project Site
   const [availableWeeks, setAvailableWeeks] = useState([]);
@@ -98,7 +107,7 @@ export const ReportsPage = () => {
   const [isSavingReport, setIsSavingReport] = useState(false);
 
   // 7. Single Form Selection State
-  const [singleCategory, setSingleCategory] = useState(isStoreKeeper ? 'materials' : 'lae');
+  const [singleCategory, setSingleCategory] = useState((isStoreKeeper || isLabourRestricted) ? 'materials' : 'lae');
   const [selectedRecordId, setSelectedRecordId] = useState('');
 
   // 8. PDF Blob URL for Live Viewport
@@ -506,8 +515,8 @@ export const ReportsPage = () => {
                   {/* Category 1: Full Weekly Report (LAE + Materials) */}
                   <div
                     onClick={() => {
-                      if (!canAccessFullWeeklyReport(userRole)) {
-                        addToast('Category 1: Full Weekly Report is accessible to Admin, Director & Partner only.', 'warning');
+                      if (!canAccessFullWeeklyReport(userRole, currentUser, selectedProjectId)) {
+                        addToast('Category 1: Full Weekly Report is accessible to Admin, Director & Partner only (restricted if partner cannot access labour).', 'warning');
                         return;
                       }
                       setWeeklyCategory('full');
@@ -516,7 +525,7 @@ export const ReportsPage = () => {
                     className={`p-3 rounded-2xl border text-xs transition-all cursor-pointer relative ${
                       weeklyCategory === 'full'
                         ? 'border-amber-500 bg-amber-50/60 text-amber-950 shadow-xs'
-                        : canAccessFullWeeklyReport(userRole)
+                        : canAccessFullWeeklyReport(userRole, currentUser, selectedProjectId)
                         ? 'border-slate-200 hover:bg-slate-50 text-slate-700'
                         : 'border-slate-200 bg-slate-50/70 text-slate-400 cursor-not-allowed'
                     }`}
@@ -531,7 +540,7 @@ export const ReportsPage = () => {
                           <p className="text-[11px] text-slate-500">Combines LAE Report + Material Report for the week</p>
                         </div>
                       </div>
-                      {!canAccessFullWeeklyReport(userRole) ? (
+                      {!canAccessFullWeeklyReport(userRole, currentUser, selectedProjectId) ? (
                         <span className="flex items-center gap-1 text-[10px] font-bold text-rose-500 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
                           <Lock className="h-2.5 w-2.5" /> Restricted
                         </span>
@@ -549,8 +558,8 @@ export const ReportsPage = () => {
                   {/* Category 2: Labour, Activity & Equipment Weekly Report */}
                   <div
                     onClick={() => {
-                      if (!canAccessLaeWeeklyReport(userRole)) {
-                        addToast('Category 2: Labour, Activity & Equipment reports are restricted to Admin, Director, Partner & Foreman only. Storekeepers cannot access Labour reports.', 'warning');
+                      if (!canAccessLaeWeeklyReport(userRole, currentUser, selectedProjectId)) {
+                        addToast('Category 2: Labour, Activity & Equipment reports are restricted (restricted on SeaCrest for Mohamed Hussein and Abdi Mahad).', 'warning');
                         return;
                       }
                       setWeeklyCategory('lae');
@@ -559,7 +568,7 @@ export const ReportsPage = () => {
                     className={`p-3 rounded-2xl border text-xs transition-all cursor-pointer relative ${
                       weeklyCategory === 'lae'
                         ? 'border-amber-500 bg-amber-50/60 text-amber-950 shadow-xs'
-                        : canAccessLaeWeeklyReport(userRole)
+                        : canAccessLaeWeeklyReport(userRole, currentUser, selectedProjectId)
                         ? 'border-slate-200 hover:bg-slate-50 text-slate-700'
                         : 'border-slate-200 bg-slate-50/70 text-slate-400 cursor-not-allowed'
                     }`}
@@ -574,7 +583,7 @@ export const ReportsPage = () => {
                           <p className="text-[11px] text-slate-500">Workforce headcount, tasks progress & plant expenses</p>
                         </div>
                       </div>
-                      {!canAccessLaeWeeklyReport(userRole) ? (
+                      {!canAccessLaeWeeklyReport(userRole, currentUser, selectedProjectId) ? (
                         <span className="flex items-center gap-1 text-[10px] font-bold text-rose-500 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
                           <Lock className="h-2.5 w-2.5" /> Restricted
                         </span>
@@ -705,7 +714,7 @@ export const ReportsPage = () => {
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Form Type</label>
                 <div className="space-y-2">
-                  {!isStoreKeeper && (
+                  {!isStoreKeeper && !isLabourRestricted && (
                     <button
                       type="button"
                       onClick={() => {

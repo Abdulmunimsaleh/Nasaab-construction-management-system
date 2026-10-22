@@ -37,6 +37,7 @@ export const Dashboard = () => {
     isAdmin,
     isDirector,
     isPartner,
+    isLabourRestricted,
     isDataLoading
   } = useApp();
 
@@ -150,7 +151,7 @@ export const Dashboard = () => {
           onClick={() => navigate('/projects')}
         />
 
-        {!isStoreKeeper ? (
+        {!isStoreKeeper && !isLabourRestricted ? (
           <StatCard
             title="Labour & Equipment Forms"
             value={laeForms.length}

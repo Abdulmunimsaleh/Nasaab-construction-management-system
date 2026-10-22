@@ -47,9 +47,31 @@ export const LabourPage = () => {
     isAdmin,
     isDirector,
     isPartner,
+    isLabourRestricted,
     companySettings,
     addToast
   } = useApp();
+
+  // If partner is restricted from labour on SeaCrest
+  if (isLabourRestricted) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-100 text-rose-600 mb-4 shadow-sm">
+          <Lock className="h-8 w-8" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-900 tracking-tight">Labour Section Restricted</h2>
+        <p className="mt-2 text-sm text-slate-500 max-w-md">
+          Access to the labour and workforce section on the SeaCrest project site is restricted for your partner account.
+        </p>
+        <button
+          onClick={() => navigate('/dashboard')}
+          className="mt-6 inline-flex items-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 text-xs font-bold text-slate-950 hover:bg-amber-400 transition-colors shadow-sm"
+        >
+          Return to Dashboard
+        </button>
+      </div>
+    );
+  }
 
   // Mode: 'daily' vs 'subcontract'
   const isSubcontractInitial = location.pathname.includes('/subcontract');

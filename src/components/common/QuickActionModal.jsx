@@ -1,7 +1,9 @@
 import React from 'react';
 import { Modal } from './Modal';
+import { useApp } from '../../context/AppContext';
 import {
-  HardHat
+  HardHat,
+  Lock
 } from 'lucide-react';
 
 export const QuickActionModal = ({
@@ -9,6 +11,8 @@ export const QuickActionModal = ({
   onClose,
   onSelectAction
 }) => {
+  const { isLabourRestricted } = useApp();
+
   const actions = [
     {
       id: 'labour-shift',
@@ -16,9 +20,10 @@ export const QuickActionModal = ({
       description: 'Record trade headcounts, wage rates, daily work executed & machinery',
       icon: HardHat,
       color: 'bg-amber-100 text-amber-700',
-      badge: 'Primary'
+      badge: 'Primary',
+      hidden: isLabourRestricted
     }
-  ];
+  ].filter(a => !a.hidden);
 
   return (
     <Modal
