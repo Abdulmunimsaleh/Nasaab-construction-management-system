@@ -99,7 +99,7 @@ async function runWeeklyReportTests() {
     const adminUser = { id: 'usr-abdulmunim-swaleh', user_id: 'abdulmunim.swaleh', name: 'Abdulmunim Swaleh', role: 'Admin', status: 'active' };
     const directorUser = { id: 'usr-firdaus-ali', user_id: 'firdaus.ali', name: 'Firdaus Ali', role: 'Director', status: 'active' };
     const partnerUser = { id: 'usr-mohamed-amoody', user_id: 'mohamed.alamoody', name: 'Mohamed Alamoody', role: 'Partner', status: 'active' };
-    const foremanUser = { id: 'usr-daniel-arap', user_id: 'daniel.arap', name: 'Daniel Arap', role: 'Foreman', status: 'active' };
+    const foremanUser = { id: 'usr-daniel-arap', user_id: 'daniel.nzuki', name: 'Daniel Nzuki', role: 'Foreman', status: 'active' };
     const storekeeperUser = { id: 'usr-mohamed-majeed', user_id: 'mohamed.majeed', name: 'Mohamed Majeed', role: 'Storekeeper', status: 'active' };
 
     console.log('🔑 Establishing sessions for test personas...');

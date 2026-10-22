@@ -184,10 +184,10 @@ async function runTests() {
     // TEST 9 & 10: Role-Based Module Barriers (Foreman & Storekeeper)
     // -----------------------------------------------------------------
     console.log('\n--- TEST GROUP 6: Role-Based Module Barriers ---');
-    // Daniel Arap (Foreman - Majestic Palms)
-    const danielAcc = userMap['daniel.arap'];
+    // Daniel Nzuki (Foreman - Majestic Palms)
+    const danielAcc = userMap['daniel.nzuki'] || userMap['daniel.arap'];
     const danielLogin = await loginUser(majestic.id, danielAcc.userId, danielAcc.tempPassword);
-    assert('Daniel Arap (Foreman) logs into Majestic Palms', danielLogin.ok);
+    assert('Daniel Nzuki (Foreman) logs into Majestic Palms', danielLogin.ok);
     const danielCookie = danielLogin.cookie;
 
     // Foreman tries to access materials requests
