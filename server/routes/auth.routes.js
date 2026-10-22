@@ -335,6 +335,7 @@ router.post('/switch-project', requireAuth, async (req, res) => {
 
   const user = req.session.user;
   const userRole = (user.role || '').toLowerCase();
+  const isGlobalRole = ['admin', 'director'].includes(userRole);
   const canSwitchToAll = ['admin', 'director', 'partner'].includes(userRole);
 
   try {
