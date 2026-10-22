@@ -127,6 +127,69 @@ router.post('/', requireProjectAccess, async (req, res) => {
 });
 
 /**
+ * PUT /api/safety-delays/:id
+ * Update an existing record.
+ */
+router.put('/:id', requireProjectAccess, async (req, res) => {
+  const { id } = req.params;
+  const b = req.body;
+
+  try {
+    let photosStr = null;
+    if (b.photos && Array.isArray(b.photos)) {
+      photosStr = JSON.stringify(b.photos);
+    } else if (typeof b.photos === 'string') {
+      photosStr = b.photos;
+    }
+
+    await pool.query(`
+      UPDATE safety_and_delays SET
+        category = ?, title = ?, cause = ?, severity = ?, duration_hours = ?,
+        description = ?, action_taken = ?, total_amount = ?, visitor_name = ?,
+        visitor_org = ?, purpose = ?, photos = ?, date = ?
+      WHERE id = ?
+    `, [
+      b.category || 'delay',
+      b.title || 'Incident / Event',
+      b.cause || null,
+      b.severity || 'Medium',
+      Number(b.durationHours || 0),
+      b.description || '',
+      b.actionTaken || '',
+      Number(b.totalAmount || 0),
+      b.visitorName || null,
+      b.visitorOrg || null,
+      b.purpose || null,
+      photosStr,
+      b.date || new Date().toISOString().split('T')[0],
+      id
+    ]);
+
+    await logAuditEvent(req, 'UPDATE_SAFETY_DELAY', 'safety_delays', id, { category: b.category, title: b.title });
+
+    res.json({
+      id,
+      category: b.category,
+      title: b.title,
+      cause: b.cause,
+      severity: b.severity,
+      durationHours: Number(b.durationHours || 0),
+      description: b.description,
+      actionTaken: b.actionTaken,
+      totalAmount: Number(b.totalAmount || 0),
+      visitorName: b.visitorName,
+      visitorOrg: b.visitorOrg,
+      purpose: b.purpose,
+      photos: b.photos || [],
+      date: b.date || new Date().toISOString().split('T')[0]
+    });
+  } catch (err) {
+    console.error('Failed to update safety/delay entry:', err);
+    res.status(500).json({ error: 'Failed to update record', detail: err.message });
+  }
+});
+
+/**
  * DELETE /api/safety-delays/:id
  */
 router.delete('/:id', requireProjectAccess, async (req, res) => {

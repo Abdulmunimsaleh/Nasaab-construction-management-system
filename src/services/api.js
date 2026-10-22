@@ -188,6 +188,7 @@ export const api = {
   safetyDelays: {
     getAll: (projectId) => request(`/safety-delays${projectId && projectId !== 'all' ? `?projectId=${encodeURIComponent(projectId)}` : ''}`),
     create: (data) => request('/safety-delays', { method: 'POST', body: data }),
+    update: (id, data) => request(`/safety-delays/${id}`, { method: 'PUT', body: data }),
     delete: (id) => request(`/safety-delays/${id}`, { method: 'DELETE' })
   },
 

@@ -17,7 +17,9 @@ import {
   Camera,
   Image as ImageIcon,
   DollarSign,
-  Download
+  Download,
+  Pencil,
+  Trash2
 } from 'lucide-react';
 import { formatKES } from '../utils/formatters';
 import { generateSafetyDelaysReportPDF } from '../utils/pdfGenerator';
@@ -42,9 +44,18 @@ export const SafetyDelaysPage = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [viewingPhoto, setViewingPhoto] = useState(null);
 
+  // View / Edit / Delete state
+  const [viewingRecord, setViewingRecord] = useState(null);
+  const [editingRecord, setEditingRecord] = useState(null);
+  const [deletingRecord, setDeletingRecord] = useState(null);
+
   // File input refs for photo capture and gallery
   const cameraInputRef = useRef(null);
   const galleryInputRef = useRef(null);
+
+  // Edit modal photo refs
+  const editCameraInputRef = useRef(null);
+  const editGalleryInputRef = useRef(null);
 
   // New item modal form state
   const [newItem, setNewItem] = useState({
@@ -61,6 +72,9 @@ export const SafetyDelaysPage = () => {
     purpose: '',
     photos: []
   });
+
+  // Edit item form state
+  const [editItem, setEditItem] = useState(null);
 
   const [customRecords, setCustomRecords] = useState([]);
 
@@ -123,6 +137,41 @@ export const SafetyDelaysPage = () => {
 
   const handleRemovePhoto = (photoIndex) => {
     setNewItem((prev) => ({
+      ...prev,
+      photos: (prev.photos || []).filter((_, idx) => idx !== photoIndex)
+    }));
+  };
+
+  // Edit modal photo handlers
+  const handleEditPhotoUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    try {
+      const newPhotos = await Promise.all(
+        files.map(async (file) => {
+          const dataUrl = await fileToBase64(file);
+          return {
+            id: `photo-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+            name: file.name,
+            url: dataUrl,
+            date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          };
+        })
+      );
+      setEditItem((prev) => ({
+        ...prev,
+        photos: [...(prev.photos || []), ...newPhotos]
+      }));
+    } catch (err) {
+      addToast && addToast('Failed to process image attachment', 'error');
+    } finally {
+      e.target.value = '';
+    }
+  };
+
+  const handleEditRemovePhoto = (photoIndex) => {
+    setEditItem((prev) => ({
       ...prev,
       photos: (prev.photos || []).filter((_, idx) => idx !== photoIndex)
     }));
@@ -196,6 +245,78 @@ export const SafetyDelaysPage = () => {
     } catch (err) {
       console.error('Failed to save safety/delay record:', err);
       addToast && addToast('Failed to save record: ' + err.message, 'error');
+    }
+  };
+
+  // ── Edit handlers ──
+  const handleOpenEditModal = (item) => {
+    setEditItem({
+      id: item.id,
+      category: item.category || 'delay',
+      title: item.title || '',
+      severity: item.severity || 'Medium',
+      cause: item.cause || 'Weather / Heavy Rain',
+      durationHours: item.durationHours || 0,
+      description: item.description || '',
+      actionTaken: item.actionTaken || '',
+      totalAmount: item.totalAmount || '',
+      visitorName: item.visitorName || '',
+      visitorOrg: item.visitorOrg || '',
+      purpose: item.purpose || '',
+      photos: item.photos || [],
+      date: item.date || new Date().toISOString().split('T')[0]
+    });
+    setEditingRecord(item);
+  };
+
+  const handleUpdateItem = async (e) => {
+    e.preventDefault();
+    if (!editItem.title.trim()) {
+      addToast && addToast('Please enter a title or description', 'error');
+      return;
+    }
+
+    const updatedData = {
+      category: editItem.category,
+      title: editItem.title,
+      cause: editItem.cause,
+      severity: editItem.severity,
+      durationHours: Number(editItem.durationHours) || 0,
+      description: editItem.description,
+      actionTaken: editItem.actionTaken,
+      totalAmount: editItem.category === 'safety' ? (Number(editItem.totalAmount) || 0) : 0,
+      visitorName: editItem.visitorName,
+      visitorOrg: editItem.visitorOrg,
+      purpose: editItem.purpose,
+      photos: editItem.photos || [],
+      date: editItem.date
+    };
+
+    try {
+      await api.safetyDelays.update(editItem.id, updatedData);
+      setCustomRecords((prev) =>
+        prev.map((r) => (r.id === editItem.id ? { ...r, ...updatedData } : r))
+      );
+      addToast && addToast('Record updated successfully!');
+      setEditingRecord(null);
+      setEditItem(null);
+    } catch (err) {
+      console.error('Failed to update safety/delay record:', err);
+      addToast && addToast('Failed to update record: ' + err.message, 'error');
+    }
+  };
+
+  // ── Delete handler ──
+  const handleDeleteItem = async () => {
+    if (!deletingRecord) return;
+    try {
+      await api.safetyDelays.delete(deletingRecord.id);
+      setCustomRecords((prev) => prev.filter((r) => r.id !== deletingRecord.id));
+      addToast && addToast('Record deleted successfully!');
+      setDeletingRecord(null);
+    } catch (err) {
+      console.error('Failed to delete safety/delay record:', err);
+      addToast && addToast('Failed to delete record: ' + err.message, 'error');
     }
   };
 
@@ -289,6 +410,310 @@ export const SafetyDelaysPage = () => {
       console.error('Failed to generate safety PDF:', err);
       addToast && addToast('Failed to generate PDF: ' + err.message, 'error');
     }
+  };
+
+  // Helper: check if a record is from LAE (read-only, not editable/deletable)
+  const isLAERecord = (item) => !!(item.source && item.source.startsWith('LAE'));
+
+  // ── Reusable form fields component ──
+  const renderFormFields = (formData, setFormData, isEdit = false) => {
+    const inputRefCamera = isEdit ? editCameraInputRef : cameraInputRef;
+    const inputRefGallery = isEdit ? editGalleryInputRef : galleryInputRef;
+    const onPhotoUpload = isEdit ? handleEditPhotoUpload : handlePhotoUpload;
+    const onRemovePhoto = isEdit ? handleEditRemovePhoto : handleRemovePhoto;
+
+    return (
+      <>
+        <div>
+          <label className="block text-xs font-bold text-slate-700 mb-1">
+            Entry Category
+          </label>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { id: 'delay', label: 'Site Delay' },
+              { id: 'safety', label: 'Safety / HSE' },
+              { id: 'visitor', label: 'Site Visitor' }
+            ].map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setFormData({ ...formData, category: cat.id })}
+                className={`rounded-xl py-2 text-xs font-bold transition-all cursor-pointer ${formData.category === cat.id
+                  ? 'bg-amber-500 text-slate-950 shadow-xs'
+                  : 'border border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-slate-700 mb-1">
+            Title / Summary <span className="text-rose-500">*</span>
+          </label>
+          <input
+            type="text"
+            required
+            placeholder={
+              formData.category === 'visitor'
+                ? 'e.g. Structural inspection by Engineer David'
+                : formData.category === 'safety'
+                  ? 'e.g. Weekly Scaffold & PPE Safety Briefing'
+                  : 'e.g. Rain stoppage during excavation'
+            }
+            value={formData.title}
+            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
+          />
+        </div>
+
+        {formData.category === 'delay' && (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Delay Root Cause
+              </label>
+              <select
+                value={formData.cause}
+                onChange={(e) => setFormData({ ...formData, cause: e.target.value })}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
+              >
+                <option value="Weather / Heavy Rain">Weather / Heavy Rain</option>
+                <option value="Material Delivery Delayed">Material Delivery Delayed</option>
+                <option value="Power / Utility Outage">Power / Utility Outage</option>
+                <option value="Machinery Breakdown">Machinery Breakdown</option>
+                <option value="Council / Regulatory Inspection">Council / Regulatory Inspection</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Lost Hours
+              </label>
+              <input
+                type="number"
+                step="0.5"
+                min="0"
+                value={formData.durationHours}
+                onChange={(e) => setFormData({ ...formData, durationHours: e.target.value })}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
+              />
+            </div>
+          </div>
+        )}
+
+        {formData.category === 'safety' && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Severity Level
+                </label>
+                <select
+                  value={formData.severity}
+                  onChange={(e) => setFormData({ ...formData, severity: e.target.value })}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                >
+                  <option value="Low">Low (Toolbox / Routine)</option>
+                  <option value="Medium">Medium (Near Miss / Minor)</option>
+                  <option value="High">High (Immediate Hazard / Stoppage)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Remedial Action / Follow-up
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Issued PPE, hospital referral"
+                  value={formData.actionTaken}
+                  onChange={(e) => setFormData({ ...formData, actionTaken: e.target.value })}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+                <span className="flex items-center gap-1">
+                  <DollarSign className="h-3.5 w-3.5 text-rose-500" />
+                  <span>Total Amount (KES)</span>
+                </span>
+                <span className="text-[10px] text-slate-400 font-normal">Hospital & medical coverage for injury</span>
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="any"
+                placeholder="e.g. 15000 (Hospital bill, medication, worker medical cover)"
+                value={formData.totalAmount}
+                onChange={(e) => setFormData({ ...formData, totalAmount: e.target.value })}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:border-amber-500 focus:outline-hidden"
+              />
+            </div>
+          </div>
+        )}
+
+        {formData.category === 'visitor' && (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Visitor Full Name
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Eng. David Mwangi"
+                value={formData.visitorName}
+                onChange={(e) => setFormData({ ...formData, visitorName: e.target.value })}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Organization / Firm
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Lead Consultant"
+                value={formData.visitorOrg}
+                onChange={(e) => setFormData({ ...formData, visitorOrg: e.target.value })}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
+              />
+            </div>
+          </div>
+        )}
+
+        <div>
+          <label className="block text-xs font-bold text-slate-700 mb-1">
+            {formData.category === 'visitor'
+              ? 'Purpose of Visit & Observations'
+              : 'Detailed Description, Context and Resolution'}
+          </label>
+          <textarea
+            rows="2"
+            placeholder={
+              formData.category === 'visitor'
+                ? 'Purpose of inspection, areas visited, and remarks...'
+                : 'Detail observations, areas affected, or incident remarks...'
+            }
+            value={formData.description}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
+          />
+        </div>
+
+        {/* Photo Capture & Gallery Feature */}
+        <div className="space-y-2.5 rounded-2xl bg-slate-50/90 p-3.5 border border-slate-200/80">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+              <Camera className="h-4 w-4 text-amber-500" />
+              <span>
+                {formData.category === 'delay'
+                  ? 'Site Delay Photos & Evidence'
+                  : formData.category === 'safety'
+                    ? 'Safety & HSE Photos'
+                    : 'Site Visitor Photos & Badges'}
+              </span>
+            </label>
+            <span className="text-[11px] font-semibold text-slate-500">
+              {formData.photos?.length || 0} photo{(formData.photos?.length || 0) === 1 ? '' : 's'}
+            </span>
+          </div>
+
+          <p className="text-[11px] text-slate-500">
+            {formData.category === 'delay'
+              ? 'Capture or upload photos of site delay conditions, rainfall, machinery, or blockages.'
+              : formData.category === 'safety'
+                ? 'Capture or upload photos of safety inspections, toolbox talks, hazard areas, or PPE compliance.'
+                : 'Capture or upload photos of visitor log sheets, visitor badges, or inspected work areas.'}
+          </p>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => inputRefCamera.current?.click()}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 px-3.5 py-2 text-xs font-bold text-slate-950 cursor-pointer shadow-xs transition-colors"
+            >
+              <Camera className="h-3.5 w-3.5" />
+              <span>Take Photo</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => inputRefGallery.current?.click()}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-700 cursor-pointer shadow-2xs transition-colors"
+            >
+              <ImageIcon className="h-3.5 w-3.5 text-slate-500" />
+              <span>Choose from Gallery</span>
+            </button>
+          </div>
+
+          {/* Thumbnails preview in modal */}
+          {formData.photos && formData.photos.length > 0 && (
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 pt-1.5">
+              {formData.photos.map((photo, pIdx) => (
+                <div
+                  key={photo.id || pIdx}
+                  className="relative group rounded-xl overflow-hidden border border-slate-200 aspect-square bg-slate-100 shadow-2xs"
+                >
+                  <img
+                    src={photo.url}
+                    alt={photo.name || 'Site Photo'}
+                    className="h-full w-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => onRemovePhoto(pIdx)}
+                    className="absolute top-1 right-1 rounded-full bg-slate-900/80 p-1 text-white hover:bg-rose-600 transition-colors cursor-pointer"
+                    title="Remove photo"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/80 to-transparent p-1">
+                    <p className="truncate text-[9px] font-medium text-white">
+                      {photo.name || `Photo ${pIdx + 1}`}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Hidden file inputs for photo capture and gallery */}
+        <input
+          ref={inputRefCamera}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={onPhotoUpload}
+          className="hidden"
+        />
+        <input
+          ref={inputRefGallery}
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={onPhotoUpload}
+          className="hidden"
+        />
+      </>
+    );
+  };
+
+  // ── Render detail row for view modal ──
+  const renderDetailRow = (label, value) => {
+    if (!value && value !== 0) return null;
+    return (
+      <div className="flex flex-col sm:flex-row sm:items-start gap-1 py-2.5 border-b border-slate-100 last:border-b-0">
+        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider min-w-[140px] shrink-0">{label}</span>
+        <span className="text-xs text-slate-800 leading-relaxed">{value}</span>
+      </div>
+    );
   };
 
   return (
@@ -487,11 +912,53 @@ export const SafetyDelaysPage = () => {
                       <span>Total Amount: {formatKES(item.totalAmount)}</span>
                     </span>
                   )}
+
+                  {item.source && (
+                    <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-600 border border-blue-200">
+                      {item.source}
+                    </span>
+                  )}
                 </div>
 
-                <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  <span>{item.date}</span>
+                <div className="flex items-center gap-2">
+                  <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    <span>{item.date}</span>
+                  </div>
+
+                  {/* ── Action Buttons: View, Edit, Delete ── */}
+                  <div className="flex items-center gap-1 ml-2">
+                    <button
+                      onClick={() => setViewingRecord(item)}
+                      className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 bg-slate-50 border border-slate-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-all cursor-pointer"
+                      title="View details"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">View</span>
+                    </button>
+
+                    {!isLAERecord(item) && (
+                      <>
+                        <button
+                          onClick={() => handleOpenEditModal(item)}
+                          className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 bg-slate-50 border border-slate-200 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-300 transition-all cursor-pointer"
+                          title="Edit record"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          <span className="hidden sm:inline">Edit</span>
+                        </button>
+
+                        <button
+                          onClick={() => setDeletingRecord(item)}
+                          className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 bg-slate-50 border border-slate-200 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300 transition-all cursor-pointer"
+                          title="Delete record"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          <span className="hidden sm:inline">Delete</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -547,7 +1014,9 @@ export const SafetyDelaysPage = () => {
         )}
       </div>
 
-      {/* Modal: Log New Safety / Delay */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* Modal: Log New Safety / Delay (Add)                                */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
           <div className="w-full max-w-lg rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden max-h-[92vh] flex flex-col">
@@ -570,283 +1039,7 @@ export const SafetyDelaysPage = () => {
             </div>
 
             <form onSubmit={handleSaveItem} className="p-6 space-y-4 overflow-y-auto">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Entry Category
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { id: 'delay', label: 'Site Delay' },
-                    { id: 'safety', label: 'Safety / HSE' },
-                    { id: 'visitor', label: 'Site Visitor' }
-                  ].map((cat) => (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => setNewItem({ ...newItem, category: cat.id })}
-                      className={`rounded-xl py-2 text-xs font-bold transition-all cursor-pointer ${newItem.category === cat.id
-                        ? 'bg-amber-500 text-slate-950 shadow-xs'
-                        : 'border border-slate-200 text-slate-600 hover:bg-slate-50'
-                        }`}
-                    >
-                      {cat.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Title / Summary <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder={
-                    newItem.category === 'visitor'
-                      ? 'e.g. Structural inspection by Engineer David'
-                      : newItem.category === 'safety'
-                        ? 'e.g. Weekly Scaffold & PPE Safety Briefing'
-                        : 'e.g. Rain stoppage during excavation'
-                  }
-                  value={newItem.title}
-                  onChange={(e) => setNewItem({ ...newItem, title: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
-                />
-              </div>
-
-              {newItem.category === 'delay' && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Delay Root Cause
-                    </label>
-                    <select
-                      value={newItem.cause}
-                      onChange={(e) => setNewItem({ ...newItem, cause: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
-                    >
-                      <option value="Weather / Heavy Rain">Weather / Heavy Rain</option>
-                      <option value="Material Delivery Delayed">Material Delivery Delayed</option>
-                      <option value="Power / Utility Outage">Power / Utility Outage</option>
-                      <option value="Machinery Breakdown">Machinery Breakdown</option>
-                      <option value="Council / Regulatory Inspection">Council / Regulatory Inspection</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Lost Hours
-                    </label>
-                    <input
-                      type="number"
-                      step="0.5"
-                      min="0"
-                      value={newItem.durationHours}
-                      onChange={(e) => setNewItem({ ...newItem, durationHours: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {newItem.category === 'safety' && (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Severity Level
-                      </label>
-                      <select
-                        value={newItem.severity}
-                        onChange={(e) => setNewItem({ ...newItem, severity: e.target.value })}
-                        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
-                      >
-                        <option value="Low">Low (Toolbox / Routine)</option>
-                        <option value="Medium">Medium (Near Miss / Minor)</option>
-                        <option value="High">High (Immediate Hazard / Stoppage)</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Remedial Action / Follow-up
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Issued PPE, hospital referral"
-                        value={newItem.actionTaken}
-                        onChange={(e) => setNewItem({ ...newItem, actionTaken: e.target.value })}
-                        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
-                      <span className="flex items-center gap-1">
-                        <DollarSign className="h-3.5 w-3.5 text-rose-500" />
-                        <span>Total Amount (KES)</span>
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-normal">Hospital & medical coverage for injury</span>
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="any"
-                      placeholder="e.g. 15000 (Hospital bill, medication, worker medical cover)"
-                      value={newItem.totalAmount}
-                      onChange={(e) => setNewItem({ ...newItem, totalAmount: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:border-amber-500 focus:outline-hidden"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {newItem.category === 'visitor' && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Visitor Full Name
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Eng. David Mwangi"
-                      value={newItem.visitorName}
-                      onChange={(e) => setNewItem({ ...newItem, visitorName: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Organization / Firm
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Lead Consultant"
-                      value={newItem.visitorOrg}
-                      onChange={(e) => setNewItem({ ...newItem, visitorOrg: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {newItem.category === 'visitor'
-                    ? 'Purpose of Visit & Observations'
-                    : 'Detailed Description, Context and Resolution'}
-                </label>
-                <textarea
-                  rows="2"
-                  placeholder={
-                    newItem.category === 'visitor'
-                      ? 'Purpose of inspection, areas visited, and remarks...'
-                      : 'Detail observations, areas affected, or incident remarks...'
-                  }
-                  value={newItem.description}
-                  onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
-                />
-              </div>
-
-              {/* Photo Capture & Gallery Feature at bottom of form (Site Delay, Safety/HSE, and Site Visitor) */}
-              <div className="space-y-2.5 rounded-2xl bg-slate-50/90 p-3.5 border border-slate-200/80">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                    <Camera className="h-4 w-4 text-amber-500" />
-                    <span>
-                      {newItem.category === 'delay'
-                        ? 'Site Delay Photos & Evidence'
-                        : newItem.category === 'safety'
-                          ? 'Safety & HSE Photos'
-                          : 'Site Visitor Photos & Badges'}
-                    </span>
-                  </label>
-                  <span className="text-[11px] font-semibold text-slate-500">
-                    {newItem.photos?.length || 0} photo{(newItem.photos?.length || 0) === 1 ? '' : 's'}
-                  </span>
-                </div>
-
-                <p className="text-[11px] text-slate-500">
-                  {newItem.category === 'delay'
-                    ? 'Capture or upload photos of site delay conditions, rainfall, machinery, or blockages.'
-                    : newItem.category === 'safety'
-                      ? 'Capture or upload photos of safety inspections, toolbox talks, hazard areas, or PPE compliance.'
-                      : 'Capture or upload photos of visitor log sheets, visitor badges, or inspected work areas.'}
-                </p>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => cameraInputRef.current?.click()}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 px-3.5 py-2 text-xs font-bold text-slate-950 cursor-pointer shadow-xs transition-colors"
-                  >
-                    <Camera className="h-3.5 w-3.5" />
-                    <span>Take Photo</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => galleryInputRef.current?.click()}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-700 cursor-pointer shadow-2xs transition-colors"
-                  >
-                    <ImageIcon className="h-3.5 w-3.5 text-slate-500" />
-                    <span>Choose from Gallery</span>
-                  </button>
-                </div>
-
-                {/* Thumbnails preview in modal */}
-                {newItem.photos && newItem.photos.length > 0 && (
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 pt-1.5">
-                    {newItem.photos.map((photo, pIdx) => (
-                      <div
-                        key={photo.id || pIdx}
-                        className="relative group rounded-xl overflow-hidden border border-slate-200 aspect-square bg-slate-100 shadow-2xs"
-                      >
-                        <img
-                          src={photo.url}
-                          alt={photo.name || 'Site Photo'}
-                          className="h-full w-full object-cover"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleRemovePhoto(pIdx)}
-                          className="absolute top-1 right-1 rounded-full bg-slate-900/80 p-1 text-white hover:bg-rose-600 transition-colors cursor-pointer"
-                          title="Remove photo"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/80 to-transparent p-1">
-                          <p className="truncate text-[9px] font-medium text-white">
-                            {photo.name || `Photo ${pIdx + 1}`}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Hidden file inputs for photo capture and gallery */}
-              <input
-                ref={cameraInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={handlePhotoUpload}
-                className="hidden"
-              />
-              <input
-                ref={galleryInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handlePhotoUpload}
-                className="hidden"
-              />
+              {renderFormFields(newItem, setNewItem, false)}
 
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
@@ -864,6 +1057,233 @@ export const SafetyDelaysPage = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* Modal: View Record Details                                         */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {viewingRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-lg rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden max-h-[92vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 shrink-0">
+              <div className="flex items-center gap-2">
+                <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${
+                  viewingRecord.category === 'safety' ? 'bg-indigo-500/10 text-indigo-500'
+                    : viewingRecord.category === 'visitor' ? 'bg-purple-500/10 text-purple-500'
+                    : 'bg-amber-500/10 text-amber-500'
+                }`}>
+                  {viewingRecord.category === 'safety' ? <ShieldAlert className="h-5 w-5" />
+                    : viewingRecord.category === 'visitor' ? <Users className="h-5 w-5" />
+                    : <Clock className="h-5 w-5" />}
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Record Details</h3>
+                  <p className="text-[11px] text-slate-500">
+                    {viewingRecord.category === 'safety' ? 'Safety & HSE Entry'
+                      : viewingRecord.category === 'visitor' ? 'Site Visitor Entry'
+                      : 'Site Delay & Issue Entry'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setViewingRecord(null)}
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-4">
+              {/* Title & badges */}
+              <div>
+                <h2 className="text-base font-extrabold text-slate-900 leading-snug">{viewingRecord.title}</h2>
+                <div className="flex flex-wrap items-center gap-2 mt-2">
+                  <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                    viewingRecord.severity === 'High' ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                      : viewingRecord.severity === 'Medium' ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                      : 'bg-slate-100 text-slate-700'
+                  }`}>
+                    {viewingRecord.severity ? `${viewingRecord.severity} Severity` : viewingRecord.category.toUpperCase()}
+                  </span>
+                  <span className="text-[11px] text-slate-400 font-mono flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    {viewingRecord.date}
+                  </span>
+                  {viewingRecord.source && (
+                    <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-600 border border-blue-200">
+                      {viewingRecord.source}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Detail rows */}
+              <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4 divide-y divide-slate-100">
+                {renderDetailRow('Category', viewingRecord.category === 'delay' ? 'Site Delay / Issue' : viewingRecord.category === 'safety' ? 'Safety & HSE' : 'Site Visitor')}
+                {renderDetailRow('Root Cause', viewingRecord.cause)}
+                {renderDetailRow('Lost Hours', viewingRecord.durationHours > 0 ? `${viewingRecord.durationHours} hours` : null)}
+                {renderDetailRow('Description', viewingRecord.description)}
+                {renderDetailRow('Remedial Action', viewingRecord.actionTaken)}
+                {renderDetailRow('Total Amount', Number(viewingRecord.totalAmount) > 0 ? formatKES(viewingRecord.totalAmount) : null)}
+                {renderDetailRow('Visitor Name', viewingRecord.visitorName)}
+                {renderDetailRow('Organization', viewingRecord.visitorOrg)}
+                {renderDetailRow('Purpose', viewingRecord.purpose)}
+              </div>
+
+              {/* Photos */}
+              {viewingRecord.photos && viewingRecord.photos.length > 0 && (
+                <div className="space-y-2">
+                  <div className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+                    <Camera className="h-3.5 w-3.5 text-amber-500" />
+                    <span>Attached Photos & Evidence ({viewingRecord.photos.length})</span>
+                  </div>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                    {viewingRecord.photos.map((photo, pIdx) => (
+                      <button
+                        key={photo.id || pIdx}
+                        type="button"
+                        onClick={() => setViewingPhoto(photo)}
+                        className="relative group rounded-xl overflow-hidden border border-slate-200 aspect-square bg-slate-100 shadow-2xs hover:border-amber-400 hover:ring-2 hover:ring-amber-400/20 transition-all text-left cursor-pointer"
+                      >
+                        <img
+                          src={photo.url}
+                          alt={photo.name || 'Site Photo'}
+                          className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-200"
+                        />
+                        <div className="absolute inset-0 bg-slate-950/0 group-hover:bg-slate-950/30 transition-colors flex items-center justify-center">
+                          <Eye className="h-4 w-4 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Footer actions */}
+              <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                {!isLAERecord(viewingRecord) ? (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => { handleOpenEditModal(viewingRecord); setViewingRecord(null); }}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 px-3.5 py-2 text-xs font-bold text-slate-950 cursor-pointer shadow-xs transition-colors"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      <span>Edit Record</span>
+                    </button>
+                    <button
+                      onClick={() => { setDeletingRecord(viewingRecord); setViewingRecord(null); }}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 px-3.5 py-2 text-xs font-bold text-rose-700 cursor-pointer transition-colors"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span>Delete</span>
+                    </button>
+                  </div>
+                ) : (
+                  <span className="text-[11px] text-slate-400 italic">Read-only (sourced from LAE form)</span>
+                )}
+                <button
+                  onClick={() => setViewingRecord(null)}
+                  className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* Modal: Edit Record                                                  */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {editingRecord && editItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-lg rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden max-h-[92vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500">
+                  <Pencil className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Edit Record</h3>
+                  <p className="text-[11px] text-slate-500">Update this safety, delay, or visitor entry</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setEditingRecord(null); setEditItem(null); }}
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateItem} className="p-6 space-y-4 overflow-y-auto">
+              {renderFormFields(editItem, setEditItem, true)}
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => { setEditingRecord(null); setEditItem(null); }}
+                  className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2 text-xs font-bold text-slate-950 shadow-xs cursor-pointer"
+                >
+                  Update Record
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* Modal: Delete Confirmation                                          */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {deletingRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-sm rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="flex items-center gap-3 border-b border-slate-100 px-6 py-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-100 text-rose-600">
+                <Trash2 className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Delete Record</h3>
+                <p className="text-[11px] text-slate-500">This action cannot be undone</p>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 space-y-3">
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Are you sure you want to permanently delete this record?
+              </p>
+              <div className="rounded-xl bg-slate-50 border border-slate-100 p-3">
+                <p className="text-xs font-bold text-slate-800 truncate">{deletingRecord.title}</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  {deletingRecord.category === 'delay' ? 'Site Delay' : deletingRecord.category === 'safety' ? 'Safety / HSE' : 'Site Visitor'} • {deletingRecord.date}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 border-t border-slate-100 px-6 py-4">
+              <button
+                onClick={() => setDeletingRecord(null)}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteItem}
+                className="rounded-xl bg-rose-600 hover:bg-rose-500 px-4 py-2 text-xs font-bold text-white shadow-xs cursor-pointer transition-colors"
+              >
+                Delete Permanently
+              </button>
+            </div>
           </div>
         </div>
       )}
