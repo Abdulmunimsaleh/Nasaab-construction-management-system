@@ -466,7 +466,7 @@ export async function initPostgresSchema(pool) {
       { id: 'usr-mohamed-amin', name: 'Mohamed Amin', userId: 'mohamed.amin', role: 'Director', token: '22ac7cbc70e68360dc0c03a94bef0eff527ecc25e5adf8f7', pass: 'Nsb#244bf8f3!633' },
       { id: 'usr-firdaus-ali', name: 'Firdaus Ali', userId: 'firdaus.ali', role: 'Director', token: '8b3295cefa705e9d8cc78977b01c83aafdc25f08d6a0f5a8', pass: 'Nsb#7cc6b89c!890' },
       { id: 'usr-mohamed-amoody', name: 'Mohamed Alamoody', userId: 'mohamed.alamoody', role: 'Partner', token: '05006079e09998474f3751a106e8e61457237dff7573e655', pass: 'Nsb#52888720!342', projects: ['prj-mma', 'prj-majestic-palms', 'prj-seacrest'] },
-      { id: 'usr-mohamed-majeed', name: 'Mohamed Majeed', userId: 'mohamed.majeed', role: 'Storekeeper', token: '6d9da26d40ee1e467d337f766e4324fbf45bc38fdf28e232', pass: 'Nsb#2d36faeb!338', project: 'prj-majestic-palms' },
+      { id: 'usr-mohamed-majid', name: 'Mohamed Majid', userId: 'mohamed.majid', role: 'Storekeeper', token: '6d9da26d40ee1e467d337f766e4324fbf45bc38fdf28e232', pass: 'Nsb#2d36faeb!338', project: 'prj-majestic-palms' },
       { id: 'usr-daniel-arap', name: 'Daniel Nzuki', userId: 'daniel.nzuki', role: 'Foreman', token: 'a06a25b2f2939b4b087a32dbb48c48a7b05537651a2e4c84', pass: 'Nsb#680979ea!509', project: 'prj-majestic-palms' },
       { id: 'usr-salah-amir', name: 'Salah Amir', userId: 'salah.amir', role: 'Storekeeper', token: '5cfaeb356f93fe135546d1bf5f8664161bcf7bb57d6e6a10', pass: 'Nsb#11be245a!183', project: 'prj-majestic-palms' },
       { id: 'usr-ali-amir', name: 'Ali Amir', userId: 'ali.amir', role: 'Storekeeper', token: '1daee3e07d72658fa9a1d94e2daec9a611c01062c3e41416', pass: 'Nsb#99c679a9!547', project: 'prj-majestic-palms' },

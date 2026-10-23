@@ -109,7 +109,7 @@ async function provision() {
 
       // Majestic Palms Personnel
       { id: 'usr-mohamed-amoody', name: 'Mohamed Alamoody', userId: 'mohamed.alamoody', role: 'Partner' },
-      { id: 'usr-mohamed-majeed', name: 'Mohamed Majeed', userId: 'mohamed.majeed', role: 'Storekeeper' },
+      { id: 'usr-mohamed-majid', name: 'Mohamed Majid', userId: 'mohamed.majid', role: 'Storekeeper' },
       { id: 'usr-daniel-arap', name: 'Daniel Nzuki', userId: 'daniel.nzuki', role: 'Foreman' },
       { id: 'usr-salah-amir', name: 'Salah Amir', userId: 'salah.amir', role: 'Storekeeper' },
       { id: 'usr-ali-amir', name: 'Ali Amir', userId: 'ali.amir', role: 'Storekeeper' },
@@ -176,7 +176,7 @@ async function provision() {
       // Majestic Palms
       { projectId: 'prj-majestic-palms', userId: 'usr-mohamed-amoody', role: 'Partner' },
       { projectId: 'prj-majestic-palms', userId: 'usr-abdulfatah-sabir', role: 'Partner' },
-      { projectId: 'prj-majestic-palms', userId: 'usr-mohamed-majeed', role: 'Storekeeper' },
+      { projectId: 'prj-majestic-palms', userId: 'usr-mohamed-majid', role: 'Storekeeper' },
       { projectId: 'prj-majestic-palms', userId: 'usr-daniel-arap', role: 'Foreman' },
       { projectId: 'prj-majestic-palms', userId: 'usr-salah-amir', role: 'Storekeeper' },
       { projectId: 'prj-majestic-palms', userId: 'usr-ali-amir', role: 'Storekeeper' },

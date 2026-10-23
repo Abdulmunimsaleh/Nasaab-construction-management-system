@@ -100,7 +100,7 @@ async function runWeeklyReportTests() {
     const directorUser = { id: 'usr-firdaus-ali', user_id: 'firdaus.ali', name: 'Firdaus Ali', role: 'Director', status: 'active' };
     const partnerUser = { id: 'usr-mohamed-amoody', user_id: 'mohamed.alamoody', name: 'Mohamed Alamoody', role: 'Partner', status: 'active' };
     const foremanUser = { id: 'usr-daniel-arap', user_id: 'daniel.nzuki', name: 'Daniel Nzuki', role: 'Foreman', status: 'active' };
-    const storekeeperUser = { id: 'usr-mohamed-majeed', user_id: 'mohamed.majeed', name: 'Mohamed Majeed', role: 'Storekeeper', status: 'active' };
+    const storekeeperUser = { id: 'usr-mohamed-majid', user_id: 'mohamed.majid', name: 'Mohamed Majid', role: 'Storekeeper', status: 'active' };
 
     console.log('🔑 Establishing sessions for test personas...');
     const adminCookie = await createPersonaSession(adminUser, 'prj-majestic-palms');

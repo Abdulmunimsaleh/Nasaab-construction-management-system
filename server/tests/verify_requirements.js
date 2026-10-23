@@ -226,28 +226,28 @@ async function runTests() {
     assert('Foreman successfully creates Labour, Activity & Equipment Form (201)', foremanCreateLAE.status === 201);
     const createdFormId = foremanCreateLAE.body.form.id;
 
-    // Mohamed Majeed (Storekeeper - Majestic Palms)
-    const majeedAcc = userMap['mohamed.majeed'];
-    const majeedLogin = await loginUser(majestic.id, majeedAcc.userId, majeedAcc.tempPassword);
-    assert('Mohamed Majeed (Storekeeper) logs into Majestic Palms', majeedLogin.ok);
-    const majeedCookie = majeedLogin.cookie;
+    // Mohamed Majid (Storekeeper - Majestic Palms)
+    const majidAcc = userMap['mohamed.majid'];
+    const majidLogin = await loginUser(majestic.id, majidAcc.userId, majidAcc.tempPassword);
+    assert('Mohamed Majid (Storekeeper) logs into Majestic Palms', majidLogin.ok);
+    const majidCookie = majidLogin.cookie;
 
     // Storekeeper tries to access LAE forms
     const storekeeperLAE = await request('/lae-forms', {
-      headers: { Cookie: majeedCookie }
+      headers: { Cookie: majidCookie }
     });
     assert('Storekeeper FORBIDDEN from LAE Forms (403)', storekeeperLAE.status === 403);
 
     // Storekeeper tries to access costs
     const storekeeperCosts = await request('/costs', {
-      headers: { Cookie: majeedCookie }
+      headers: { Cookie: majidCookie }
     });
     assert('Storekeeper FORBIDDEN from Financial Costs (403)', storekeeperCosts.status === 403);
 
     // Storekeeper CAN submit Material Needed request
     const storekeeperCreateMR = await request('/material-requests', {
       method: 'POST',
-      headers: { Cookie: majeedCookie },
+      headers: { Cookie: majidCookie },
       body: JSON.stringify({
         projectId: majestic.id,
         dateNeeded: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0],
@@ -271,7 +271,7 @@ async function runTests() {
 
     // Storekeeper tries to tamper projectId parameter to access another project's materials
     const tamperedMaterials = await request(`/material-requests?projectId=${mma.id}`, {
-      headers: { Cookie: majeedCookie } // majeed is only assigned to majestic
+      headers: { Cookie: majidCookie } // majid is only assigned to majestic
     });
     assert('Storekeeper denied accessing materials of unassigned project (403)', tamperedMaterials.status === 403);
 
