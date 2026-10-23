@@ -31,6 +31,7 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import { generateMaterialExpensesReportPDF } from '../utils/pdfGenerator';
+import { isUserRestrictedFromFunds } from '../utils/auth';
 import api from '../services/api';
 
 const FUNDS_STORAGE_KEY = 'nasaab_material_expenses_funds_master';
@@ -52,11 +53,15 @@ export const MaterialExpensesPage = () => {
   const {
     projects,
     currentProject,
+    currentUser,
     selectedProjectId,
     companySettings,
     addToast,
-    isStoreKeeper
+    isStoreKeeper,
+    isFundsRestricted
   } = useApp();
+
+  const isRestricted = isFundsRestricted || isUserRestrictedFromFunds(currentUser, currentProject || selectedProjectId);
 
   // -------------------------------------------------------------
   // 1. PROJECT ID IDENTIFICATION
@@ -94,7 +99,7 @@ export const MaterialExpensesPage = () => {
   const loadDatabaseExpenses = async () => {
     try {
       const promises = [api.materialExpenses.getAll(selectedProjectId)];
-      if (!isStoreKeeper) {
+      if (!isStoreKeeper && !isRestricted) {
         promises.push(api.developerFunds.getAll(selectedProjectId).catch(() => []));
       }
       const results = await Promise.all(promises);
@@ -578,7 +583,8 @@ export const MaterialExpensesPage = () => {
         expenses: filteredExpenses,
         metrics,
         companySettings,
-        isStoreKeeper: Boolean(isStoreKeeper)
+        isStoreKeeper: Boolean(isStoreKeeper),
+        isFundsRestricted: Boolean(isRestricted)
       });
       const fileCode = (activeProj.code || activeProj.name || 'Site').replace(/[^a-zA-Z0-9_-]/g, '_');
       doc.save(`Material_Expenses_${fileCode}_${new Date().toISOString().split('T')[0]}.pdf`);
@@ -642,7 +648,7 @@ export const MaterialExpensesPage = () => {
       {/* ------------------------------------------------------------- */}
       {/* 2. TOP STATS CARDS (Admin, Director & Partner Only)           */}
       {/* ------------------------------------------------------------- */}
-      {!isStoreKeeper && (
+      {!isStoreKeeper && !isRestricted && (
         /* Full Financial Overview: Developer Funds & Balance for Admin, Director, and Partners */
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Total Funds Received */}
@@ -711,10 +717,46 @@ export const MaterialExpensesPage = () => {
         </div>
       )}
 
+      {!isStoreKeeper && isRestricted && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Total Material Expenses */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-4.5 shadow-2xs flex items-center gap-4 transition-all hover:shadow-xs">
+            <div className="h-12 w-12 rounded-xl bg-amber-50 border border-amber-100/80 flex items-center justify-center text-amber-500 shrink-0">
+              <ShoppingCart className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">
+                Total Material Expenses
+              </div>
+              <div className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-0.5 font-mono">
+                {formatKSh(metrics.totalMaterialExpenses)}
+              </div>
+              <div className="text-[11px] text-slate-400 mt-0.5">Spent on materials</div>
+            </div>
+          </div>
+
+          {/* Recorded Transactions */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-4.5 shadow-2xs flex items-center gap-4 transition-all hover:shadow-xs">
+            <div className="h-12 w-12 rounded-xl bg-blue-50 border border-blue-100/80 flex items-center justify-center text-blue-500 shrink-0">
+              <Receipt className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">
+                Material Transactions
+              </div>
+              <div className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-0.5 font-mono">
+                {filteredExpenses.length} Entries
+              </div>
+              <div className="text-[11px] text-slate-400 mt-0.5">Purchases recorded</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ------------------------------------------------------------- */}
       {/* 3. FUNDS RECEIVED SECTION (Admin, Director & Partner Only)    */}
       {/* ------------------------------------------------------------- */}
-      {!isStoreKeeper && (
+      {!isStoreKeeper && !isRestricted && (
         <div className="space-y-3">
           {/* Header row */}
           <div className="flex items-center justify-between">

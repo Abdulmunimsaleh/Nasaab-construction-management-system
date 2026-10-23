@@ -11,7 +11,8 @@ import {
   hasFullAccess,
   canSwitchSites,
   normalizeRole,
-  isUserRestrictedFromLabour
+  isUserRestrictedFromLabour,
+  isUserRestrictedFromFunds
 } from '../utils/auth';
 
 const AppContext = createContext(null);
@@ -556,6 +557,8 @@ export const AppProvider = ({ children }) => {
     hasFullAccess: hasFullAccess(userRole),
     canAccessCosts: canAccessCosts(userRole),
     isLabourRestricted: isUserRestrictedFromLabour(currentUser, currentProject || selectedProjectId),
+    isFundsRestricted: isUserRestrictedFromFunds(currentUser, currentProject || selectedProjectId),
+    isFinancialRestricted: isUserRestrictedFromFunds(currentUser, currentProject || selectedProjectId),
 
     // Real DB Entity Data
     projects,

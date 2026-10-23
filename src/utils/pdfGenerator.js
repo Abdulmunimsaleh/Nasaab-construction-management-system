@@ -2601,24 +2601,26 @@ export const generateMaterialExpensesReportPDF = ({
   metrics = {},
   companySettings,
   author,
-  isStoreKeeper = false
+  isStoreKeeper = false,
+  isFundsRestricted = false
 }) => {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const projName = project?.name || 'All Sites Combined';
-  const subtitle = isStoreKeeper
+  const hideFinancials = Boolean(isStoreKeeper || isFundsRestricted);
+  const subtitle = hideFinancials
     ? `Project Site: ${projName} (${project?.code || 'SITE'}) • Material Purchases & Inward Deliveries`
     : `Project Site: ${projName} (${project?.code || 'SITE'}) • Financial Audit, Developer Funding & Purchases`;
-  const reportTitle = isStoreKeeper
+  const reportTitle = hideFinancials
     ? 'Material Expense & Procurement Register'
     : 'Material Expenses & Financial Audit Dossier';
-  const bannerTag = isStoreKeeper
+  const bannerTag = hideFinancials
     ? 'Official Material Purchases & Deliveries Log'
     : 'Material Procurement Expenditure & Working Capital Audit';
 
   let currentY = renderReportHeader(doc, companySettings, reportTitle, subtitle, bannerTag);
 
-  // For storekeepers: STRICTLY hide all financial KPIs and Developer funds
-  if (!isStoreKeeper) {
+  // For storekeepers and funds-restricted users: STRICTLY hide all financial KPIs and Developer funds
+  if (!hideFinancials) {
     const totalFunds = metrics.totalFundsReceived !== undefined
       ? metrics.totalFundsReceived
       : funds.reduce((s, f) => s + (Number(f.amount) || 0), 0);

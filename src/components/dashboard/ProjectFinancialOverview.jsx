@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
 import api from '../../services/api';
+import { isUserRestrictedFromFunds } from '../../utils/auth';
 import {
   Coins,
   ArrowUp,
@@ -46,12 +47,16 @@ export const ProjectFinancialOverview = () => {
     projects,
     selectedProjectId,
     currentProject,
+    currentUser,
     laeForms,
     addToast,
     triggerCelebration,
     isForeman,
-    isStoreKeeper
+    isStoreKeeper,
+    isFundsRestricted
   } = useApp();
+
+  const isRestricted = isFundsRestricted || isUserRestrictedFromFunds(currentUser, currentProject || selectedProjectId);
 
   // Active workspace label
   const activeWorkspaceName = selectedProjectId === 'all'
@@ -89,7 +94,7 @@ export const ProjectFinancialOverview = () => {
   const [safetyList, setSafetyList] = useState([]);
 
   useEffect(() => {
-    if (isForeman || isStoreKeeper) return;
+    if (isForeman || isStoreKeeper || isRestricted) return;
     let isMounted = true;
     const loadFinancials = async () => {
       try {
@@ -338,6 +343,10 @@ export const ProjectFinancialOverview = () => {
       setIsDepositModalOpen(false);
     }
   };
+
+  if (isRestricted || isForeman || isStoreKeeper) {
+    return null;
+  }
 
   return (
     <div className="space-y-6">

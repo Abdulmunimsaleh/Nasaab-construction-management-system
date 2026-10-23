@@ -38,6 +38,7 @@ export const Dashboard = () => {
     isDirector,
     isPartner,
     isLabourRestricted,
+    isFundsRestricted,
     isDataLoading
   } = useApp();
 
@@ -205,8 +206,8 @@ export const Dashboard = () => {
         )}
       </div>
 
-      {/* Project Financial Overview: Developer Funds & Labour Expenses (Restricted: hidden for Foremen and Storekeepers) */}
-      {!isForeman && !isStoreKeeper && <ProjectFinancialOverview />}
+      {/* Project Financial Overview: Developer Funds & Labour Expenses (Restricted: hidden for Foremen, Storekeepers, and SeaCrest partners Mohamed Hussein & Abdi Mahad) */}
+      {!isForeman && !isStoreKeeper && !isFundsRestricted && <ProjectFinancialOverview />}
 
       {/* Active Construction Sites Grid */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">

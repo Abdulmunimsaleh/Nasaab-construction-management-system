@@ -116,6 +116,34 @@ export const isUserRestrictedFromLabour = (user, projectOrId) => {
   return pStr.includes('seacrest') || pStr === 'prj-seacrest' || pStr === 'sc-01' || pStr === 'all';
 };
 
+// Helper: Check if a user is Mohamed Hussein or Abdi Mahad on SeaCrest project
+// They are partners restricted from accessing Project Financial Overview and Developer Funds & Deposits History on SeaCrest
+export const isUserRestrictedFromFunds = (user, projectOrId) => {
+  if (!user) return false;
+  const username = String(user.userId || user.user_id || '').trim().toLowerCase();
+  const userId = String(user.id || '').trim().toLowerCase();
+  const name = String(user.name || '').trim().toLowerCase();
+
+  const isTarget =
+    username === 'mohamed.hussein' ||
+    username === 'abdi.mahad' ||
+    userId === 'usr-mohamed-hussein' ||
+    userId === 'usr-abdi-mahad' ||
+    name === 'mohamed hussein' ||
+    name === 'abdi mahad';
+
+  if (!isTarget) return false;
+
+  if (!projectOrId) return true; // Default assigned to SeaCrest
+
+  const pStr = typeof projectOrId === 'string'
+    ? projectOrId.toLowerCase()
+    : String(projectOrId.id || projectOrId.code || projectOrId.name || '').toLowerCase();
+
+  return pStr.includes('seacrest') || pStr === 'prj-seacrest' || pStr === 'sc-01' || pStr === 'all';
+};
+
+
 // ============================================================================
 // WEEKLY REPORTS PERMISSIONS
 // 1. Full weekly report: Admin, Director, Partner only

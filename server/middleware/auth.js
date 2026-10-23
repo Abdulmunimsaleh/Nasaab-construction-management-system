@@ -230,3 +230,30 @@ export function isLabourRestrictedUser(user, projectId) {
   return pStr === 'prj-seacrest' || pStr === 'sc-01' || pStr.includes('seacrest') || pStr === 'all';
 }
 
+/**
+ * 7. Helper: Check if user is Mohamed Hussein or Abdi Mahad on SeaCrest project
+ * Both partners are strictly restricted from Project Financial Overview and Developer Funds & Deposits History on SeaCrest.
+ */
+export function isFundsRestrictedUser(user, projectId) {
+  if (!user) return false;
+  const username = String(user.userId || user.user_id || '').trim().toLowerCase();
+  const userId = String(user.id || '').trim().toLowerCase();
+  const name = String(user.name || '').trim().toLowerCase();
+
+  const isTarget =
+    username === 'mohamed.hussein' ||
+    username === 'abdi.mahad' ||
+    userId === 'usr-mohamed-hussein' ||
+    userId === 'usr-abdi-mahad' ||
+    name === 'mohamed hussein' ||
+    name === 'abdi mahad';
+
+  if (!isTarget) return false;
+
+  if (!projectId) return true; // Default assigned to SeaCrest
+
+  const pStr = String(projectId).trim().toLowerCase();
+  return pStr === 'prj-seacrest' || pStr === 'sc-01' || pStr.includes('seacrest') || pStr === 'all';
+}
+
+
