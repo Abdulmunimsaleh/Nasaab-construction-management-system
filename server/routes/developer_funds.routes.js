@@ -10,7 +10,7 @@
 import express from 'express';
 import crypto from 'crypto';
 import pool from '../db.js';
-import { requireAuth, requireProjectAccess, logAuditEvent, isFundsRestrictedUser } from '../middleware/auth.js';
+import { requireAuth, requireProjectAccess, logAuditEvent } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -28,30 +28,12 @@ router.use((req, res, next) => {
   next();
 });
 
-// Security: Block Mohamed Hussein and Abdi Mahad from accessing developer funds on SeaCrest
-router.use((req, res, next) => {
-  const pId = req.query.projectId || req.body?.projectId || req.params?.projectId || req.session?.activeProjectId;
-  if (isFundsRestrictedUser(req.session?.user, pId)) {
-    return res.status(403).json({
-      error: 'Access restricted',
-      message: 'Mohamed Hussein and Abdi Mahad do not have access to developer funds or project financial overview on SeaCrest.'
-    });
-  }
-  next();
-});
-
 /**
  * GET /api/developer-funds
  * List funds deposits.
  */
 router.get('/', requireProjectAccess, async (req, res) => {
   const pId = req.authorizedProjectId;
-  if (isFundsRestrictedUser(req.session?.user, pId)) {
-    return res.status(403).json({
-      error: 'Access restricted',
-      message: 'Mohamed Hussein and Abdi Mahad do not have access to developer funds or project financial overview on SeaCrest.'
-    });
-  }
   try {
     let query = `
       SELECT df.*, p.name as project_name, p.code as project_code 
@@ -109,14 +91,6 @@ router.post('/', requireProjectAccess, async (req, res) => {
   const b = req.body;
   const id = b.id && !b.id.startsWith('temp-') ? b.id : `fund-${crypto.randomBytes(6).toString('hex')}`;
   const targetProjectId = b.projectId || pId;
-
-  if (isFundsRestrictedUser(req.session?.user, targetProjectId)) {
-    return res.status(403).json({
-      error: 'Access restricted',
-      message: 'Mohamed Hussein and Abdi Mahad are not authorized to record developer funds on SeaCrest.'
-    });
-  }
-
   const amount = Number(b.amount || 0);
   if (isNaN(amount) || amount <= 0) {
     return res.status(400).json({ error: 'A valid positive deposit amount is required.' });
@@ -176,14 +150,6 @@ router.put('/:id', requireProjectAccess, async (req, res) => {
     });
   }
 
-  const [existing] = await pool.query('SELECT project_id FROM developer_funds WHERE id = ?', [id]);
-  if (existing.length > 0 && isFundsRestrictedUser(req.session?.user, existing[0].project_id)) {
-    return res.status(403).json({
-      error: 'Access restricted',
-      message: 'Mohamed Hussein and Abdi Mahad are not authorized to modify developer funds on SeaCrest.'
-    });
-  }
-
   const b = req.body;
   try {
     await pool.query(`
@@ -227,14 +193,6 @@ router.delete('/:id', requireProjectAccess, async (req, res) => {
     return res.status(403).json({
       error: 'Forbidden',
       message: 'Foremen and Storekeepers cannot delete financial funds.'
-    });
-  }
-
-  const [existing] = await pool.query('SELECT project_id FROM developer_funds WHERE id = ?', [id]);
-  if (existing.length > 0 && isFundsRestrictedUser(req.session?.user, existing[0].project_id)) {
-    return res.status(403).json({
-      error: 'Access restricted',
-      message: 'Mohamed Hussein and Abdi Mahad are not authorized to delete developer funds on SeaCrest.'
     });
   }
 
