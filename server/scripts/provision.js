@@ -117,15 +117,19 @@ async function provision() {
       { id: 'usr-mohamed-ainen', name: 'Mohamed Ainen', userId: 'mohamed.ainen', role: 'Storekeeper' },
 
       // MMA Personnel
+      // MMA Personnel
       { id: 'usr-abdulfatah-sabir', name: 'Abdulfatah Sabir', userId: 'abdulfatah.sabir', role: 'Partner' },
       { id: 'usr-fatma-jumaan', name: 'Fatma Jumaan', userId: 'fatma.jumaan', role: 'Partner' },
       { id: 'usr-abdikadir-osman', name: 'Abdikadir Osman', userId: 'abdikadir.osman', role: 'Storekeeper' },
       { id: 'usr-mohammad-hassan', name: 'Mohammad Hassan', userId: 'mohammad.hassan', role: 'Foreman' },
+      { id: 'usr-moses-muchua', name: 'Moses Muchua', userId: 'moses.muchua', role: 'Foreman' },
+      { id: 'usr-alvis-kahingu', name: 'Alvis Kahingu', userId: 'alvis.kahingu', role: 'Storekeeper' },
 
       // SeaCrest Personnel
       { id: 'usr-mohamed-hussein', name: 'Mohamed Hussein', userId: 'mohamed.hussein', role: 'Partner' },
       { id: 'usr-abdi-mahad', name: 'Abdi Mahad', userId: 'abdi.mahad', role: 'Partner' },
-      { id: 'usr-yusuf-faiz', name: 'Yusuf Faiz', userId: 'yusuf.faiz', role: 'Storekeeper' },
+      { id: 'usr-yusuf-faiz', name: 'Yusuf Ismail', userId: 'yusuf.ismail', role: 'Storekeeper' },
+      { id: 'usr-francis-oyieko', name: 'Eng.Francis Oyieko', userId: 'francis.oyieko', role: 'Storekeeper' },
       { id: 'usr-hussein-munga', name: 'Hussein Munga', userId: 'hussein.munga', role: 'Foreman' }
     ];
 
@@ -189,6 +193,8 @@ async function provision() {
       { projectId: 'prj-mma', userId: 'usr-fatma-jumaan', role: 'Partner' },
       { projectId: 'prj-mma', userId: 'usr-abdikadir-osman', role: 'Storekeeper' },
       { projectId: 'prj-mma', userId: 'usr-mohammad-hassan', role: 'Foreman' },
+      { projectId: 'prj-mma', userId: 'usr-moses-muchua', role: 'Foreman' },
+      { projectId: 'prj-mma', userId: 'usr-alvis-kahingu', role: 'Storekeeper' },
 
       // SeaCrest
       { projectId: 'prj-seacrest', userId: 'usr-mohamed-amoody', role: 'Partner' },
@@ -196,6 +202,7 @@ async function provision() {
       { projectId: 'prj-seacrest', userId: 'usr-mohamed-hussein', role: 'Partner' },
       { projectId: 'prj-seacrest', userId: 'usr-abdi-mahad', role: 'Partner' },
       { projectId: 'prj-seacrest', userId: 'usr-yusuf-faiz', role: 'Storekeeper' },
+      { projectId: 'prj-seacrest', userId: 'usr-francis-oyieko', role: 'Storekeeper' },
       { projectId: 'prj-seacrest', userId: 'usr-hussein-munga', role: 'Foreman' }
     ];
 

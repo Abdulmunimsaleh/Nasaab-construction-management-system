@@ -170,7 +170,7 @@ async function seedSiteData() {
           'urgent',
           'approved',
           'usr-yusuf-faiz',
-          'Yusuf Faiz',
+          'Yusuf Ismail',
           'Ready for 2nd floor concrete pour on Saturday'
         ]
       );

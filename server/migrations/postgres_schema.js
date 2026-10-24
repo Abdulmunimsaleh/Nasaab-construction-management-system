@@ -477,9 +477,12 @@ export async function initPostgresSchema(pool) {
       { id: 'usr-mohammad-hassan', name: 'Mohammad Hassan', userId: 'mohammad.hassan', role: 'Foreman', token: '492b45e751d3b019183d21b7987b7a14e941164931a26d7f', pass: 'Nsb#e62846fa!168', project: 'prj-mma' },
       { id: 'usr-mohamed-hussein', name: 'Mohamed Hussein', userId: 'mohamed.hussein', role: 'Partner', token: '7b545f44da235775c742353a29082ebc22d1df7b663b6a98', pass: 'Nsb#9d67bc88!315', project: 'prj-seacrest' },
       { id: 'usr-abdi-mahad', name: 'Abdi Mahad', userId: 'abdi.mahad', role: 'Partner', token: '870420d40232c9540b79da9d682490aa563b73e5bf2a82fa', pass: 'Nsb#7da69622!166', project: 'prj-seacrest' },
-      { id: 'usr-yusuf-faiz', name: 'Yusuf Faiz', userId: 'yusuf.faiz', role: 'Storekeeper', token: 'da3039d6ec67e4dd38b0e6e73685f09623545dfc04c0ec8f', pass: 'Nsb#0b65a587!594', project: 'prj-seacrest' },
+      { id: 'usr-yusuf-faiz', name: 'Yusuf Ismail', userId: 'yusuf.ismail', role: 'Storekeeper', token: 'da3039d6ec67e4dd38b0e6e73685f09623545dfc04c0ec8f', pass: 'Nsb#0b65a587!594', project: 'prj-seacrest' },
       { id: 'usr-hussein-munga', name: 'Hussein Munga', userId: 'hussein.munga', role: 'Foreman', token: '5c0cf3b1e32d189bb53e7d6a50cbe5c3b1ea0cf200c9ea47', pass: 'Nsb#120c904e!442', project: 'prj-seacrest' },
-      { id: 'usr-fatma-jumaan', name: 'Fatma Jumaan', userId: 'fatma.jumaan', role: 'Partner', token: 'd098b117588ac5faec90a3324c7afa9c347079effa3174e7', pass: 'Nsb#b41e5c35!696', project: 'prj-mma' }
+      { id: 'usr-fatma-jumaan', name: 'Fatma Jumaan', userId: 'fatma.jumaan', role: 'Partner', token: 'd098b117588ac5faec90a3324c7afa9c347079effa3174e7', pass: 'Nsb#b41e5c35!696', project: 'prj-mma' },
+      { id: 'usr-francis-oyieko', name: 'Eng.Francis Oyieko', userId: 'francis.oyieko', role: 'Storekeeper', token: '2b66a9acd111afe53dc268d1861c54d14c3a7222a5837cc2', pass: 'Nsb#8908e735!587', project: 'prj-seacrest' },
+      { id: 'usr-moses-muchua', name: 'Moses Muchua', userId: 'moses.muchua', role: 'Foreman', token: 'f29ea28de4f0998fdd072eb9503e8c44df9f6f339bdeae81', pass: 'Nsb#c3911fc4!747', project: 'prj-mma' },
+      { id: 'usr-alvis-kahingu', name: 'Alvis Kahingu', userId: 'alvis.kahingu', role: 'Storekeeper', token: '2caa5a97922dd78a5c2108a21272157d25394b6577027220', pass: 'Nsb#b4df881b!736', project: 'prj-mma' }
     ];
 
     for (const u of defaultUsers) {
