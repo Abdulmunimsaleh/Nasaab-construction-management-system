@@ -169,7 +169,7 @@ async function seedSiteData() {
           '2026-10-17',
           'urgent',
           'approved',
-          'usr-yusuf-faiz',
+          'usr-yusuf-ismail',
           'Yusuf Ismail',
           'Ready for 2nd floor concrete pour on Saturday'
         ]
